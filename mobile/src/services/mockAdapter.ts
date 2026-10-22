@@ -32,12 +32,14 @@ import {
 } from '../types/api';
 import type { Exercise } from '../types/exercise';
 import type { WorkoutProgram } from '../types/program';
-import type { InjuryRestriction, UserProfile } from '../types/user';
+import type { InjuryRestriction, AuthUser, UserProfile } from '../types/user';
 import type { ExerciseSet, WorkoutSession } from '../types/workout';
 
 const STATUS_TEXT: Record<number, string> = {
   200: 'OK',
   201: 'Created',
+  202: 'Accepted',
+  204: 'No Content',
   400: 'Bad Request',
   401: 'Unauthorized',
   403: 'Forbidden',
@@ -49,6 +51,10 @@ const STATUS_TEXT: Record<number, string> = {
   502: 'Bad Gateway',
   503: 'Service Unavailable',
 };
+
+/** Credentials of the account seeded in the mock backend. */
+export const MOCK_DEMO_EMAIL = 'alex@ironmind.ai';
+export const MOCK_DEMO_PASSWORD = 'ironmind123';
 
 class MockHttpError extends Error {
   readonly status: number;
@@ -63,13 +69,60 @@ class MockHttpError extends Error {
   }
 }
 
+/** Account known by the mock backend. */
+type MockUser = {
+  id: string;
+  name: string;
+  email: string;
+  /** Mock only: it is never a real credential. */
+  password: string;
+  role: 'USER';
+};
+
+/**
+ * Trivial, non reversible hash.
+ *
+ * The mock backend has no security boundary; the hash only keeps the plain
+ * password out of the state dump.
+ */
+function mockHash(value: string): string {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `mock$${(hash >>> 0).toString(16)}`;
+}
+
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+function toAuthUser(user: MockUser): AuthUser {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+  };
+}
+
 type MockState = {
+  /** Access tokens accepted by the mock backend. */
   tokens: Set<string>;
+  /** Refresh tokens still usable, mapped to their owner. */
+  refreshTokens: Map<string, MockUser>;
+  /** Refresh tokens already revoked, used to detect reuse. */
+  revokedRefreshTokens: Set<string>;
+  /** Single use recovery tokens, mapped to their owner. */
+  resetTokens: Map<string, MockUser>;
+  /** Registered accounts, keyed by the normalized e-mail. */
+  users: Map<string, MockUser>;
   profile: UserProfile;
   restrictions: InjuryRestriction[];
   sessions: WorkoutSession[];
-  /** Idempotency key -> already created response body. */
-  idempotency: Map<string, unknown>;
+  /** Idempotency key -> request fingerprint and the created response. */
+  idempotency: Map<string, { fingerprint: string; response: unknown }>;
   sequence: number;
 };
 
@@ -77,6 +130,7 @@ type RouteContext = {
   params: Record<string, string>;
   query: URLSearchParams;
   body: Record<string, unknown>;
+  headers: Record<string, string>;
   path: string;
 };
 
@@ -88,13 +142,46 @@ type MockRoute = {
   handler: (context: RouteContext) => unknown;
 };
 
+const MOCK_RESPONSE_FLAG = '__mockResponse';
+
+/** Response of a route that does not answer with `200 OK`. */
+type MockHandlerResult = {
+  [MOCK_RESPONSE_FLAG]: true;
+  status: number;
+  data: unknown;
+};
+
+function respond(status: number, data: unknown): MockHandlerResult {
+  return { [MOCK_RESPONSE_FLAG]: true, status, data };
+}
+
+function isHandlerResult(value: unknown): value is MockHandlerResult {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    (value as MockHandlerResult)[MOCK_RESPONSE_FLAG] === true
+  );
+}
+
 function createState(): MockState {
+  const demoUser: MockUser = {
+    id: MOCK_USER_PROFILE.user.id,
+    name: MOCK_USER_PROFILE.user.name,
+    email: normalizeEmail(MOCK_USER_PROFILE.user.email),
+    password: mockHash(MOCK_DEMO_PASSWORD),
+    role: 'USER',
+  };
+
   return {
     tokens: new Set<string>(),
+    refreshTokens: new Map<string, MockUser>(),
+    revokedRefreshTokens: new Set<string>(),
+    resetTokens: new Map<string, MockUser>(),
+    users: new Map<string, MockUser>([[demoUser.email, demoUser]]),
     profile: structuredClone(MOCK_USER_PROFILE),
     restrictions: structuredClone(MOCK_RESTRICTIONS),
     sessions: structuredClone(MOCK_SESSIONS),
-    idempotency: new Map<string, unknown>(),
+    idempotency: new Map<string, { fingerprint: string; response: unknown }>(),
     sequence: 1,
   };
 }
@@ -172,49 +259,11 @@ function buildRoute(
 
 function buildRoutes(state: MockState): MockRoute[] {
   return [
-    buildRoute('POST', '/auth/login', false, ({ body, path }) => {
-      const email = typeof body.email === 'string' ? body.email.trim() : '';
-      const password = typeof body.password === 'string' ? body.password : '';
-      const fieldErrors: FieldError[] = [];
-
-      if (!email) {
-        fieldErrors.push({ field: 'email', message: 'obrigatório' });
-      } else if (!email.includes('@')) {
-        fieldErrors.push({ field: 'email', message: 'deve conter um e-mail válido' });
-      }
-      if (password.length < 8) {
-        fieldErrors.push({
-          field: 'password',
-          message: 'deve ter ao menos 8 caracteres',
-        });
-      }
-      if (fieldErrors.length > 0) {
-        fail(
-          422,
-          API_ERROR_CODES.VALIDATION_ERROR,
-          'E-mail ou senha inválidos.',
-          path,
-          fieldErrors
-        );
-      }
-
-      const accessToken = `mock-access-${nextId('token', state)}`;
-      const refreshToken = `mock-refresh-${nextId('token', state)}`;
-      state.tokens.add(accessToken);
-      state.profile.user.email = email;
-
-      return {
-        accessToken,
-        refreshToken,
-        tokenType: 'Bearer' as const,
-        expiresIn: 900,
-        user: state.profile.user,
-      };
-    }),
-
-    buildRoute('POST', '/auth/register', false, ({ body, path }) => {
+    buildRoute('POST', '/auth/register', false, ({ body, headers, path }) => {
       const name = typeof body.name === 'string' ? body.name.trim() : '';
-      const email = typeof body.email === 'string' ? body.email.trim() : '';
+      const email = normalizeEmail(
+        typeof body.email === 'string' ? body.email : ''
+      );
       const password = typeof body.password === 'string' ? body.password : '';
       const fieldErrors: FieldError[] = [];
 
@@ -229,6 +278,11 @@ function buildRoutes(state: MockState): MockRoute[] {
           field: 'password',
           message: 'deve ter ao menos 8 caracteres',
         });
+      } else if (!/[a-zA-Z]/.test(password) || !/\d/.test(password)) {
+        fieldErrors.push({
+          field: 'password',
+          message: 'deve conter ao menos uma letra e um número',
+        });
       }
       if (fieldErrors.length > 0) {
         fail(
@@ -240,24 +294,232 @@ function buildRoutes(state: MockState): MockRoute[] {
         );
       }
 
-      state.profile.user = { ...state.profile.user, name, email };
+      const idempotencyKey = headers['idempotency-key'];
+      const fingerprint = mockHash(JSON.stringify({ name, email, password }));
+
+      if (idempotencyKey) {
+        const previous = state.idempotency.get(idempotencyKey);
+        if (previous) {
+          if (previous.fingerprint !== fingerprint) {
+            fail(
+              409,
+              API_ERROR_CODES.IDEMPOTENCY_KEY_REUSED,
+              'Esta operação já foi registrada com outro conteúdo.',
+              path
+            );
+          }
+          // Same key and same body: the same account, without duplicates.
+          return respond(200, previous.response);
+        }
+      }
+
+      if (state.users.has(email)) {
+        fail(
+          409,
+          API_ERROR_CODES.EMAIL_ALREADY_IN_USE,
+          'Este e-mail já está cadastrado.',
+          path
+        );
+      }
+
+      const user: MockUser = {
+        id: nextId('usr', state),
+        name,
+        email,
+        password: mockHash(password),
+        role: 'USER',
+      };
+      state.users.set(email, user);
+      state.profile.user = toAuthUser(user);
+
       const accessToken = `mock-access-${nextId('token', state)}`;
       const refreshToken = `mock-refresh-${nextId('token', state)}`;
       state.tokens.add(accessToken);
+      state.refreshTokens.set(refreshToken, user);
+
+      const response = {
+        accessToken,
+        refreshToken,
+        tokenType: 'Bearer' as const,
+        expiresIn: 900,
+        user: toAuthUser(user),
+      };
+
+      if (idempotencyKey) {
+        state.idempotency.set(idempotencyKey, { fingerprint, response });
+      }
+
+      return respond(201, response);
+    }),
+
+    buildRoute('POST', '/auth/login', false, ({ body, path }) => {
+      const email = normalizeEmail(
+        typeof body.email === 'string' ? body.email : ''
+      );
+      const password = typeof body.password === 'string' ? body.password : '';
+      const fieldErrors: FieldError[] = [];
+
+      if (!email) {
+        fieldErrors.push({ field: 'email', message: 'obrigatório' });
+      } else if (!email.includes('@')) {
+        fieldErrors.push({ field: 'email', message: 'deve conter um e-mail válido' });
+      }
+      if (fieldErrors.length > 0) {
+        fail(
+          422,
+          API_ERROR_CODES.VALIDATION_ERROR,
+          'Não foi possível entrar.',
+          path,
+          fieldErrors
+        );
+      }
+
+      const user = state.users.get(email);
+      if (!user || user.password !== mockHash(password)) {
+        // The same answer for an unknown e-mail and for a wrong password.
+        fail(
+          401,
+          API_ERROR_CODES.INVALID_CREDENTIALS,
+          'E-mail ou senha inválidos.',
+          path
+        );
+      }
+
+      state.profile.user = toAuthUser(user);
+
+      const accessToken = `mock-access-${nextId('token', state)}`;
+      const refreshToken = `mock-refresh-${nextId('token', state)}`;
+      state.tokens.add(accessToken);
+      state.refreshTokens.set(refreshToken, user);
 
       return {
         accessToken,
         refreshToken,
         tokenType: 'Bearer' as const,
         expiresIn: 900,
-        user: state.profile.user,
+        user: toAuthUser(user),
       };
     }),
 
-    buildRoute('POST', '/auth/logout', true, ({ body }) => {
-      const token = typeof body.accessToken === 'string' ? body.accessToken : '';
-      state.tokens.delete(token);
-      return { success: true };
+    buildRoute('POST', '/auth/refresh', false, ({ body, path }) => {
+      const refreshToken =
+        typeof body.refreshToken === 'string' ? body.refreshToken : '';
+      const user = state.refreshTokens.get(refreshToken);
+
+      if (!user) {
+        // Expired, revoked or already used: the family is over.
+        fail(
+          401,
+          API_ERROR_CODES.INVALID_REFRESH_TOKEN,
+          'Refresh token inválido, expirado ou revogado.',
+          path
+        );
+      }
+
+      state.refreshTokens.delete(refreshToken);
+      state.revokedRefreshTokens.add(refreshToken);
+
+      const accessToken = `mock-access-${nextId('token', state)}`;
+      const nextRefreshToken = `mock-refresh-${nextId('token', state)}`;
+      state.tokens.add(accessToken);
+      state.refreshTokens.set(nextRefreshToken, user);
+
+      return {
+        accessToken,
+        refreshToken: nextRefreshToken,
+        tokenType: 'Bearer' as const,
+        expiresIn: 900,
+        user: toAuthUser(user),
+      };
+    }),
+
+    buildRoute('POST', '/auth/logout', false, ({ body }) => {
+      const refreshToken =
+        typeof body.refreshToken === 'string' ? body.refreshToken : '';
+      // Revoking an already revoked token is not an error (SPEC 7.7).
+      state.refreshTokens.delete(refreshToken);
+      state.revokedRefreshTokens.add(refreshToken);
+      return respond(204, null);
+    }),
+
+    buildRoute('POST', '/auth/forgot-password', false, ({ body, path }) => {
+      const email = normalizeEmail(
+        typeof body.email === 'string' ? body.email : ''
+      );
+
+      if (!email.includes('@')) {
+        fail(
+          422,
+          API_ERROR_CODES.VALIDATION_ERROR,
+          'Informe um e-mail válido.',
+          path,
+          [{ field: 'email', message: 'deve conter um e-mail válido' }]
+        );
+      }
+
+      const user = state.users.get(email);
+      if (user) {
+        const resetToken = `mock-reset-${nextId('token', state)}`;
+        state.resetTokens.set(resetToken, user);
+      }
+
+      // The answer is the same when the e-mail is not registered.
+      return respond(202, {
+        message:
+          'Se o e-mail estiver cadastrado, você receberá as instruções em instantes.',
+      });
+    }),
+
+    buildRoute('POST', '/auth/reset-password', false, ({ body, path }) => {
+      const token = typeof body.token === 'string' ? body.token : '';
+      const newPassword =
+        typeof body.newPassword === 'string' ? body.newPassword : '';
+      const fieldErrors: FieldError[] = [];
+
+      if (newPassword.length < 8) {
+        fieldErrors.push({
+          field: 'newPassword',
+          message: 'deve ter ao menos 8 caracteres',
+        });
+      } else if (!/[a-zA-Z]/.test(newPassword) || !/\d/.test(newPassword)) {
+        fieldErrors.push({
+          field: 'newPassword',
+          message: 'deve conter ao menos uma letra e um número',
+        });
+      }
+      if (fieldErrors.length > 0) {
+        fail(
+          422,
+          API_ERROR_CODES.VALIDATION_ERROR,
+          'Não foi possível alterar a senha.',
+          path,
+          fieldErrors
+        );
+      }
+
+      const user = state.resetTokens.get(token);
+      if (!user) {
+        fail(
+          401,
+          API_ERROR_CODES.INVALID_RESET_TOKEN,
+          'Token de recuperação inválido, usado ou expirado.',
+          path
+        );
+      }
+
+      // The token has a single use.
+      state.resetTokens.delete(token);
+      user.password = mockHash(newPassword);
+
+      // Recovering the password ends every open session.
+      state.refreshTokens.forEach((owner, refreshToken) => {
+        if (owner.id === user.id) {
+          state.refreshTokens.delete(refreshToken);
+          state.revokedRefreshTokens.add(refreshToken);
+        }
+      });
+
+      return respond(204, null);
     }),
 
     buildRoute('GET', '/users/me', true, () => state.profile),
@@ -579,6 +841,24 @@ function defaultValidateStatus(status: number): boolean {
   return status >= 200 && status < 300;
 }
 
+function readHeaders(config: InternalAxiosRequestConfig): Record<string, string> {
+  const headers = AxiosHeaders.from(config.headers).toJSON() as Record<
+    string,
+    string | string[] | undefined
+  >;
+  const result: Record<string, string> = {};
+
+  Object.entries(headers).forEach(([key, value]) => {
+    if (typeof value === 'string') {
+      result[key.toLowerCase()] = value;
+    } else if (Array.isArray(value)) {
+      result[key.toLowerCase()] = value.join(',');
+    }
+  });
+
+  return result;
+}
+
 /** Creates the axios adapter that emulates the IronMind AI backend. */
 export function createMockAdapter(): AxiosAdapter {
   const state = createState();
@@ -589,6 +869,7 @@ export function createMockAdapter(): AxiosAdapter {
     const path = resolvePath(config);
     const query = resolveQuery(config);
     const body = resolveBody(config);
+    const headers = readHeaders(config);
 
     const route = routes.find(
       (item) => item.method === method && item.pattern.test(path)
@@ -607,8 +888,7 @@ export function createMockAdapter(): AxiosAdapter {
       );
     }
 
-    const headers = AxiosHeaders.from(config.headers);
-    const authorization = headers.get('Authorization');
+    const authorization = headers.authorization;
     const token =
       typeof authorization === 'string'
         ? authorization.replace('Bearer ', '')
@@ -634,8 +914,11 @@ export function createMockAdapter(): AxiosAdapter {
     });
 
     try {
-      const data = route.handler({ params, query, body, path });
-      return buildResponse(config, data, 200);
+      const result = route.handler({ params, query, body, headers, path });
+      if (isHandlerResult(result)) {
+        return buildResponse(config, result.data, result.status);
+      }
+      return buildResponse(config, result, 200);
     } catch (error) {
       if (error instanceof MockHttpError) {
         return buildResponse(config, error.body, error.status);

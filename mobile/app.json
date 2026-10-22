@@ -18,7 +18,14 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0B0E10"
       },
-      "permissions": ["android.permission.POST_NOTIFICATIONS", "android.permission.VIBRATE"]
+      "permissions": ["android.permission.POST_NOTIFICATIONS", "android.permission.VIBRATE"],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "category": ["BROWSABLE", "DEFAULT"],
+          "data": [{ "scheme": "ironmind", "host": "reset-password" }]
+        }
+      ]
     },
     "plugins": [
       "expo-router",

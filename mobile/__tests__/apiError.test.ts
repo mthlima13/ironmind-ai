@@ -1,7 +1,7 @@
 import { AxiosError, AxiosHeaders, type AxiosResponse } from 'axios';
 
-import { api, mapApiError } from '../src/services/api';
-import { API_ERROR_CODES } from '../src/types/api';
+import { DEFAULT_MESSAGES, api, mapApiError } from '../src/services/api';
+import { API_ERROR_CODES, type ApiErrorCode } from '../src/types/api';
 
 function buildAxiosError(
   data: unknown,
@@ -108,6 +108,43 @@ describe('mapApiError', () => {
     const second = mapApiError(first);
 
     expect(second).toBe(first);
+  });
+});
+
+describe('authentication error codes', () => {
+  const cases: [ApiErrorCode, number, string][] = [
+    [
+      API_ERROR_CODES.EMAIL_ALREADY_IN_USE,
+      409,
+      'Este e-mail já está cadastrado.',
+    ],
+    [
+      API_ERROR_CODES.INVALID_CREDENTIALS,
+      401,
+      'E-mail ou senha inválidos.',
+    ],
+    [
+      API_ERROR_CODES.INVALID_REFRESH_TOKEN,
+      401,
+      'Sua sessão expirou. Entre novamente.',
+    ],
+    [
+      API_ERROR_CODES.INVALID_RESET_TOKEN,
+      401,
+      'O link de recuperação expirou. Peça um novo.',
+    ],
+  ];
+
+  it.each(cases)('maps %s and keeps the default message', (code, status, message) => {
+    const result = mapApiError(buildAxiosError({ code }, status));
+
+    expect(result.code).toBe(code);
+    expect(result.status).toBe(status);
+    expect(result.message).toBe(message);
+  });
+
+  it.each(cases)('has a default message for %s', (code, _status, message) => {
+    expect(DEFAULT_MESSAGES[code]).toBe(message);
   });
 });
 

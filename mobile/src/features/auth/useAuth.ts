@@ -39,11 +39,12 @@ export function useRegister() {
 export function useLogout() {
   const logout = useAuthStore((state) => state.logout);
   const clearError = useAuthStore((state) => state.clearError);
+  const isSubmitting = useAuthStore((state) => state.isSubmitting);
 
   const execute = useCallback(async () => {
     clearError();
     await logout();
   }, [logout, clearError]);
 
-  return { logout: execute };
+  return { logout: execute, isSubmitting };
 }

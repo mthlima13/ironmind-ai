@@ -7,6 +7,7 @@ import { Button } from '../../components/Button';
 import { ErrorState } from '../../components/ErrorState';
 import { Screen } from '../../components/Screen';
 import { TextField } from '../../components/TextField';
+import { ROUTES } from '../../navigation/linking';
 import { colors, radii, spacing, typography } from '../../theme';
 import { useAuthStore } from './auth.store';
 import {
@@ -102,7 +103,19 @@ export function LoginScreen() {
           accessibilityRole="link"
           onPress={() => {
             clearError();
-            router.push('/auth/register');
+            router.push(ROUTES.forgotPassword);
+          }}
+          style={styles.link}
+          testID="login-go-forgot-password"
+        >
+          <Text style={styles.linkText}>Esqueci minha senha</Text>
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="link"
+          onPress={() => {
+            clearError();
+            router.push(ROUTES.register);
           }}
           style={styles.link}
           testID="login-go-register"

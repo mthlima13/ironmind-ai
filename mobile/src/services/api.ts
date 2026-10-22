@@ -4,6 +4,8 @@
  * Responsibilities:
  * - point to the API base URL (`EXPO_PUBLIC_API_URL`);
  * - attach the bearer token to every private request (SPEC A.4);
+ * - renew the session by itself when the access token expires
+ *   (SPEC 7.7 - renovação, SPEC 14.1);
  * - normalize every failure into the single error shape of SPEC A.1.
  */
 import {
@@ -15,16 +17,45 @@ import {
   type InternalAxiosRequestConfig,
 } from 'axios';
 
-import { getAccessToken } from '../storage/secureToken';
+import {
+  clearTokens,
+  getAccessToken,
+  getRefreshToken,
+  saveAccessToken,
+  saveRefreshToken,
+} from '../storage/secureToken';
 import { setConnectionStatus } from './connection';
+import { ENDPOINTS } from './endpoints';
+import { emitSessionExpired } from './sessionEvents';
 import {
   API_ERROR_CODES,
   type ApiError,
   type ApiErrorCode,
   type ApiErrorResponse,
+  type AuthResponse,
   type FieldError,
 } from '../types/api';
 import { createMockAdapter } from './mockAdapter';
+
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    /**
+     * Internal flag: the request must never trigger the automatic renewal.
+     * Used by the refresh call itself, so the client never loops.
+     */
+    skipAuthRefresh?: boolean;
+    /**
+     * Internal flag: the automatic renewal already happened for this
+     * request, so a new 401 must not start another renewal.
+     */
+    authRefreshAttempted?: boolean;
+    /**
+     * Internal: the body before the JSON serialization. It is kept to
+     * replay the request after a renewal.
+     */
+    replayBody?: unknown;
+  }
+}
 
 export const DEFAULT_API_BASE_URL = 'http://localhost:8080/api/v1';
 
@@ -51,7 +82,8 @@ const STATUS_TO_CODE: Record<number, ApiErrorCode> = {
   503: API_ERROR_CODES.AI_UNAVAILABLE,
 };
 
-const DEFAULT_MESSAGES: Record<ApiErrorCode, string> = {
+/** Default message of every error code, used when the API sends none. */
+export const DEFAULT_MESSAGES: Record<ApiErrorCode, string> = {
   [API_ERROR_CODES.VALIDATION_ERROR]: 'Confira os dados informados.',
   [API_ERROR_CODES.UNAUTHENTICATED]: 'Sua sessão expirou. Entre novamente.',
   [API_ERROR_CODES.FORBIDDEN]: 'Você não tem permissão para acessar este recurso.',
@@ -63,6 +95,11 @@ const DEFAULT_MESSAGES: Record<ApiErrorCode, string> = {
   [API_ERROR_CODES.AI_UNAVAILABLE]: 'O serviço de IA está indisponível no momento.',
   [API_ERROR_CODES.AI_INVALID_RESPONSE]:
     'O serviço de IA retornou uma resposta inesperada.',
+  [API_ERROR_CODES.EMAIL_ALREADY_IN_USE]: 'Este e-mail já está cadastrado.',
+  [API_ERROR_CODES.INVALID_CREDENTIALS]: 'E-mail ou senha inválidos.',
+  [API_ERROR_CODES.INVALID_REFRESH_TOKEN]: 'Sua sessão expirou. Entre novamente.',
+  [API_ERROR_CODES.INVALID_RESET_TOKEN]:
+    'O link de recuperação expirou. Peça um novo.',
   [API_ERROR_CODES.NETWORK_ERROR]:
     'Sem conexão com o servidor. Verifique sua internet e tente novamente.',
   [API_ERROR_CODES.UNKNOWN_ERROR]:
@@ -156,19 +193,147 @@ function readRequestBody(data: unknown): string | undefined {
   return data;
 }
 
+/** Endpoints of the authentication group: they are public (SPEC 11.1). */
+const PUBLIC_AUTH_PATHS = [
+  ENDPOINTS.auth.login,
+  ENDPOINTS.auth.register,
+  ENDPOINTS.auth.refresh,
+  ENDPOINTS.auth.logout,
+  ENDPOINTS.auth.forgotPassword,
+  ENDPOINTS.auth.resetPassword,
+];
+
+/**
+ * Tells if the request goes to a public endpoint of the authentication
+ * group. The bearer token is not sent to them: an expired token must never
+ * break a public call.
+ */
+function isPublicAuthRequest(url: string | undefined): boolean {
+  if (!url) {
+    return false;
+  }
+  const path = (url.split('?')[0] ?? '').replace(/\/$/, '');
+  return PUBLIC_AUTH_PATHS.some(
+    (candidate) => path === candidate || path.endsWith(candidate)
+  );
+}
+
 /** Attaches the bearer token to private requests (SPEC A.4). */
 async function authRequestInterceptor(
   config: InternalAxiosRequestConfig
 ): Promise<InternalAxiosRequestConfig> {
-  const token = await getAccessToken();
-  if (token) {
-    config.headers.set('Authorization', `Bearer ${token}`);
+  // The body is kept before the serialization, so the request can be
+  // replayed after a renewal.
+  config.replayBody = config.data;
+
+  if (!isPublicAuthRequest(config.url)) {
+    const token = await getAccessToken();
+    if (token) {
+      config.headers.set('Authorization', `Bearer ${token}`);
+    }
   }
   return config;
 }
 
-/** Normalizes every failure so the UI only deals with `ApiError`. */
-function errorResponseInterceptor(error: unknown): Promise<never> {
+/** Result of an attempt to renew the access token. */
+type RenewalResult =
+  | { status: 'renewed'; accessToken: string }
+  | { status: 'expired' }
+  | { status: 'failed'; error: ApiError };
+
+function isSessionRejection(error: ApiError): boolean {
+  return (
+    error.code === API_ERROR_CODES.INVALID_REFRESH_TOKEN ||
+    error.code === API_ERROR_CODES.UNAUTHENTICATED
+  );
+}
+
+/**
+ * Renews the access token with the rotating refresh token (SPEC 7.7).
+ *
+ * The refresh token is stored in the secure store and is replaced by the new
+ * one on every renewal. When the server rejects the token the session is
+ * over: the credentials are dropped and the app is told to go back to the
+ * login screen.
+ */
+async function renewAccessToken(instance: AxiosInstance): Promise<RenewalResult> {
+  const refreshToken = await getRefreshToken();
+
+  if (!refreshToken) {
+    await clearTokens();
+    emitSessionExpired();
+    return { status: 'expired' };
+  }
+
+  try {
+    const response = await instance.post<AuthResponse>(
+      ENDPOINTS.auth.refresh,
+      { refreshToken },
+      { skipAuthRefresh: true }
+    );
+
+    await saveAccessToken(response.data.accessToken);
+    await saveRefreshToken(response.data.refreshToken);
+
+    return { status: 'renewed', accessToken: response.data.accessToken };
+  } catch (error) {
+    const apiError = mapApiError(error);
+
+    if (isSessionRejection(apiError)) {
+      await clearTokens();
+      emitSessionExpired();
+      return { status: 'expired' };
+    }
+
+    return { status: 'failed', error: apiError };
+  }
+}
+
+/**
+ * Normalizes every failure so the UI only deals with `ApiError` and renews
+ * the session when the access token expired.
+ *
+ * The renewal never happens on the public endpoints of the authentication
+ * group: there a `401` is a domain answer (invalid credentials, invalid
+ * recovery token), not an expired access token.
+ */
+async function errorResponseInterceptor(
+  instance: AxiosInstance,
+  error: unknown
+): Promise<never> {
+  const axiosError = error as AxiosError<Partial<ApiErrorResponse>>;
+  const config = axiosError.config;
+  const status = axiosError.response?.status;
+
+  if (
+    status === 401 &&
+    config &&
+    !config.skipAuthRefresh &&
+    !isPublicAuthRequest(config.url)
+  ) {
+    if (config.authRefreshAttempted) {
+      // The renewed token was refused as well: the session is over.
+      await clearTokens();
+      emitSessionExpired();
+    } else {
+      const renewal = await renewAccessToken(instance);
+
+      if (renewal.status === 'renewed') {
+        config.authRefreshAttempted = true;
+        config.headers.set('Authorization', `Bearer ${renewal.accessToken}`);
+        if (config.replayBody !== undefined) {
+          config.data = config.replayBody;
+        }
+        return instance.request(config);
+      }
+
+      if (renewal.status === 'failed') {
+        setConnectionStatus(!renewal.error.isNetworkError);
+        return Promise.reject(renewal.error);
+      }
+    }
+  }
+
   const apiError = mapApiError(error);
   setConnectionStatus(!apiError.isNetworkError);
   return Promise.reject(apiError);
@@ -192,7 +357,7 @@ export function createApiClient(options: ApiClientOptions = {}): AxiosInstance {
       setConnectionStatus(true);
       return response;
     },
-    errorResponseInterceptor
+    (error: unknown) => errorResponseInterceptor(instance, error)
   );
 
   const useMock = options.useMock ?? USE_MOCK_API;

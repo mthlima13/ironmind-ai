@@ -10,6 +10,7 @@ import { useAppFonts } from '../src/hooks/useAppFonts';
 import { useConnectionSync } from '../src/hooks/useConnectionSync';
 import { useSessionPersistence } from '../src/hooks/useSessionPersistence';
 import { BackHandlerProvider } from '../src/navigation/BackHandlerProvider';
+import { useDeepLinks } from '../src/navigation/useDeepLinks';
 import { colors } from '../src/theme';
 
 const queryClient = new QueryClient({
@@ -32,6 +33,7 @@ export default function RootLayout() {
 
   useSessionPersistence();
   useConnectionSync();
+  useDeepLinks();
 
   const isAuthenticated = status === 'authenticated';
 
@@ -64,6 +66,12 @@ export default function RootLayout() {
               options={{
                 presentation: 'modal',
                 title: 'Coach IA',
+              }}
+            />
+            <Stack.Screen
+              name="reset-password"
+              options={{
+                title: 'Definir nova senha',
               }}
             />
           </Stack>

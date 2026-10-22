@@ -73,7 +73,7 @@ function OptionRow<T extends string>({
 }
 
 export default function ProfileScreen() {
-  const { logout } = useLogout();
+  const { logout, isSubmitting: isLoggingOut } = useLogout();
   const { data: profile, isLoading, isError, error, refetch } = useProfile();
   const updateProfile = useUpdateProfile();
   const { data: restrictions } = useRestrictions();
@@ -254,6 +254,7 @@ export default function ProfileScreen() {
       <Button
         label="Sair da conta"
         variant="danger"
+        loading={isLoggingOut}
         onPress={() => {
           void logout();
         }}

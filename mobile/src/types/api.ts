@@ -16,6 +16,14 @@ export const API_ERROR_CODES = {
   RATE_LIMITED: 'RATE_LIMITED',
   AI_UNAVAILABLE: 'AI_UNAVAILABLE',
   AI_INVALID_RESPONSE: 'AI_INVALID_RESPONSE',
+  /** The e-mail is already registered (SPEC 7.7 - cadastro). */
+  EMAIL_ALREADY_IN_USE: 'EMAIL_ALREADY_IN_USE',
+  /** The e-mail or the password do not match an account (SPEC 7.7 - login). */
+  INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
+  /** The refresh token is expired, revoked or already used (SPEC 7.7). */
+  INVALID_REFRESH_TOKEN: 'INVALID_REFRESH_TOKEN',
+  /** The recovery token is invalid, used or expired (SPEC 7.7). */
+  INVALID_RESET_TOKEN: 'INVALID_RESET_TOKEN',
   /** Client side only: the request never reached the server. */
   NETWORK_ERROR: 'NETWORK_ERROR',
   /** Client side only: the failure could not be classified. */

@@ -22,12 +22,14 @@ export type TabsParamList = {
 export type AuthParamList = {
   login: undefined;
   register: undefined;
+  forgotPassword: undefined;
 };
 
 /** Parameters of the root navigator. */
 export type RootParamList = {
   '(tabs)': NavigatorScreenParams<TabsParamList> | undefined;
   auth: NavigatorScreenParams<AuthParamList> | undefined;
+  resetPassword: { token?: string } | undefined;
   coach: undefined;
 };
 
@@ -41,6 +43,8 @@ export const ROUTES = {
   coach: '/coach',
   login: '/auth/login',
   register: '/auth/register',
+  forgotPassword: '/auth/forgot-password',
+  resetPassword: '/reset-password',
 } as const;
 
 export type AppRoute = keyof typeof ROUTES;
@@ -55,10 +59,23 @@ export const DEEP_LINK_PATHS: Record<AppRoute, string> = {
   coach: 'coach',
   login: 'entrar',
   register: 'cadastrar',
+  forgotPassword: 'esqueci-senha',
+  resetPassword: 'reset-password',
 };
 
 export function buildDeepLink(route: AppRoute): string {
   return `${APP_SCHEME}://${DEEP_LINK_PATHS[route]}`;
+}
+
+/**
+ * Link used by the e-mail of access recovery.
+ *
+ * The token travels in the query string and is single use (SPEC 7.7).
+ */
+export function buildResetPasswordDeepLink(token: string): string {
+  return `${APP_SCHEME}://${DEEP_LINK_PATHS.resetPassword}?token=${encodeURIComponent(
+    token
+  )}`;
 }
 
 /** Configuration used by React Navigation when the app is opened by a link. */
@@ -79,8 +96,10 @@ export const linking: LinkingOptions<RootParamList> = {
         screens: {
           login: DEEP_LINK_PATHS.login,
           register: DEEP_LINK_PATHS.register,
+          forgotPassword: DEEP_LINK_PATHS.forgotPassword,
         },
       },
+      resetPassword: DEEP_LINK_PATHS.resetPassword,
       coach: DEEP_LINK_PATHS.coach,
     },
   },

@@ -54,6 +54,11 @@ adaptador de mock embutido (`src/services/mockAdapter.ts`) que implementa os
 mesmos contratos descritos na SPEC (paginação do Apêndice A.2, formato de erro
 do A.1, autenticação do A.4 e idempotência do A.3).
 
+O mock também implementa o fluxo de sessão completo: cadastro (com
+`Idempotency-Key`), login, renovação, logout com revogação e recuperação de
+acesso. A conta de demonstração do mock é `alex@ironmind.ai` com a senha
+`ironmind123` — qualquer outra conta pode ser criada pela tela de cadastro.
+
 Para apontar para o backend real, copie `.env.example` para `.env` e ajuste:
 
 ```bash
@@ -62,6 +67,15 @@ EXPO_PUBLIC_USE_MOCK_API=false
 ```
 
 > `.env` nunca é versionado. Somente valores públicos de build ficam no bundle.
+
+### Link profundo de recuperação de senha
+
+O e-mail de recuperação aponta para `ironmind://reset-password?token=...`
+(rota `app/reset-password.tsx`, esquema `ironmind` em `app.json`). O token é
+de uso único e vale 30 minutos; quando o link chega expirado ou já usado, a
+tela explica que é preciso pedir um novo.
+
+> O link também é aceito na forma `ironmind:///reset-password?token=...`.
 
 ### Ícones do Android
 
@@ -86,11 +100,15 @@ A suíte cobre, entre outras coisas:
 | Arquivo | O que verifica |
 |---|---|
 | `__tests__/setLogger.test.tsx` | componente de registro de série: adicionar/remover série, **usar valores da última sessão**, conversão de unidade, validação de carga/reps/RPE |
-| `__tests__/apiError.test.ts` | mapeamento de erro da API no formato do Apêndice A.1 e códigos do A.5 |
+| `__tests__/apiError.test.ts` | mapeamento de erro da API no formato do Apêndice A.1 e códigos do A.5, incluindo os códigos de autenticação |
+| `__tests__/authSession.test.ts` | renovação automática do token, limpeza da sessão quando o refresh é recusado, `Idempotency-Key` no cadastro e logout com revogação |
+| `__tests__/passwordRecovery.test.tsx` | telas de recuperação de acesso: renderização, validação, envio e token inválido |
+| `__tests__/mockAuth.test.ts` | contrato dos endpoints de autenticação do adaptador de mock |
+| `__tests__/deepLink.test.ts` | link profundo de recuperação de senha (`ironmind://reset-password?token=...`) |
 | `__tests__/emptyState.test.tsx` | estado vazio com ação de primeiro uso |
 | `__tests__/backHandler.test.tsx` | gesto de back do Android e confirmação obrigatória com sessão em andamento |
 | `__tests__/screen.test.tsx` | renderização de tela com `useSafeAreaInsets` mockado |
-| `__tests__/authValidation.test.ts` | validação dos formulários de login e cadastro |
+| `__tests__/authValidation.test.ts` | validação dos formulários de login, cadastro e recuperação |
 
 ---
 
@@ -100,7 +118,8 @@ A suíte cobre, entre outras coisas:
 mobile/
 ├── app/                        # rotas do Expo Router
 │   ├── _layout.tsx             # providers (QueryClient, auth, fontes), Stack, back handler
-│   ├── auth/                   # grupo de autenticação (login e cadastro)
+│   ├── auth/                   # grupo de autenticação (login, cadastro e recuperação)
+│   ├── reset-password.tsx      # rota do link profundo de recuperação de senha
 │   ├── coach.tsx               # placeholder do chat de IA (Fase 2)
 │   └── (tabs)/
 │       ├── _layout.tsx         # as 5 abas da SPEC 15.1
@@ -123,8 +142,9 @@ mobile/
 │   │   └── voice/              # estrutura de permissões de câmera/microfone (Fase 2)
 │   ├── hooks/                  # fontes, conexão e persistência da sessão
 │   ├── mocks/                  # dados estáticos usados pelo backend de mentira
-│   ├── navigation/             # linking config e handler do back do Android
-│   ├── services/               # api.ts (axios + erros), endpoints.ts, permissões
+│   ├── navigation/             # linking config, link profundo e handler do back do Android
+│   ├── services/               # api.ts (axios + erros + renovação do token),
+│   │                           # endpoints.ts, sessionEvents.ts, permissões
 │   ├── storage/                # secureStore (token) e SQLite (fila offline)
 │   ├── theme.ts                # cores, espaçamento e tipografia
 │   ├── types/                  # tipos espelhando o modelo de dados da SPEC 10
@@ -214,6 +234,23 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
 - Estado global com Zustand; token e refresh token guardados em
   `expo-secure-store`; `logout` apaga o token e a fila local.
 - Sessão restaurada ao abrir o app.
+- **Renovação automática:** um `401` em uma requisição privada dispara
+  `POST /auth/refresh`, guarda o novo par de tokens e **repete a requisição
+  original** (uma tentativa de renovação por requisição). Se o refresh token
+  for recusado, os tokens são apagados, a sessão é encerrada e o app volta
+  para a tela de login sem travar a tela.
+- **Logout com revogação:** `POST /auth/logout` revoga a família de refresh
+  tokens no servidor (a detecção de reuso depende disso). A sessão local é
+  encerrada **mesmo sem rede**.
+- **Idempotência no cadastro:** o `register` envia o header `Idempotency-Key`.
+  Uma falha de rede seguida de "tentar de novo" reusa a mesma chave e **não
+  cria duas contas**.
+- **Recuperação de acesso:** tela "esqueci minha senha" (a resposta é sempre a
+  mesma, exista o e-mail ou não — anti-enumeração) e tela "definir nova
+  senha", aberta pelo link profundo `ironmind://reset-password?token=...`
+  (o token é de uso único e vale 30 minutos).
+- Códigos de erro de autenticação da API mapeados no app: `EMAIL_ALREADY_IN_USE`,
+  `INVALID_CREDENTIALS`, `INVALID_REFRESH_TOKEN` e `INVALID_RESET_TOKEN`.
 
 **Dashboard (RF-015)**
 - Resumo da semana: volume, sessões, recordes, tempo médio, comparação com a
@@ -267,7 +304,7 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
 | Exercício personalizado do usuário (RF-004) | não implementado |
 | Corrigir/excluir série já registrada (RF-009) | não implementado |
 | Pausar/retomar/abandonar sessão | não implementado (a sessão é iniciada e finalizada) |
-| Recuperação de acesso (e-mail) | não implementado |
+| Envio real do e-mail de recuperação | a tela e o contrato da API existem, mas **a entrega do e-mail é do backend** (porta de e-mail plugável, SPEC 14.1) |
 | Estimativa de 1RM e volume calculados no app | **por decisão** — o cálculo é do backend (SPEC 1.4) |
 | Geração de programa por IA (RF-018) | Fase 2 |
 | Sugestão de carga (RF-019) | Fase 2 |
@@ -285,12 +322,18 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
 ## 10. Limitações conhecidas
 
 - O app **não fala com um backend real** ainda: o adaptador de mock em
-  `src/services/mockAdapter.ts` cobre autenticação, perfil, exercícios,
-  programas, sessões, séries, analytics, recordes e restrições. O backend
-  Spring Boot existe em [`../backend`](../backend), mas só expõe o catálogo de
-  exercícios e o health neste momento.
+  `src/services/mockAdapter.ts` cobre autenticação (cadastro, login, renovação,
+  logout e recuperação de acesso), perfil, exercícios, programas, sessões,
+  séries, analytics, recordes e restrições. O backend Spring Boot existe em
+  [`../backend`](../backend), mas só expõe o catálogo de exercícios e o health
+  neste momento.
 - A fila offline **grava** as operações pendentes, mas o envio automático
   quando a conexão volta ainda não foi implementado.
 - A tela de programa edita o dia **em memória**: as mudanças não são
   persistidas no backend.
 - O chat de IA é um placeholder honesto, sem chamadas de IA.
+- A **entrega do e-mail** de recuperação de acesso é do backend: o app só
+  chama `POST /auth/forgot-password` e mostra sempre a mesma resposta.
+- A renovação automática do token foi exercitada com um adapter falso do
+  axios nos testes; o comportamento real depende do backend aceitar o
+  `Idempotency-Key` e o refresh token rotativo como descrito na SPEC.

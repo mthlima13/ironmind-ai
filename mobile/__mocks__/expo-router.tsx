@@ -35,13 +35,25 @@ export function useSegments(): string[] {
   return ['(tabs)'];
 }
 
+/**
+ * Parameters of the current route.
+ *
+ * The tests configure them to simulate a deep link, such as
+ * `ironmind://reset-password?token=...`.
+ */
+export const searchParams: {
+  current: Record<string, string | string[]>;
+} = {
+  current: {},
+};
+
 export function useLocalSearchParams<
   T extends Record<string, string | string[] | undefined> = Record<
     string,
     string | string[] | undefined
   >,
 >(): T {
-  return {} as T;
+  return searchParams.current as unknown as T;
 }
 
 export function useGlobalSearchParams(): Record<string, string | string[]> {

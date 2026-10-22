@@ -107,3 +107,38 @@ export function validateRegisterForm(values: RegisterFormValues): AuthFieldError
 export function hasErrors(errors: AuthFieldErrors): boolean {
   return Object.keys(errors).length > 0;
 }
+
+/** Validation of the "esqueci minha senha" form (SPEC RF-001). */
+export function validateForgotPasswordForm(values: {
+  email: string;
+}): AuthFieldErrors {
+  const errors: AuthFieldErrors = {};
+
+  const emailError = validateEmail(values.email);
+  if (emailError) {
+    errors.email = emailError;
+  }
+
+  return errors;
+}
+
+/** Validation of the "definir nova senha" form (SPEC RF-001). */
+export function validateResetPasswordForm(values: {
+  password: string;
+  confirmPassword: string;
+}): AuthFieldErrors {
+  const errors: AuthFieldErrors = {};
+
+  const passwordError = validatePassword(values.password);
+  if (passwordError) {
+    errors.password = passwordError;
+  }
+
+  if (!values.confirmPassword) {
+    errors.confirmPassword = 'Confirme sua senha.';
+  } else if (values.confirmPassword !== values.password) {
+    errors.confirmPassword = 'As senhas não conferem.';
+  }
+
+  return errors;
+}
