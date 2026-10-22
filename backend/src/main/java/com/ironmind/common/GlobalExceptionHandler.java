@@ -1,6 +1,7 @@
 package com.ironmind.common;
 
 import com.ironmind.common.exception.ApiException;
+import com.ironmind.common.exception.RateLimitExceededException;
 import com.ironmind.common.web.TraceIds;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
@@ -9,6 +10,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -123,6 +125,22 @@ public class GlobalExceptionHandler {
         ErrorCode errorCode = ex.getErrorCode();
         ApiError body = ApiError.of(errorCode, ex.getMessage(), request.getRequestURI(), traceIdOf(request));
         return ResponseEntity.status(errorCode.status()).body(body);
+    }
+
+    /**
+     * The caller exceeded the allowed number of requests.
+     *
+     * <p>The answer informs how long the caller must wait through the {@code Retry-After}
+     * header.
+     */
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ApiError> handleRateLimitExceeded(RateLimitExceededException ex,
+            HttpServletRequest request) {
+        ApiError body = ApiError.of(ErrorCode.RATE_LIMITED, ex.getMessage(), request.getRequestURI(),
+                traceIdOf(request));
+        return ResponseEntity.status(ErrorCode.RATE_LIMITED.status())
+                .header(HttpHeaders.RETRY_AFTER, Long.toString(ex.retryAfterSeconds()))
+                .body(body);
     }
 
     /**

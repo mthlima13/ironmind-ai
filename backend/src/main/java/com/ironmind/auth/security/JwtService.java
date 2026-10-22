@@ -24,12 +24,12 @@ import org.springframework.stereotype.Service;
  * Issues and validates the JWT tokens of the API.
  *
  * <p>The access token carries the user identifier and the role, exactly as required by
- * SPEC.md section 14.1. The refresh token is issued with the same secret but with a dedicated
- * token type, so an access token can never be used to renew a session.
+ * SPEC.md section 14.1.
  *
- * <p><strong>Pending decision:</strong> SPEC.md section 20, decision 2, still has to define the
- * final token strategy (stateless JWT versus session, refresh rotation and revocation). The
- * implementation below is the stateless baseline assumed by the specification appendix A.4.
+ * <p><strong>Token strategy:</strong> only the access token is a JWT. The refresh token is an
+ * opaque credential, issued and rotated by {@code auth/service/RefreshTokenService}, and it is
+ * stored only as a hash. The JWT based refresh token kept by the deprecated methods below is
+ * not part of the flow anymore.
  */
 @Service
 public class JwtService {
@@ -72,7 +72,12 @@ public class JwtService {
 
     /**
      * Issues a refresh token for the given user.
+     *
+     * @deprecated the refresh token is an opaque credential, not a JWT: the rotation and the
+     *     revocation of the sessions live in {@code auth/service/RefreshTokenService}. This
+     *     method is kept only for compatibility and must not be used.
      */
+    @Deprecated(forRemoval = true)
     public String generateRefreshToken(AuthenticatedUser user) {
         return generateToken(user, TOKEN_TYPE_REFRESH, properties.refreshTtlSeconds());
     }
@@ -90,7 +95,11 @@ public class JwtService {
 
     /**
      * Validates a refresh token and extracts the user identifier.
+     *
+     * @deprecated the refresh token is an opaque credential stored as a hash: this method must
+     *     not be used.
      */
+    @Deprecated(forRemoval = true)
     public Optional<UUID> parseRefreshToken(String token) {
         return parse(token, TOKEN_TYPE_REFRESH).map(claims -> UUID.fromString(claims.getSubject()));
     }

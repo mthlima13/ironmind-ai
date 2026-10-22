@@ -26,6 +26,11 @@
             rejects with HTTP 400, making every container-based test skip.
         -->
         <testcontainers.version>1.21.3</testcontainers.version>
+        <!--
+            Bouncy Castle provides the Argon2id primitives used by the Spring Security
+            Argon2PasswordEncoder. It is a runtime requirement of the password hashing.
+        -->
+        <bouncycastle.version>1.78.1</bouncycastle.version>
     </properties>
 
     <dependencies>
@@ -92,6 +97,16 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-configuration-processor</artifactId>
             <optional>true</optional>
+        </dependency>
+
+        <!--
+            Argon2id primitives for the password encoder. Spring Security delegates the
+            hashing to Bouncy Castle, so the library must be on the runtime classpath.
+        -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+            <version>${bouncycastle.version}</version>
         </dependency>
 
         <dependency>

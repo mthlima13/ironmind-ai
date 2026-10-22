@@ -108,12 +108,134 @@ registrados em log.
 |---|---|---|---|
 | `POST` | `/auth/register` | — | Criar conta |
 | `POST` | `/auth/login` | — | Autenticar |
-| `POST` | `/auth/refresh` | refresh | Renovar access token |
-| `POST` | `/auth/logout` | ✔ | Revogar refresh token |
+| `POST` | `/auth/refresh` | — | Renovar access token |
+| `POST` | `/auth/logout` | — | Revogar refresh token |
 | `POST` | `/auth/forgot-password` | — | Iniciar recuperação de acesso |
-| `POST` | `/auth/reset-password` | — | Concluir recuperação |
+| `POST` | `/auth/reset-password` | — | Concluir recuperação de acesso |
 | `GET` | `/users/me` | ✔ | Perfil e preferências |
 | `PATCH` | `/users/me` | ✔ | Atualizar perfil e preferências |
+
+#### Cadastro
+
+```http
+POST /api/v1/auth/register
+Content-Type: application/json
+Idempotency-Key: 3f8c1d2e-9b7a-4c1e-8f2b-0a1c3d5e7f90
+
+{
+  "name": "Ana Souza",
+  "email": "ana@example.com",
+  "password": "treino123",
+  "timezone": "America/Sao_Paulo"
+}
+```
+
+`201` com o corpo de `AuthResponse`. Reenviar a mesma requisição com a mesma
+`Idempotency-Key` e o mesmo corpo devolve a **mesma conta**, sem criar duas.
+
+**Regras de validação** (as mesmas do aplicativo):
+
+| Campo | Regra |
+|---|---|
+| `name` | 2 a 120 caracteres |
+| `email` | formato válido, máximo 255, normalizado para minúsculas |
+| `password` | 8 a 72 caracteres, **pelo menos uma letra e pelo menos um número** |
+| `timezone` | opcional, padrão `America/Sao_Paulo` |
+
+E-mail já cadastrado responde `409` com `EMAIL_ALREADY_IN_USE`.
+
+#### Login
+
+```http
+POST /api/v1/auth/login
+Content-Type: application/json
+
+{ "email": "ana@example.com", "password": "treino123" }
+```
+
+`200` com `AuthResponse`. E-mail inexistente e senha errada devolvem **a mesma**
+resposta `401` com `INVALID_CREDENTIALS` — a API não revela se o e-mail existe.
+
+#### Renovação
+
+```http
+POST /api/v1/auth/refresh
+Content-Type: application/json
+
+{ "refreshToken": "c29tZS1yZWZyZXNoLXRva2Vu" }
+```
+
+`200` com um **novo** `AuthResponse`: o refresh token é rotativo, o anterior é
+revogado. Apresentar um token **já revogado** é tratado como reuso: toda a
+família de tokens da sessão é revogada e a resposta é `401`
+`INVALID_REFRESH_TOKEN`.
+
+#### Logout
+
+```http
+POST /api/v1/auth/logout
+Content-Type: application/json
+
+{ "refreshToken": "c29tZS1yZWZyZXNoLXRva2Vu" }
+```
+
+`204`. Revoga o token apresentado. É idempotente: revogar um token já revogado
+não é erro.
+
+#### Recuperação de acesso
+
+```http
+POST /api/v1/auth/forgot-password
+Content-Type: application/json
+
+{ "email": "ana@example.com" }
+```
+
+`202` **sempre**, exista ou não a conta:
+
+```json
+{ "message": "Se o e-mail estiver cadastrado, você receberá as instruções em instantes." }
+```
+
+```http
+POST /api/v1/auth/reset-password
+Content-Type: application/json
+
+{ "token": "token-recebido-por-email", "newPassword": "novasenha123" }
+```
+
+`204`. O token é de uso único, vale 30 minutos e **revoga todas as sessões
+abertas** do usuário. Token inválido, usado ou expirado responde `401` com
+`INVALID_RESET_TOKEN`.
+
+#### Perfil
+
+```http
+GET /api/v1/users/me
+Authorization: Bearer <accessToken>
+```
+
+```json
+{
+  "id": "…",
+  "name": "Ana Souza",
+  "email": "ana@example.com",
+  "role": "USER",
+  "timezone": "America/Sao_Paulo",
+  "createdAt": "2026-10-21T19:43:06Z",
+  "preferences": {
+    "preferredUnits": "KG",
+    "trainingExperience": "BEGINNER",
+    "goal": "HYPERTROPHY",
+    "availableEquipment": ["barra", "halteres"],
+    "trainingDays": 4,
+    "privacySettings": {}
+  }
+}
+```
+
+`PATCH /api/v1/users/me` aceita `name`, `timezone` e `preferences` (parcial). O
+`user_id` **nunca** vem do corpo: vem do token.
 
 ### Exercícios
 
@@ -213,6 +335,10 @@ tabela. `traceId` correlaciona a requisição com os logs do servidor.
 | `NOT_FOUND` | 404 | Recurso inexistente **ou** pertencente a outro usuário |
 | `CONFLICT` | 409 | Estado inconsistente (ex.: finalizar sessão já finalizada) |
 | `IDEMPOTENCY_KEY_REUSED` | 409 | Chave repetida com payload diferente |
+| `EMAIL_ALREADY_IN_USE` | 409 | E-mail já cadastrado |
+| `INVALID_CREDENTIALS` | 401 | E-mail ou senha inválidos |
+| `INVALID_REFRESH_TOKEN` | 401 | Refresh token expirado, revogado ou reutilizado |
+| `INVALID_RESET_TOKEN` | 401 | Token de recuperação inválido, usado ou expirado |
 | `RATE_LIMITED` | 429 | Limite de requisições excedido |
 | `AI_UNAVAILABLE` | 503 | Provedor de IA indisponível ou timeout |
 | `AI_INVALID_RESPONSE` | 502 | Resposta da IA fora do esquema |

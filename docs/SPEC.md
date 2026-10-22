@@ -336,8 +336,23 @@ Exemplo de entrada: "cem quilos por oito".
 > A interpretação respeita unidades, idioma e configurações do usuário. A
 > entrada manual permanece sempre disponível como alternativa.
 
-### 6.4 Corrigir um registro
+### 6.4 Criar conta e entrar
 
+1. O usuário preenche nome, e-mail e senha no aplicativo.
+2. O aplicativo valida a senha localmente (mínimo de 8 caracteres, uma letra e
+   um número) e a API valida as mesmas regras.
+3. A API hasheia a senha com Argon2id, cria a conta e as preferências padrão
+   em uma única transação.
+4. A API emite o access token e um refresh token opaco.
+5. O aplicativo guarda os dois tokens no armazenamento seguro do dispositivo.
+6. Em uma falha de rede, o aplicativo reenvia a mesma requisição com a mesma
+   `Idempotency-Key` e recebe o mesmo resultado, sem criar duas contas.
+
+**Recuperação de acesso:** o usuário informa o e-mail; a API responde sempre da
+mesma forma, exista ou não a conta, e emite um token de uso único com 30
+minutos de validade, entregue por e-mail.
+
+### 6.5 Corrigir um registro
 1. O usuário abre o histórico e seleciona a série.
 2. Corrige carga ou repetições.
 3. O backend atualiza o registro, recalcula volume e **reavalia os recordes
@@ -409,9 +424,53 @@ A estimativa é calculada apenas no backend e marcada como estimativa na interfa
   aparentar precisão inexistente.
 
 ### 7.6 Preservação de histórico
-
 > Alterar ou excluir um programa **não** deve modificar sessões já realizadas.
 > Sessões realizadas gravam snapshot dos valores no momento do registro.
+
+### 7.7 Conta, senha e tokens
+
+**Cadastro**
+
+1. O e-mail é normalizado: minúsculas e sem espaços nas pontas.
+2. O e-mail é único. E-mail já cadastrado responde `409` com o código
+   `EMAIL_ALREADY_IN_USE`.
+3. A senha é validada (mínimo de 8 caracteres, uma letra e um número) e
+   hasheada com Argon2id. A senha em texto puro não é logada nem retornada.
+4. A conta, as preferências padrão e a primeira família de refresh tokens são
+   criadas na **mesma transação**. Se qualquer passo falhar, nada é gravado.
+5. O cadastro aceita `Idempotency-Key`: reenviar a mesma requisição devolve a
+   mesma conta, sem duplicar.
+
+**Login**
+
+1. E-mail inexistente e senha errada devolvem a **mesma** resposta (`401`
+   `INVALID_CREDENTIALS`), sem revelar se o e-mail existe.
+2. Um login bem-sucedido cria uma nova família de refresh tokens.
+3. O login é limitado por taxa, por IP e por e-mail.
+
+**Renovação**
+
+1. O refresh token apresentado precisa existir, não estar revogado e não estar
+   expirado.
+2. A renovação emite um token novo, revoga o antigo e aponta o antigo para o
+   novo (`replaced_by_token_id`).
+3. **Apresentar um token já revogado revoga a família inteira** e devolve
+   `401`. É a resposta a um token roubado usado duas vezes.
+4. Tokens expirados são revogados no momento do uso.
+
+**Recuperação de acesso**
+
+1. A resposta é genérica e igual exista ou não a conta.
+2. O token tem uso único: depois de usado, `used_at` é preenchido e ele não
+   funciona mais.
+3. Usar o token **revoga todos os refresh tokens** do usuário: recuperar a
+   senha encerra as sessões abertas.
+4. O token expira em 30 minutos.
+
+**Logout**
+
+1. Revoga o refresh token apresentado.
+2. É idempotente: revogar um token já revogado não é erro.
 
 ---
 
@@ -772,7 +831,34 @@ UUID como chave primária em todas as tabelas. Todas as entidades com
 
 > Não guardar conversa completa. Definir política de retenção e exclusão.
 
-### 10.14 Relacionamentos
+### 10.14 `refresh_tokens`
+
+| Campo | Tipo | Observação |
+|---|---|---|
+| `id` | UUID PK | |
+| `user_id` | UUID FK → users | cascade delete |
+| `family_id` | UUID | tokens da mesma sessão de login; a detecção de reuso revoga a família inteira |
+| `token_hash` | char(64) unique | SHA-256 hexadecimal do token opaco |
+| `expires_at` | timestamptz | |
+| `created_at` | timestamptz | |
+| `revoked_at` | timestamptz | nullable |
+| `replaced_by_token_id` | UUID FK → refresh_tokens | nullable; token que substituiu este |
+
+> O token em texto puro **nunca** é gravado. O índice único em `token_hash`
+> permite a busca por hash sem varrer a tabela.
+
+### 10.15 `password_reset_tokens`
+
+| Campo | Tipo | Observação |
+|---|---|---|
+| `id` | UUID PK | |
+| `user_id` | UUID FK → users | cascade delete |
+| `token_hash` | char(64) unique | SHA-256 hexadecimal |
+| `expires_at` | timestamptz | 30 minutos |
+| `used_at` | timestamptz | nullable — token de uso único |
+| `created_at` | timestamptz | |
+
+### 10.16 Relacionamentos
 
 - Um usuário possui vários programas, sessões, preferências e restrições.
 - Um programa possui vários dias; cada dia possui vários exercícios ordenados.
@@ -781,6 +867,10 @@ UUID como chave primária em todas as tabelas. Todas as entidades com
 - Um usuário pode ter vários recordes, um por tipo e exercício.
 - Uma recomendação de IA pertence a um usuário e **não altera treino sem
   confirmação**.
+- Um usuário possui vários refresh tokens, um por sessão de login; os tokens de
+  uma sessão compartilham a mesma `family_id`.
+- Um usuário pode ter vários tokens de recuperação de acesso, todos de uso
+  único.
 
 ---
 
@@ -980,11 +1070,33 @@ O treino deve continuar funcionando quando a conexão cair.
 ### 14.1 Autenticação e autorização
 
 - HTTPS obrigatório em ambientes publicados.
-- Senhas com hash moderno (Argon2id ou BCrypt) e política de senha mínima.
-- Access token curto + refresh token rotativo, revogáveis, armazenados com
-  `expo-secure-store` no app.
-- Autorização aplicada em **todos** os endpoints privados, inclusive leitura.
-- Token carries `userId` e `role`; o backend nunca confia em `user_id` do corpo.
+- **Senhas com Argon2id**, parâmetros OWASP (m = 19 MiB, t = 2, p = 1, saída
+  de 32 bytes, salt de 16 bytes). A senha em texto puro nunca é gravada, logada
+  nem comparada diretamente.
+- **Política de senha:** mínimo de 8 caracteres, ao menos uma letra e ao menos
+  um número. A mesma regra roda no aplicativo (feedback imediato) e na API
+  (garantia do contrato) — as duas implementações não podem divergir.
+- **Access token:** JWT stateless, 15 minutos, com `sub`, `email`, `role` e
+  `tokenType=access`.
+- **Refresh token:** valor **opaco** de 256 bits, aleatório, nunca um JWT. É
+  uma credencial, não um documento: por isso o servidor não precisa confiar em
+  nenhuma claim dele.
+  - Armazenado **apenas como hash SHA-256** no banco. O valor em texto puro
+    existe no cliente e na resposta de login, e em nenhum outro lugar.
+  - Validade de 30 dias, **rotativo**: cada renovação emite um token novo e
+    revoga o anterior.
+  - **Detecção de reuso:** apresentar um token já revogado revoga a família
+    inteira de tokens da sessão. Um token roubado e usado duas vezes derruba a
+    sessão, em vez de dar acesso silencioso.
+  - `logout` revoga o token apresentado.
+- **Recuperação de acesso:** token de uso único, 30 minutos de validade, com o
+  valor armazenado apenas como hash. A resposta HTTP é **sempre genérica**,
+  exista ou não o e-mail — a API não confirma se um e-mail está cadastrado.
+- **Autorização** aplicada em **todos** os endpoints privados, inclusive leitura.
+- O token carrega `userId` e `role`; o backend nunca confia em `user_id` do
+  corpo da requisição.
+- **Rate limiting** nos endpoints de autenticação e de recuperação de acesso,
+  por IP e por e-mail.
 
 ### 14.2 Dados e abuso
 
@@ -1184,10 +1296,10 @@ estabilizar.
 
 ### Sprint 2 — Usuários, preferências e exercícios
 
-- [ ] Implementar cadastro, login, refresh e recuperação de acesso.
+- [x] Implementar cadastro, login, refresh e recuperação de acesso.
 - [ ] Implementar perfil, preferências e unidades.
-- [ ] Criar catálogo seed de exercícios + exercises personalizados.
-- [ ] Implementar busca e filtros.
+- [x] Criar catálogo seed de exercícios + exercises personalizados.
+- [x] Implementar busca e filtros.
 - [ ] Escrever testes de autorização.
 
 ### Sprint 3 — Treinos
@@ -1316,14 +1428,15 @@ bloqueantes travam a sprint indicada.
 | # | Decisão | Impacto | Bloqueia |
 |---|---|---|---|
 | 1 | Fórmula de 1RM (Brzycki vs Epley) e limites de validade | Métrica exibida ao usuário | Sprint 4 |
-| 2 | Estratégia de tokens: JWT stateless vs sessão, rotação de refresh | Toda a camada de auth | Sprint 2 |
+| 2 | ~~Estratégia de tokens~~ | **Decidido:** access token JWT stateless de 15 min + refresh token opaco rotativo com detecção de reuso (ver [seção 14.1](#141-autenticação-e-autorização)). Revogação persistida em banco | — |
 | 3 | Provedor de LLM e orçamento de uso; política de retenção de prompts | Fase 2 inteira | Sprint 5 |
 | 4 | Origem do catálogo seed de exercícios: manual ou importado com licença | Seed do banco | Sprint 2 |
 | 5 | Regras de volume para peso corporal, séries sem carga e movimentos isométricos | Cálculo de volume | Sprint 4 |
 | 6 | Alvo de hospedagem e implantação (Railway / Render / VPS / cloud) | CI/CD e secrets | Sprint 1 |
 | 7 | ~~Primeiro lançamento~~ | **Decidido: Android only** (ver [seção 1.5](#15-plataforma-de-lançamento-android-first)). iOS fica para a fase posterior | — |
 | 8 | Escopo da Fase 2: qual subset — geração de treino, sugestão de carga, voz, coaching | Esforço de IA | Sprint 5 |
-| 9 | Modalidade de recuperação de acesso: email com token vs link mágico | Fluxo de auth | Sprint 2 |
+| 9 | ~~Modalidade de recuperação de acesso~~ | **Decidido:** token de uso único de 30 min, resposta genérica anti-enumeração, entrega por porta de e-mail plugável (ver [seção 14.1](#141-autenticação-e-autorização)) | — |
+| 14 | ~~Algoritmo de hash de senha~~ | **Decidido:** Argon2id com parâmetros OWASP. BCrypt aceitável como alternativa | — |
 | 10 | Política de privacidade, termos de uso e retenção de dados | Publicação | Sprint 6 |
 | 11 | Escopo da social: quem pode ser amigo, visibilidade padrão, moderação | Fase 3 | — |
 | 12 | Nome definitivo e identidade visual | Branding | Sprint 1 |
@@ -1436,6 +1549,10 @@ Resposta de login:
 | `NOT_FOUND` | 404 | Recurso inexistente **ou** de outro usuário |
 | `CONFLICT` | 409 | Estado inconsistente (ex.: finalizar sessão já finalizada) |
 | `IDEMPOTENCY_KEY_REUSED` | 409 | Chave repetida com payload diferente |
+| `EMAIL_ALREADY_IN_USE` | 409 | E-mail já cadastrado |
+| `INVALID_CREDENTIALS` | 401 | E-mail ou senha inválidos |
+| `INVALID_REFRESH_TOKEN` | 401 | Refresh token expirado, revogado ou reutilizado |
+| `INVALID_RESET_TOKEN` | 401 | Token de recuperação inválido, usado ou expirado |
 | `RATE_LIMITED` | 429 | Limite de requisições excedido |
 | `AI_UNAVAILABLE` | 503 | Provedor de IA indisponível ou timeout |
 | `AI_INVALID_RESPONSE` | 502 | Resposta da IA fora do esquema |

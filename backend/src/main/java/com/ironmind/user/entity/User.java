@@ -99,6 +99,18 @@ public class User {
         this.updatedAt = Instant.now();
     }
 
+    /**
+     * Replaces the password of the account with a new hash.
+     *
+     * <p>Only the hash is stored: the plain password never reaches this entity.
+     *
+     * @param passwordHash new hash of the password
+     */
+    public void updatePassword(String passwordHash) {
+        this.passwordHash = passwordHash;
+        this.updatedAt = Instant.now();
+    }
+
     public void setTimezone(String timezone) {
         this.timezone = timezone;
         this.updatedAt = Instant.now();

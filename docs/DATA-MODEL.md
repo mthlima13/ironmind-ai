@@ -22,8 +22,24 @@ users ──┬──< user_preferences
         │                                    └──> exercises
         ├──< personal_records >── exercises
         ├──< injury_restrictions ──< restriction_exercises >── exercises
-        └──< ai_recommendations
+        ├──< ai_recommendations
+        ├──< refresh_tokens ──< refresh_tokens (replaced_by_token_id)
+        └──< password_reset_tokens
 ```
+
+### Tokens de sessão
+
+| Tabela | O que guarda |
+|---|---|
+| `refresh_tokens` | O **hash SHA-256** do refresh token opaco, a `family_id` da sessão, a validade, a revogação e o token que o substituiu |
+| `password_reset_tokens` | O **hash SHA-256** do token de recuperação, a validade e o instante de uso |
+
+> O valor em texto puro do token **nunca** é gravado. Um vazamento dessas
+> tabelas não concede acesso a nenhuma sessão: o atacante teria o hash, que
+> não serve para autenticar.
+
+A `family_id` agrupa os tokens de uma mesma sessão de login. É o que permite
+detectar reuso: apresentar um token já revogado revoga a família inteira.
 
 ---
 
@@ -44,6 +60,8 @@ users ──┬──< user_preferences
 | `injury_restrictions` | Limitações informadas pelo usuário | `injury_restrictions.user_id` |
 | `restriction_exercises` | Exercícios a evitar (N:N real) | ambas |
 | `ai_recommendations` | Propostas e sugestões geradas, com status | `users.id` |
+| `refresh_tokens` | Sessões de login: refresh token opaco, rotativo, com detecção de reuso | `users.id` |
+| `password_reset_tokens` | Recuperação de acesso: token de uso único, 30 minutos | `users.id` |
 
 ---
 
@@ -64,6 +82,7 @@ users ──┬──< user_preferences
 | `(user_id, exercise_id, record_type)` unique | `personal_records` |
 | `idempotency_key` unique (parcial, quando não nulo) | `exercise_sets` |
 | `(restriction_id, exercise_id)` PK composta | `restriction_exercises` |
+| `token_hash` unique | `refresh_tokens`, `password_reset_tokens` |
 
 ### Integridade referencial
 
@@ -114,6 +133,11 @@ users ──┬──< user_preferences
 | `exercises` | `(is_system, created_by_user_id)` | Separação catálogo global/pessoal |
 | `program_exercises` | `(program_day_id, position)` | Ordem dos exercícios do dia |
 | `injury_restrictions` | `(user_id, is_active)` | Restrições ativas |
+| `refresh_tokens` | `token_hash` (unique) | Buscar o token apresentado no login/refresh |
+| `refresh_tokens` | `(family_id)` | Revogar a família inteira na detecção de reuso |
+| `refresh_tokens` | `(expires_at)` | Limpeza de tokens expirados |
+| `password_reset_tokens` | `token_hash` (unique) | Buscar o token de recuperação |
+| `password_reset_tokens` | `(expires_at)` | Limpeza de tokens expirados |
 
 ---
 

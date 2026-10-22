@@ -82,6 +82,22 @@ app:
       ttl-seconds: ${JWT_TTL_SECONDS:900}
       refresh-ttl-seconds: ${JWT_REFRESH_TTL_SECONDS:2592000}
       issuer: ${JWT_ISSUER:ironmind-ai}
+    rate-limit:
+      # Fixed window, kept in memory. The production version keeps the counters
+      # in Redis, so the window is shared by every instance of the API.
+      login:
+        max-requests: ${RATE_LIMIT_LOGIN_REQUESTS:10}
+        window-seconds: ${RATE_LIMIT_WINDOW_SECONDS:60}
+      register:
+        max-requests: ${RATE_LIMIT_REGISTER_REQUESTS:5}
+        window-seconds: ${RATE_LIMIT_WINDOW_SECONDS:60}
+      forgot-password:
+        max-requests: ${RATE_LIMIT_FORGOT_PASSWORD_REQUESTS:5}
+        window-seconds: ${RATE_LIMIT_WINDOW_SECONDS:60}
+  mail:
+    # "logging" only writes the recovery token in the log. A real provider must
+    # replace it before the publication of the application.
+    provider: ${MAIL_PROVIDER:logging}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:8081,http://localhost:19006,http://localhost:19007}
   llm:

@@ -1,7 +1,7 @@
 /**
  * Accounts, preferences and training restrictions of the user.
  *
- * <p>Only the persistence model of the account exists so far. The profile, the preferences and the
- * restriction endpoints are planned for Sprint 2, as described in SPEC.md section 17.
+ * <p>The account and its default preferences are created by the registration flow of Sprint 2.
+ * The endpoints of the profile and of the preferences are implemented by another slice.
  */
 package com.ironmind.user;

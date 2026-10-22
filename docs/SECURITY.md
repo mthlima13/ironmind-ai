@@ -53,8 +53,22 @@ ainda está pendente. Requisitos funcionais relacionados em
 
 ### 2.2 Backend
 
-- **Autenticação:** JWT com access + refresh token. Refresh rotativo a cada uso,
-  com detecção de reuso (revoga a família inteira).
+- **Autenticação:** access token JWT stateless de 15 minutos; refresh token
+  **opaco** (256 bits aleatórios), rotativo a cada uso, com **detecção de
+  reuso**: apresentar um token já revogado revoga a família inteira da sessão.
+- **Refresh token no banco:** apenas o **hash SHA-256**. O valor em texto puro
+  existe no cliente e na resposta de login — em nenhum outro lugar. Um
+  vazamento da tabela não concede acesso a nenhuma sessão.
+- **Senhas:** Argon2id com parâmetros OWASP (19 MiB, 2 iterações, 1 paralelismo,
+  saída de 32 bytes, salt de 16 bytes). Política: mínimo de 8 caracteres, uma
+  letra e um número — a mesma regra no app e na API.
+- **Anti-enumeração:** e-mail inexistente e senha errada devolvem a mesma
+  resposta e o mesmo tempo de resposta. `forgot-password` responde `202` sempre.
+- **Recuperação de acesso:** token de uso único, 30 minutos, armazenado apenas
+  como hash. Usar o token encerra as sessões abertas do usuário.
+- **Rate limiting** nos endpoints de autenticação, por IP e por e-mail.
+- **Idempotência:** `POST /auth/register` aceita `Idempotency-Key` — reenviar a
+  mesma requisição não cria duas contas.
 - **Autorização:** `authorizeHttpRequests` com escopos explícitos por rota;
   autorização por recurso verificada no serviço, não apenas na rota.
 - **Entrada:** Bean Validation em todos os DTOs + regras de domínio.
