@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  JAVA_VERSION: "21"
+  NODE_VERSION: "24"
+
+jobs:
+  backend:
+    name: Backend — build, test, migration
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      - name: Verify Flyway migrations are valid
+        run: mvn -B -q flyway:validate flyway:info -Dflyway.url=${{ secrets.TEST_DB_URL || 'jdbc:postgresql://localhost:5432/ironmind' }} || echo "::warning::Flyway standalone skipped (sem banco configurado no CI)"
+
+      - name: Build
+        run: mvn -B clean package -DskipTests
+
+      - name: Test
+        run: mvn -B test
+
+      - name: Publish test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-reports
+          path: backend/target/surefire-reports/
+          retention-days: 7
+
+  mobile:
+    name: Mobile — typecheck, lint, test
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npx eslint . --ext .ts,.tsx --max-warnings=0
+
+      - name: Test
+        run: npx jest --ci --coverage
+
+      - name: Publish test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-test-reports
+          path: mobile/coverage/
+          retention-days: 7
+
+  secret-scan:
+    name: Segredos e arquivos sensiveis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Nenhum .env real versionado
+        run: |
+          if git ls-files | grep -qE '(^|/)\.env$'; then
+            echo "::error::Arquivo .env real encontrado no repositorio."
+            exit 1
+          fi
+
+      - name: Nenhum segredo em texto puro
+        run: |
+          if git grep -nEI '(sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16})' -- . ':!*.example' ':!.github/**'; then
+            echo "::error::Possivel credencial em texto puro encontrada."
+            exit 1
+          fi

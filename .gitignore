@@ -1,0 +1,64 @@
+# ===== Segredos =====
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.keystore
+*.jks
+
+# ===== Java / Maven =====
+target/
+*.jar
+*.war
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/timeline.xml
+dependency-reduced-pom.xml
+
+# ===== Node / Expo / React Native =====
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.expo/
+.expo-shared/
+dist/
+web-build/
+*.jsbundle
+*.tsbuildinfo
+
+# ===== Mobile nativo =====
+/mobile/ios/
+/mobile/android/
+*.orig.*
+/mobile/.carthage/
+/mobile/Pods/
+
+# ===== IDE =====
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.iml
+*.ipr
+*.iws
+*.classpath
+*.project
+*.settings/
+nbproject/
+
+# ===== SO =====
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== Testes / cobertura =====
+coverage/
+.nyc_output/
+target/site/
+
+# ===== Dados locais =====
+/data/
+/tmp/
+/.run/
+*.dump
+*.sql.gz

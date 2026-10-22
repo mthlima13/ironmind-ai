@@ -1,0 +1,126 @@
+# ==============================================================================
+# IronMind AI - backend configuration
+#
+# Every credential is read from an environment variable with a development
+# default. Never commit a real secret: use .env.example as the reference.
+# ==============================================================================
+spring:
+  application:
+    name: ironmind-backend
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/ironmind}
+    username: ${DB_USER:ironmind}
+    password: ${DB_PASSWORD:changeme}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      connection-timeout: 10000
+
+  jpa:
+    # Flyway owns the schema: Hibernate never creates or alters it, so the
+    # migration history stays the single source of truth of the database.
+    # "validate" makes the application fail fast when an entity drifts away
+    # from the migrations.
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        format_sql: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    encoding: UTF-8
+    baseline-on-migrate: true
+    validate-on-migrate: true
+
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
+    include-exception: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    fail-on-error: false
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+    doc-swatch: false
+
+app:
+  security:
+    jwt:
+      # Replace it with a random value of 32 bytes or more before any real
+      # deployment. The application boots with the default value, but it logs a
+      # strong warning while doing so.
+      secret: ${JWT_SECRET:change-me-32-bytes-minimum}
+      ttl-seconds: ${JWT_TTL_SECONDS:900}
+      refresh-ttl-seconds: ${JWT_REFRESH_TTL_SECONDS:2592000}
+      issuer: ${JWT_ISSUER:ironmind-ai}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:8081,http://localhost:19006,http://localhost:19007}
+  llm:
+    # The key of the provider is only read by the backend and never reaches the
+    # mobile application.
+    api-key: ${LLM_API_KEY:}
+    model: ${LLM_MODEL:}
+    base-url: ${LLM_BASE_URL:https://api.openai.com/v1}
+    timeout-ms: ${LLM_TIMEOUT_MS:15000}
+    max-output-tokens: ${LLM_MAX_OUTPUT_TOKENS:2000}
+    daily-quota-per-user: ${LLM_DAILY_QUOTA_PER_USER:50}
+
+logging:
+  level:
+    root: ${LOG_LEVEL:INFO}
+    com.ironmind: ${LOG_LEVEL:INFO}
+
+---
+# Development profile: verbose application logs, Flyway on the info level.
+spring:
+  config:
+    activate:
+      on-profile: local
+logging:
+  level:
+    com.ironmind: DEBUG
+    org.flywaydb: INFO
+
+---
+# Test profile: used by the automated tests. The database connection is
+# provided by Testcontainers when the integration tests run.
+spring:
+  config:
+    activate:
+      on-profile: test
+  jpa:
+    open-in-view: false
+logging:
+  level:
+    root: WARN
+    com.ironmind: INFO
+    org.flywaydb: WARN

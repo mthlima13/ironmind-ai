@@ -1,0 +1,25 @@
+# Normaliza as quebras de linha no repositorio: LF no indice, CRLF apenas
+# onde o Windows realmente exige.
+* text=auto eol=lf
+
+# Binarios
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.jar binary
+*.jks binary
+*.keystore binary
+*.aab binary
+*.apk binary
+*.pdf binary
+
+# Scripts que o Windows precisa com CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Lockfiles gerados por ferramentas
+package-lock.json text eol=lf -diff

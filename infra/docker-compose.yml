@@ -1,0 +1,78 @@
+name: ironmind-ai
+
+# Uso:
+#   docker compose up -d postgres        # so o banco (desenvolvimento)
+#   docker compose --profile app up -d   # banco + redis + backend
+#
+# O Postgres e o Redis nao sobem automaticamente com `up` para evitar
+# conflito com servicos ja instalados na maquina.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ironmind-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-ironmind}
+      POSTGRES_USER: ${DB_USER:-ironmind}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+      # Locale deterministico: evita erro de collation em comparacoes de texto
+      POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-ironmind} -d ${DB_NAME:-ironmind}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: ironmind-redis
+    restart: unless-stopped
+    profiles: ["app"]
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: ironmind-backend
+    restart: unless-stopped
+    profiles: ["app"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-ironmind}
+      DB_USER: ${DB_USER:-ironmind}
+      DB_PASSWORD: ${DB_PASSWORD:-changeme}
+      JWT_SECRET: ${JWT_SECRET:-change-me-32-bytes-minimum}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      SPRING_PROFILES_ACTIVE: production
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/api/v1/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  postgres-data:
+  redis-data:

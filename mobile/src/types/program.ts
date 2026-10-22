@@ -1,0 +1,67 @@
+import type { Exercise } from './exercise';
+import type { TrainingGoal } from './user';
+
+export const SPLIT_TYPES = {
+  PPL: 'PPL',
+  UPPER_LOWER: 'UPPER_LOWER',
+  FULL_BODY: 'FULL_BODY',
+  CUSTOM: 'CUSTOM',
+} as const;
+
+export type SplitType = (typeof SPLIT_TYPES)[keyof typeof SPLIT_TYPES];
+
+export const SPLIT_TYPE_LABELS: Record<SplitType, string> = {
+  PPL: 'Push / Pull / Legs',
+  UPPER_LOWER: 'Upper / Lower',
+  FULL_BODY: 'Full Body',
+  CUSTOM: 'Personalizado',
+};
+
+/** Program exercise entry (SPEC 10.6). */
+export type ProgramExercise = {
+  id: string;
+  exerciseId: string;
+  exercise: Exercise;
+  position: number;
+  targetSets: number;
+  targetRepsMin: number;
+  targetRepsMax: number;
+  restSeconds: number;
+  notes?: string;
+};
+
+/** Program day (SPEC 10.5). */
+export type ProgramDay = {
+  id: string;
+  programId: string;
+  name: string;
+  position: number;
+  exercises: ProgramExercise[];
+};
+
+/** Workout program (SPEC 10.4). */
+export type WorkoutProgram = {
+  id: string;
+  name: string;
+  description: string;
+  goal: TrainingGoal;
+  splitType: SplitType;
+  isArchived: boolean;
+  days: ProgramDay[];
+  createdAt: string;
+};
+
+export type ProgramExerciseDraft = {
+  exerciseId: string;
+  targetSets: number;
+  targetRepsMin: number;
+  targetRepsMax: number;
+  restSeconds: number;
+  notes?: string;
+};
+
+export type ProgramDayDraft = {
+  id?: string;
+  name: string;
+  exercises: ProgramExerciseDraft[];
+};

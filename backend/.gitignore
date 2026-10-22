@@ -1,0 +1,19 @@
+# Build
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# Segredos: nunca versionar
+.env
+*.local
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
