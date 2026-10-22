@@ -16,11 +16,11 @@ import org.springframework.stereotype.Component;
  *
  * <p>The volume of an exercise or of a session is the sum of the valid sets.
  *
- * <p><strong>Bodyweight sets:</strong> a set without external load ({@code weightKg == null}) adds
- * zero to the volume. This is a provisional interpretation of the pending decision 5 of
- * SPEC.md section 20 ("regras de volume para peso corporal, séries sem carga e movimentos
- * isométricos"): counting only the external load keeps the metric comparable between users and
- * machines. It must be revisited before the volume is shown as an official metric.
+ * <p><strong>Decision 5 of SPEC.md section 20 (closed):</strong> the volume counts the external
+ * load only. A set without external load ({@code weightKg == null}), such as a bodyweight or
+ * assisted movement, adds zero to the volume. Isometric and time based movements are not
+ * measured by volume. Counting only the external load keeps the metric comparable between users
+ * and machines, so the app must never present the number as the total work of a bodyweight set.
  *
  * <p><strong>Canonical unit:</strong> the load is always stored in kilograms. The conversion to
  * pounds happens on the presentation boundary, never in the database.

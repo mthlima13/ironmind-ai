@@ -7,6 +7,7 @@
 export const API_PREFIX = '/api/v1';
 
 export const ENDPOINTS = {
+  health: '/health',
   auth: {
     register: '/auth/register',
     login: '/auth/login',

@@ -384,11 +384,16 @@ volume = carga × repetições
 
 O volume total de um exercício ou sessão é a soma das séries válidas.
 
-**Casos a definir antes da implementação** (ver [seção 20](#20-decisões-pendentes)):
+**Regra decidida (decisão 5 da [seção 20](#20-decisões-pendentes)):** o volume
+considera **apenas carga externa**.
 
-- Exercícios com peso corporal ou assistência — contar no volume ou não.
-- Séries com apenas reps (sem carga) — entram como zero ou são excluídas.
-- Movimento em que volume não é métrica adequada (isométrico, por tempo).
+- Série com carga (`weightKg`) e repetições: `carga × repetições`.
+- Série sem carga externa (peso corporal, exercício assistido, apenas
+  repetições): soma **zero**.
+- Movimento isométrico ou medido por tempo: soma **zero**; volume não é a
+  métrica adequada para ele.
+- A interface não apresenta o volume como "trabalho total" de uma série de peso
+  corporal — o número reflete somente a carga externa movimentada.
 
 > **Unidade canônica de armazenamento: quilograma.** O app exibe em `lb` ou `kg`
 > conforme `user_preferences.preferred_units`, convertendo na fronteira de
@@ -396,10 +401,18 @@ O volume total de um exercício ou sessão é a soma das séries válidas.
 
 ### 7.3 Estimativa de 1RM
 
-O app exibe uma estimativa de repetição máxima usando **uma fórmula documentada**
-(fórmula de Brzycki ou Epley — a escolha está pendente). A estimativa não é
-medição real e é imprecisa com muitas repetições, em exercícios isolados ou com
-carga subestimada por assistências.
+O app exibe uma estimativa de repetição máxima usando a **fórmula de Brzycki**
+([decisão 1 da seção 20](#20-decisões-pendentes)):
+
+```
+1RM = carga × 36 / (37 − repetições)
+```
+
+- A estimativa é produzida apenas para séries de **1 a 10 repetições**.
+- Fora desse intervalo, ou sem carga positiva, o backend **não** devolve
+  estimativa: a fórmula perde precisão e um número exato daria falsa segurança.
+- A estimativa não é medição real e é imprecisa com muitas repetições, em
+  exercícios isolados ou com carga subestimada por assistências.
 
 A estimativa é calculada apenas no backend e marcada como estimativa na interface.
 
@@ -1120,6 +1133,13 @@ O treino deve continuar funcionando quando a conexão cair.
 6. Tratar conflitos com regras documentadas.
 7. Informar o usuário o estado da sincronização.
 
+> **Estado atual (Sprint 3):** os itens 1 a 5 e 7 estão implementados no app
+> (`mobile/src/services/offlineSync.ts`): a fila é reenviada em ordem quando o
+> backend volta, com o `Idempotency-Key` original, e o banner mostra pendências
+> e falhas. A **resolução de conflitos** (item 6 e [seção 13.2](#132-regras-de-conflito))
+> não foi implementada: não há edição offline simultânea, a primeira gravação
+> válida vence e uma rejeição definitiva fica marcada como `ERROR`.
+
 ### 13.2 Regras de conflito
 
 - O backend é a **fonte definitiva** dos dados sincronizados.
@@ -1303,19 +1323,26 @@ app falha na revisão ou irrita no uso diário.
 
 ### 16.4 Critérios de aceite do MVP
 
-- [ ] O usuário cria conta, faz login e recupera acesso.
-- [ ] O usuário consulta e filtra o catálogo de exercícios.
+- [x] O usuário cria conta, faz login e recupera acesso.
+- [x] O usuário consulta e filtra o catálogo de exercícios.
 - [ ] O usuário cria um programa com dias e exercícios.
-- [ ] O usuário inicia uma sessão e registra múltiplas séries.
-- [ ] O preenchimento rápido sugere os valores da última sessão.
+  - O backend já expõe `POST /programs`; a tela do app ainda edita o dia em
+    memória e não persiste. Falta ligar a interface à API.
+- [x] O usuário inicia uma sessão e registra múltiplas séries.
+- [x] O preenchimento rápido sugere os valores da última sessão.
 - [ ] O usuário corrige uma série e o histórico reflete a correção.
-- [ ] A sessão finalizada aparece no histórico.
+  - O backend já expõe `PATCH /sets/{id}` e `DELETE /sets/{id}`; falta a
+    interface no app.
+- [x] A sessão finalizada aparece no histórico.
 - [ ] Volume, 1RM e recordes são calculados de forma consistente e transacional.
-- [ ] Um usuário não consegue ler nem escrever dados privados de outro.
-- [ ] Erros de validação aparecem de forma compreensível.
-- [ ] A documentação da API (OpenAPI) está disponível.
-- [ ] O projeto roda seguindo o README.
-- [ ] Os testes essenciais passam no ambiente documentado.
+  - As calculadoras de volume e 1RM existem e têm teste, mas ainda não são
+    usadas por nenhum endpoint; a detecção de recordes não foi implementada.
+    Item da Sprint 4.
+- [x] Um usuário não consegue ler nem escrever dados privados de outro.
+- [x] Erros de validação aparecem de forma compreensível.
+- [x] A documentação da API (OpenAPI) está disponível.
+- [x] O projeto roda seguindo o README.
+- [x] Os testes essenciais passam no ambiente documentado.
 
 ### 16.5 Matriz de validação Android
 
@@ -1362,13 +1389,13 @@ ciclo de vida da sessão com o app em background.
 
 ### Sprint 1 — Fundação
 
-- [ ] Criar repositório Git e estrutura de pastas.
-- [ ] Configurar projeto Spring Boot + Maven.
-- [ ] Configurar React Native com Expo e TypeScript.
-- [ ] Subir PostgreSQL local via Docker Compose.
-- [ ] Configurar Flyway, OpenAPI e `.env.example`.
-- [ ] Configurar CI com build e testes.
-- [ ] Definir convenções de código, branches e escopo do MVP.
+- [x] Criar repositório Git e estrutura de pastas.
+- [x] Configurar projeto Spring Boot + Maven.
+- [x] Configurar React Native com Expo e TypeScript.
+- [x] Subir PostgreSQL local via Docker Compose.
+- [x] Configurar Flyway, OpenAPI e `.env.example`.
+- [x] Configurar CI com build e testes.
+- [x] Definir convenções de código, branches e escopo do MVP.
 
 ### Sprint 2 — Usuários, preferências e exercícios
 
@@ -1503,11 +1530,11 @@ bloqueantes travam a sprint indicada.
 
 | # | Decisão | Impacto | Bloqueia |
 |---|---|---|---|
-| 1 | Fórmula de 1RM (Brzycki vs Epley) e limites de validade | Métrica exibida ao usuário | Sprint 4 |
+| 1 | ~~Fórmula de 1RM (Brzycki vs Epley) e limites de validade~~ | **Decidido:** Brzycki, `1RM = carga × 36 / (37 − repetições)`, apenas de 1 a 10 repetições (ver [seção 7.3](#73-estimativa-de-1rm)) | — |
 | 2 | ~~Estratégia de tokens~~ | **Decidido:** access token JWT stateless de 15 min + refresh token opaco rotativo com detecção de reuso (ver [seção 14.1](#141-autenticação-e-autorização)). Revogação persistida em banco | — |
 | 3 | Provedor de LLM e orçamento de uso; política de retenção de prompts | Fase 2 inteira | Sprint 5 |
 | 4 | Origem do catálogo seed de exercícios: manual ou importado com licença | Seed do banco | Sprint 2 |
-| 5 | Regras de volume para peso corporal, séries sem carga e movimentos isométricos | Cálculo de volume | Sprint 4 |
+| 5 | ~~Regras de volume para peso corporal, séries sem carga e movimentos isométricos~~ | **Decidido:** o volume soma apenas carga externa (`carga × repetições`); peso corporal, exercício assistido e movimento isométrico somam zero (ver [seção 7.2](#72-volume-de-treino)) | — |
 | 6 | Alvo de hospedagem e implantação (Railway / Render / VPS / cloud) | CI/CD e secrets | Sprint 1 |
 | 7 | ~~Primeiro lançamento~~ | **Decidido: Android only** (ver [seção 1.5](#15-plataforma-de-lançamento-android-first)). iOS fica para a fase posterior | — |
 | 8 | Escopo da Fase 2: qual subset — geração de treino, sugestão de carga, voz, coaching | Esforço de IA | Sprint 5 |
@@ -1518,23 +1545,30 @@ bloqueantes travam a sprint indicada.
 | 12 | Nome definitivo e identidade visual | Branding | Sprint 1 |
 | 13 | Conta de desenvolvedor Google Play ativa e pipeline de build: EAS Build (nuvem) ou Gradle local | Distribuição e assinatura | Sprint 6 |
 
-> Decisões 1, 2, 3 e 5 são as que mais restringem a implementação — resolva-nas
-> antes da Sprint 2.
+> As decisões 1, 2, 5, 7, 9 e 14 já estão resolvidas. As que mais restringem o
+> que falta são a **3** (provedor de LLM e custo) e a **8** (escopo da Fase 2):
+> resolva-as antes da Sprint 5.
+>
+> As decisões **4** (origem do seed), **6** (hospedagem) e **12** (nome e
+> identidade) continuam abertas: as Sprints 1 a 3 foram entregues com soluções
+> provisórias (seed escrito no repositório, CI no GitHub Actions e nome de
+> trabalho). Confirme essas escolhas antes da publicação.
 
 ---
 
 ## 21. Próximos passos
 
-1. Criar o repositório `ironmind-ai` e subir a estrutura de pastas da
-   [seção 8.3](#83-estrutura-do-repositório).
-2. Resolver as decisões pendentes 1, 2, 4 e 6.
-3. Subir PostgreSQL local e rodar a primeira migração Flyway.
-4. Implementar autenticação e preferências — com testes de autorização.
-5. Implementar o fluxo completo de registro de treino (exercício → série →
-   sessão → histórico).
-6. Implementar volume, 1RM e recordes com testes de casos conhecidos.
-7. Construir as telas mobile conectadas à API.
-8. Só então integrar a primeira funcionalidade de IA.
+1. Implementar volume, 1RM e recordes com testes de casos conhecidos e expor
+   `/analytics/*` e `/records` (Sprint 4).
+2. Ligar ao backend real as telas que ainda usam o adaptador de mock: dashboard,
+   evolução por exercício e recordes.
+3. Completar as telas pendentes do MVP: persistir a edição de programa,
+   corrigir/excluir série, pausar/retomar/abandonar sessão e criar exercício
+   personalizado.
+4. Resolver a decisão 3 (provedor de LLM e orçamento) e a 8 (escopo da Fase 2).
+5. Integrar a primeira funcionalidade de IA.
+6. Fechar as pendências de publicação: política de privacidade, exclusão de
+   conta in-app, conta de desenvolvedor Google Play, keystore e assinatura.
 
 ---
 

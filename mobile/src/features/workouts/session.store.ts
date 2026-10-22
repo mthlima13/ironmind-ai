@@ -9,10 +9,13 @@ type SessionState = {
   session: WorkoutSession | null;
   /** Number of write operations waiting to be synchronized. */
   pendingCount: number;
+  /** Number of operations permanently rejected by the backend. */
+  failedCount: number;
   /** True when the last request failed because of connectivity. */
   isOffline: boolean;
   setSession: (session: WorkoutSession | null) => void;
   setPendingCount: (count: number) => void;
+  setFailedCount: (count: number) => void;
   setOffline: (isOffline: boolean) => void;
   addSet: (sessionExerciseId: string, set: ExerciseSet) => void;
   /** Keeps an exercise added during the workout inside the running session. */
@@ -23,9 +26,11 @@ type SessionState = {
 export const useSessionStore = create<SessionState>()((set) => ({
   session: null,
   pendingCount: 0,
+  failedCount: 0,
   isOffline: false,
   setSession: (session) => set({ session }),
   setPendingCount: (pendingCount) => set({ pendingCount }),
+  setFailedCount: (failedCount) => set({ failedCount }),
   setOffline: (isOffline) => set({ isOffline }),
   addSet: (sessionExerciseId, exerciseSet) =>
     set((state) => {
@@ -58,7 +63,7 @@ export const useSessionStore = create<SessionState>()((set) => ({
         },
       };
     }),
-  clearSession: () => set({ session: null, pendingCount: 0 }),
+  clearSession: () => set({ session: null, pendingCount: 0, failedCount: 0 }),
 }));
 
 /** True while a session is running and was not finished nor abandoned. */

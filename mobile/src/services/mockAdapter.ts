@@ -259,6 +259,11 @@ function buildRoute(
 
 function buildRoutes(state: MockState): MockRoute[] {
   return [
+    buildRoute('GET', '/health', false, () => ({
+      status: 'UP',
+      service: 'ironmind-backend',
+      timestamp: new Date().toISOString(),
+    })),
     buildRoute('POST', '/auth/register', false, ({ body, headers, path }) => {
       const name = typeof body.name === 'string' ? body.name.trim() : '';
       const email = normalizeEmail(

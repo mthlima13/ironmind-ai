@@ -168,6 +168,45 @@ export async function removeOperation(id: string): Promise<void> {
   }
 }
 
+/**
+ * Marks an operation as permanently rejected by the backend.
+ *
+ * A rejected operation stops being retried and stays in the local database so
+ * the failure can be inspected. It no longer counts as pending work.
+ */
+export async function markOperationFailed(id: string): Promise<void> {
+  const database = await getDatabase();
+  if (!database) {
+    return;
+  }
+  try {
+    await initOfflineQueue();
+    await database.runAsync(
+      `UPDATE ${PENDING_OPERATIONS_TABLE} SET status = 'ERROR' WHERE id = ?;`,
+      id
+    );
+  } catch {
+    // Nothing to do: the operation stays pending and is retried later.
+  }
+}
+
+/** Number of operations permanently rejected by the backend. */
+export async function countFailedOperations(): Promise<number> {
+  const database = await getDatabase();
+  if (!database) {
+    return 0;
+  }
+  try {
+    await initOfflineQueue();
+    const row = await database.getFirstAsync<{ total: number }>(
+      `SELECT COUNT(*) AS total FROM ${PENDING_OPERATIONS_TABLE} WHERE status = 'ERROR';`
+    );
+    return row?.total ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
 /** Removes every pending operation. Used when the user logs out. */
 export async function clearOfflineQueue(): Promise<void> {
   const database = await getDatabase();

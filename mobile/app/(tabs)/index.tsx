@@ -15,6 +15,7 @@ import { useDashboardOverview } from '../../src/features/analytics/useDashboard'
 import { useAuthState } from '../../src/features/auth/useAuth';
 import { useProfile } from '../../src/features/auth/useProfile';
 import { useSessionStore } from '../../src/features/workouts/session.store';
+import { useOfflineSync } from '../../src/features/workouts/useOfflineSync';
 import { ROUTES } from '../../src/navigation/linking';
 import { mapApiError } from '../../src/services/api';
 import { colors, spacing, typography } from '../../src/theme';
@@ -35,7 +36,7 @@ export default function DashboardScreen() {
   const { data: profile } = useProfile();
   const { data, isLoading, isError, error, refetch } = useDashboardOverview();
 
-  const pendingCount = useSessionStore((state) => state.pendingCount);
+  const { pendingCount, failedCount, syncNow } = useOfflineSync();
   const isOffline = useSessionStore((state) => state.isOffline);
   const hasActiveSession = useSessionStore((state) => state.session !== null);
 
@@ -85,7 +86,12 @@ export default function DashboardScreen() {
       subtitle="Treine com inteligência. Evolua com dados."
       testID="dashboard-screen"
     >
-      <PendingSyncBanner pendingCount={pendingCount} isOffline={isOffline} />
+      <PendingSyncBanner
+        pendingCount={pendingCount}
+        failedCount={failedCount}
+        isOffline={isOffline}
+        onSync={() => void syncNow()}
+      />
 
       <View style={styles.cards}>
         <StatCard

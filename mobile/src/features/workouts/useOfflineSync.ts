@@ -1,9 +1,11 @@
 import { useCallback, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
+import { flushOfflineQueue, type OfflineSyncResult } from '../../services/offlineSync';
 import {
+  countFailedOperations,
   enqueueOperation,
   listPendingOperations,
-  type PendingOperation,
 } from '../../storage/offlineQueue';
 import { useSessionStore } from './session.store';
 
@@ -18,17 +20,41 @@ export type EnqueueInput = {
  * Offline synchronization of the workout writes (SPEC 13).
  *
  * When the backend cannot be reached, the operation is queued in the local
- * database and the user is told that it is pending.
+ * database and the user is told that it is pending. `syncNow` replays the
+ * queue and refreshes the counters; the automatic replay is triggered by the
+ * {@link useOfflineSyncGate} hook, which watches the connectivity.
  */
 export function useOfflineSync() {
+  const queryClient = useQueryClient();
+
   const pendingCount = useSessionStore((state) => state.pendingCount);
+  const failedCount = useSessionStore((state) => state.failedCount);
   const setPendingCount = useSessionStore((state) => state.setPendingCount);
+  const setFailedCount = useSessionStore((state) => state.setFailedCount);
   const setOffline = useSessionStore((state) => state.setOffline);
 
   const refresh = useCallback(async () => {
-    const operations: PendingOperation[] = await listPendingOperations();
+    const [operations, failed] = await Promise.all([
+      listPendingOperations(),
+      countFailedOperations(),
+    ]);
     setPendingCount(operations.length);
-  }, [setPendingCount]);
+    setFailedCount(failed);
+  }, [setFailedCount, setPendingCount]);
+
+  const syncNow = useCallback(async (): Promise<OfflineSyncResult> => {
+    const result = await flushOfflineQueue();
+    await refresh();
+
+    if (result.sent > 0) {
+      // The records that reached the backend change the history and the
+      // summary, so the screens must not keep the previous snapshot.
+      void queryClient.invalidateQueries({ queryKey: ['workout-sessions'] });
+      void queryClient.invalidateQueries({ queryKey: ['analytics'] });
+    }
+
+    return result;
+  }, [queryClient, refresh]);
 
   const enqueue = useCallback(
     async (input: EnqueueInput) => {
@@ -48,5 +74,12 @@ export function useOfflineSync() {
     void refresh();
   }, [refresh]);
 
-  return { pendingCount, enqueue, refresh, setOffline };
+  return {
+    pendingCount,
+    failedCount,
+    enqueue,
+    refresh,
+    syncNow,
+    setOffline,
+  };
 }

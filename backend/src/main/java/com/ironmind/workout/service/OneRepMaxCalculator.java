@@ -12,9 +12,9 @@ import org.springframework.stereotype.Component;
  * is not a real measurement and it loses accuracy with high repetition counts, with isolated
  * movements and with loads reduced by assistance.
  *
- * <p><strong>Pending decision:</strong> SPEC.md section 20, decision 1, still has to choose between
- * the Brzycki and the Epley formulas and to define the validity limits. This implementation uses
- * <em>Brzycki</em> as a provisional choice:
+ * <p><strong>Decision 1 of SPEC.md section 20 (closed):</strong> the product uses
+ * <em>Brzycki</em>. The formula and the validity limits below are the official rule, not a
+ * provisional choice:
  *
  * <pre>
  * 1RM = carga × 36 / (37 - repetições)
@@ -22,7 +22,9 @@ import org.springframework.stereotype.Component;
  *
  * <p>Brzycki returns exactly the performed load for a single repetition and is slightly more
  * conservative than Epley between 5 and 12 repetitions, which is the range used by most
- * hypertrophy programs. The choice must be confirmed before the metric is exposed to the user.
+ * hypertrophy programs. The estimate is produced only from 1 to 10 repetitions: beyond that
+ * point the formula loses accuracy and the API returns no estimate instead of a number that
+ * looks precise.
  */
 @Component
 public class OneRepMaxCalculator {
@@ -31,7 +33,7 @@ public class OneRepMaxCalculator {
      * Maximum number of repetitions accepted by the estimation.
      *
      * <p>Beyond that point the formula becomes unreliable, so the estimation is not produced.
-     * The limit is provisional and follows the pending decision 1 of SPEC.md section 20.
+     * The limit is part of decision 1 of SPEC.md section 20.
      */
     public static final int MAX_REPETITIONS_FOR_ESTIMATE = 10;
 

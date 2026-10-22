@@ -146,19 +146,19 @@ O requisito mais importante do projeto em termos de segurança:
 
 ## 6. Pendências de segurança
 
-| # | Pendência | Sprint |
-|---|---|---|
-| 1 | Refresh token rotativo com detecção de reuso | 2 |
-| 2 | Rate limiting com backend compartilhado (Redis) | 2 |
-| 3 | Recuperação de acesso por email com token de uso único | 2 |
-| 4 | Auditoria de ações de administrador | 1 |
-| 5 | Testes de penetração manuais nos endpoints de IA | 5 |
-| 6 | Certificate pinning no app | 6 |
-| 7 | Política de privacidade, termos de uso e encarregado (DPO) | 6 |
-| 8 | Rotação e teste de backup do banco | 6 |
-| 9 | Política de retenção de dados de IA | 5 |
-| 10 | Exclusão de conta in-app (exigência do Google Play para apps com login) | 6 |
-| 11 | Keystore e chave de upload do Play fora do repositório | 6 |
+| # | Pendência | Situação | Sprint |
+|---|---|---|---|
+| 1 | Refresh token rotativo com detecção de reuso | **Feito** — tokens persistidos, rotação e revogação em cascata | 2 |
+| 2 | Rate limiting com backend compartilhado (Redis) | **Parcial** — limitador em memória nas rotas de autenticação; sem backend compartilhado para múltiplas instâncias | 2 |
+| 3 | Recuperação de acesso por email com token de uso único | **Feito** — token de uso único de 30 min; a entrega usa uma porta de e-mail plugável, o provedor real ainda não foi conectado | 2 |
+| 4 | Auditoria de ações de administrador | Pendente — ainda não existe painel de administração | 1 |
+| 5 | Testes de penetração manuais nos endpoints de IA | Pendente — depende dos endpoints de IA | 5 |
+| 6 | Certificate pinning no app | Pendente | 6 |
+| 7 | Política de privacidade, termos de uso e encarregado (DPO) | Pendente | 6 |
+| 8 | Rotação e teste de backup do banco | Pendente | 6 |
+| 9 | Política de retenção de dados de IA | Pendente | 5 |
+| 10 | Exclusão de conta in-app (exigência do Google Play para apps com login) | Pendente | 6 |
+| 11 | Keystore e chave de upload do Play fora do repositório | Pendente — entra no processo de assinatura | 6 |
 
 ---
 

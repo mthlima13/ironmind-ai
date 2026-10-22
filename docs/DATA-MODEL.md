@@ -164,17 +164,18 @@ backend a partir das séries.
 
 | Métrica | Cálculo |
 |---|---|
-| Volume da série | `weight_kg × repetitions` |
+| Volume da série | `weight_kg × repetitions` (só carga externa) |
 | Volume do exercício | Soma das séries válidas do exercício |
 | Volume da sessão | Soma das séries válidas da sessão |
 | Volume semanal/mensal | Soma agrupada por período |
-| 1RM estimado | Fórmula de Brzycki — **decisão pendente #1** |
+| 1RM estimado | Brzycki: `weight_kg × 36 / (37 − repetitions)`, de 1 a 10 reps |
 | Recorde de carga | Maior `weight_kg` do usuário/exercício |
 | Recorde de reps | Maior `repetitions` com `weight_kg` ≥ 0 |
 | Recorde de 1RM | Maior 1RM estimado do usuário/exercício |
 
-> **Pendência #5:** definir o tratamento de peso corporal (peso `NULL` → não
-> entra no volume), séries sem reps e movimentos isométricos.
+> **Decisão 5 (resolvida):** peso corporal (`weight_kg NULL`), exercício
+> assistido e movimento isométrico ou por tempo somam **zero** ao volume. O
+> número exibido representa apenas a carga externa movimentada.
 
 ---
 

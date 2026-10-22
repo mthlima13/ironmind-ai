@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuthStore } from '../src/features/auth/auth.store';
 import { useAppFonts } from '../src/hooks/useAppFonts';
 import { useConnectionSync } from '../src/hooks/useConnectionSync';
+import { useOfflineSyncGate } from '../src/hooks/useOfflineSyncGate';
 import { useSessionPersistence } from '../src/hooks/useSessionPersistence';
 import { BackHandlerProvider } from '../src/navigation/BackHandlerProvider';
 import { useDeepLinks } from '../src/navigation/useDeepLinks';
@@ -21,6 +22,12 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+/** Replays the offline queue; needs the query client from the provider below. */
+function OfflineSyncGate() {
+  useOfflineSyncGate();
+  return null;
+}
 
 export default function RootLayout() {
   const { loaded } = useAppFonts();
@@ -44,6 +51,7 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
+        <OfflineSyncGate />
         <StatusBar style="light" />
         <BackHandlerProvider>
           <Stack

@@ -33,26 +33,31 @@ O IronMind AI resolve isso em duas frentes:
 
 ## Status do projeto
 
-> **Estágio atual: fundação (Sprint 1).** O repositório contém o esqueleto
-> completo e executável do backend e do aplicativo. Nenhuma funcionalidade de
-> produto está pronta para o usuário final.
+> **Estágio atual: Sprints 1 a 3 concluídas.** Autenticação, catálogo, sessões e
+> séries funcionam de ponta a ponta contra a API real; programas são listados e
+> iniciados, mas a edição ainda não persiste. A Sprint 4 (estatísticas e
+> recordes) é a próxima: enquanto ela não termina, o dashboard e a evolução por
+> exercício do app rodam contra o adaptador de mock.
 
 | Área | Situação |
 |---|---|
 | Schema do banco (15 tabelas, migrações Flyway, seed de 59 exercícios) | Implementado |
 | Backend: health, catálogo de exercícios, perfil e preferências | Implementado |
 | Autenticação completa: cadastro, login, refresh rotativo, logout, recuperação | Implementado |
-| Programas de treino: criar, listar, substituir, arquivar | Implementado |
-| Sessões: iniciar, pausar, retomar, concluir, histórico paginado | Implementado |
-| Séries: registrar, corrigir, excluir, com idempotência durável | Implementado |
+| Programas de treino (API): criar, listar, substituir, arquivar | Implementado — a tela do app ainda não persiste as edições |
+| Sessões (API): iniciar, pausar, retomar, concluir, histórico paginado | Implementado |
+| Séries (API): registrar, corrigir, excluir, com idempotência durável | Implementado |
+| Sessão offline: fila local com reenvio automático, idempotência e contagem de pendências | Implementado |
 | Contrato de erro da API, trace ID, tratamento global de exceções | Implementado |
-| Cálculo de volume e estimativa de 1RM | Implementado |
-| App Android: 5 abas, autenticação, dashboard, catálogo, editor de programa, registro de série, histórico, perfil | Implementado |
+| Calculadoras de volume e 1RM (regras decididas e testadas) | Parcial — ainda sem endpoint; Sprint 4 |
+| Detecção transacional de recordes pessoais | Planejado — Sprint 4 |
+| App Android: 5 abas, autenticação, catálogo, editor de dia em memória, registro de série, histórico, perfil | Implementado |
+| Dashboard e evolução por exercício no app | Parcial — dados do adaptador de mock até a Sprint 4 |
 | Adaptações Android: back do sistema, edge-to-edge, permissões em runtime, safe area | Implementado |
-| Testes | 130 no backend + 107 no mobile (90 unitários + 17 de contrato contra a API real) |
+| Testes | 131 testes no backend + 114 casos no mobile (97 unitários + 17 de contrato contra a API real) |
 | Teste de contrato mobile x API real, no CI | Implementado |
 | App rodando em emulador Android 15 contra API e banco reais | Verificado |
-| Analytics, recordes e dashboard no backend | Planejado — Sprint 4 |
+| Analytics, recordes e restrições no backend | Planejado — Sprint 4 |
 | Integração com IA | Planejado — Sprint 5 |
 | Recursos sociais e gamificação | Planejado — Fase 3 |
 | Exclusão de conta in-app | Planejado — Sprint 6 (exigência do Google Play) |
@@ -161,10 +166,10 @@ cd android && ./gradlew bundleRelease
 ### 4. Testes
 
 ```bash
-# backend — 23 testes
+# backend — 131 testes
 cd backend && mvn test
 
-# mobile — 36 testes
+# mobile — typecheck + 114 casos de teste
 cd mobile && npx tsc --noEmit && npx jest
 ```
 
@@ -251,9 +256,9 @@ ironmind-ai/
 | Fase | Conteúdo | Sprint |
 |---|---|---|
 | 1 — MVP | Auth, preferências, catálogo, programas, sessões, séries, histórico, volume, 1RM, recordes, dashboard | 1 a 4 |
-| 2 — IA | Geração de treino por texto, sugestão de carga, chat de coaching, registro por voz, sincronização offline | 5 |
+| 2 — IA | Geração de treino por texto, sugestão de carga, chat de coaching, registro por voz | 5 |
 | 3 — Social | Perfil público, crews, publicações, XP, desafios, rankings, moderação | — |
-| 4 — Avançado | Saúde e wearables, medidas e fotos, marketplace de criadores, cardio, análise visual | — |
+| 4 — Avançado | Saúde e wearables, resolução de conflitos offline, medidas e fotos, marketplace de criadores, cardio, análise visual | — |
 | — | Plataforma **iOS** (mantém o design agnóstico; entra quando o Android estiver estável) | — |
 
 Detalhamento e decisões pendentes: [`docs/SPEC.md`](docs/SPEC.md).

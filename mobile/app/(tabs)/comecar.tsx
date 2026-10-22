@@ -46,11 +46,12 @@ export default function StartWorkoutScreen() {
   const addExercise = useSessionStore((state) => state.addExercise);
   const clearSession = useSessionStore((state) => state.clearSession);
   const pendingCount = useSessionStore((state) => state.pendingCount);
+  const failedCount = useSessionStore((state) => state.failedCount);
   const isOffline = useSessionStore((state) => state.isOffline);
 
   const { data: profile } = useProfile();
   const { data: programsData, isLoading: isLoadingPrograms } = usePrograms();
-  const { enqueue } = useOfflineSync();
+  const { enqueue, syncNow } = useOfflineSync();
 
   const startMutation = useStartSession();
   const registerMutation = useRegisterSet(session?.id ?? null);
@@ -112,6 +113,10 @@ export default function StartWorkoutScreen() {
       weightKg: set.weightKg,
       repetitions: set.repetitions,
       perceivedExertion: set.perceivedExertion,
+      // Generated before the first attempt: if the request fails and goes to
+      // the queue, the replay reuses the same key and cannot duplicate the set
+      // (SPEC A.3).
+      idempotencyKey: createIdempotencyKey(),
     }));
 
     try {
@@ -123,13 +128,27 @@ export default function StartWorkoutScreen() {
         return;
       }
       // Without connectivity the write goes to the local queue (SPEC 13).
-      for (const input of inputs) {
-        const idempotencyKey = createIdempotencyKey();
+      // The set is also added to the running session right away, with a
+      // temporary id, so the user sees what was recorded instead of watching
+      // the set disappear. The server assigns the definitive id when the queue
+      // is replayed (SPEC 13).
+      const firstSetNumber = selectedExercise.sets.length;
+      for (const [index, input] of inputs.entries()) {
+        // The key generated for the failed attempt is reused, never replaced.
+        const { idempotencyKey, ...payload } = input;
         await enqueue({
           method: 'POST',
           endpoint: ENDPOINTS.sessions.addSet(session.id),
-          payload: input,
+          payload,
           idempotencyKey,
+        });
+        addSet(selectedExercise.id, {
+          id: `local-${idempotencyKey}`,
+          setNumber: firstSetNumber + index + 1,
+          weightKg: input.weightKg,
+          repetitions: input.repetitions,
+          perceivedExertion: input.perceivedExertion,
+          completedAt: new Date().toISOString(),
         });
       }
     }
@@ -213,7 +232,12 @@ export default function StartWorkoutScreen() {
         subtitle="Escolha um dia do programa ou inicie um treino livre."
         testID="start-workout-screen"
       >
-        <PendingSyncBanner pendingCount={pendingCount} isOffline={isOffline} />
+        <PendingSyncBanner
+          pendingCount={pendingCount}
+          failedCount={failedCount}
+          isOffline={isOffline}
+          onSync={() => void syncNow()}
+        />
 
         <Button
           label="Treino livre"
@@ -288,7 +312,12 @@ export default function StartWorkoutScreen() {
       })}`}
       testID="start-workout-screen"
     >
-      <PendingSyncBanner pendingCount={pendingCount} isOffline={isOffline} />
+      <PendingSyncBanner
+        pendingCount={pendingCount}
+        failedCount={failedCount}
+        isOffline={isOffline}
+        onSync={() => void syncNow()}
+      />
 
       <Card title="Exercícios" subtitle="Toque no exercício para registrar as séries">
         {session.exercises.length === 0 ? (

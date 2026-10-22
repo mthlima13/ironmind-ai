@@ -109,6 +109,7 @@ describe('session store', () => {
     useSessionStore.setState({
       session: createSession(),
       pendingCount: 0,
+      failedCount: 0,
       isOffline: false,
     });
   });

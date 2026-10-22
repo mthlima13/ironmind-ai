@@ -8,15 +8,19 @@ em `/swagger-ui.html` com o backend em execução.
 - **Formato:** JSON (`application/json`)
 - **Autenticação:** `Authorization: Bearer <accessToken>`
 
-> **O que existe hoje.** A Sprint 1 entrega apenas o esqueleto: health, o
-> catálogo de exercícios e o contrato de erro. Os demais endpoints listados
-> abaixo são o **contrato planejado** da Sprint 2 a 5 e ainda **não** estão
-> implementados — não conte com eles.
+> **O que existe hoje.** Sprints 1 a 3 entregues: autenticação, perfil e
+> preferências, catálogo de exercícios, programas e o fluxo completo de sessão
+> (início, pausa/retomada, registro e correção de séries, conclusão).
+>
+> As seções **Analytics, recordes e restrições** e **IA** são o contrato
+> planejado das Sprints 4 e 5: esses endpoints ainda **não** existem no backend.
+> No app, as telas que dependem deles rodam apenas contra o adaptador de mock
+> (`mobile/src/services/mockAdapter.ts`).
 
 | Status | Endpoints |
 |---|---|
-| **Implementado** | `GET /health`, `GET /exercises`, `GET /exercises/{id}`, `POST /exercises`, `PATCH /exercises/{id}` |
-| Planejado | todo o restante |
+| **Implementado** | `GET /health`; `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/forgot-password`, `/auth/reset-password`; `GET/PATCH /users/me`; `GET/POST /exercises`, `GET/PATCH /exercises/{id}`; `GET/POST /programs`, `GET/PUT/DELETE /programs/{id}`; `GET/POST /workout-sessions`, `GET/PATCH /workout-sessions/{id}`, `POST /workout-sessions/{id}/exercises`, `POST /workout-sessions/{id}/sets`, `POST /workout-sessions/{id}/complete`, `PATCH/DELETE /sets/{id}` |
+| Planejado | `/analytics/*`, `/records` e `/restrictions` (Sprint 4); `/ai/*` (Sprint 5) |
 
 ---
 
@@ -499,11 +503,14 @@ PATCH /api/v1/sets/{id}
 ```
 
 `200` com a série corrigida. `DELETE /api/v1/sets/{id}` devolve `204`. A
-reavaliação dos recordes derivatives entra na Sprint 4; até lá, a exclusão
+reavaliação dos recordes derivados entra na Sprint 4; até lá, a exclusão
 apaga o vínculo da série e mantém o valor do recorde.
 
 
 ### Analytics, recordes e restrições
+
+> **Planejado para a Sprint 4.** Nenhum endpoint desta seção existe no backend
+> hoje; a tabela é o contrato acordado, não uma implementação.
 
 | Método | Endpoint | Auth | Descrição |
 |---|---|---|---|
@@ -514,6 +521,8 @@ apaga o vínculo da série e mantém o valor do recorde.
 | `PUT` | `/restrictions` | ✔ | Atualizar restrições |
 
 ### IA
+
+> **Planejado para a Sprint 5.** Nenhum endpoint de IA existe no backend hoje.
 
 | Método | Endpoint | Auth | Descrição |
 |---|---|---|---|

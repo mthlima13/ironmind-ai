@@ -128,6 +128,8 @@ mvn test          # unitários + integração
 mvn verify        # equivalente, com a verificação do pacote
 ```
 
+A suíte executa **131 testes** em 17 arquivos:
+
 | Suíte | Tipo | Precisa de PostgreSQL |
 |---|---|---|
 | `VolumeCalculatorTest` | unitário | não |
@@ -494,7 +496,7 @@ diferente devolve **409 `IDEMPOTENCY_KEY_REUSED`**.
 
 | Área | Situação |
 |---|---|
-| Schema do banco (13 tabelas, `V1__baseline.sql`) | Implementado |
+| Schema do banco (13 tabelas em `V1__baseline.sql`, 15 após `V3__auth_tokens.sql`) | Implementado |
 | Seed do catálogo global (59 exercícios, `V2__seed_exercises.sql`) | Implementado |
 | Tabelas de autenticação (`V3__auth_tokens.sql`) | Implementado |
 | `GET /api/v1/health` | Implementado |
@@ -527,8 +529,8 @@ diferente devolve **409 `IDEMPOTENCY_KEY_REUSED`**.
 | Hash de senha com Argon2id (parâmetros OWASP) | Implementado |
 | Limitador de taxa da autenticação (janela fixa, em memória) | Implementado |
 | Contrato de erro único, `traceId` no MDC e no header, handler global | Implementado |
-| Cálculo de volume (`carga × repetições`) | Implementado |
-| Estimativa de 1RM (fórmula de Brzycki) | Implementado |
+| Cálculo de volume (`carga × repetições`, só carga externa) | Implementado — calculadora testada, ainda sem endpoint |
+| Estimativa de 1RM (Brzycki, 1 a 10 repetições) | Implementado — calculadora testada, ainda sem endpoint |
 | Kernel de segurança: cadeia de filtros, JWT (access e refresh), CORS, OpenAPI | Implementado |
 | Modelo de persistência de recorde pessoal | Implementado (sem endpoints) |
 
@@ -606,24 +608,23 @@ Nada abaixo existe no código — é a ordem prevista na seção 17 da especific
 
 | Sprint | Entrega |
 |---|---|
-| Sprint 3 | ~~programas, dias e exercícios~~ (feito); ~~início, pausa e conclusão de sessão~~ (feito); ~~registro e correção de séries com idempotência~~ (feito); ~~histórico paginado~~ (feito); preenchimento rápido (o app usa o histórico) |
-| Sprint 4 | detecção transacional de recordes; dashboard e gráficos por exercício |
+| Sprint 4 | endpoints de analytics (`/analytics/overview`, `/analytics/exercises/{id}`), recordes (`/records`) e restrições (`/restrictions`); expor volume e 1RM; detecção transacional de recordes; dashboard e gráficos por exercício |
 | Sprint 5 | serviço de IA com saída estruturada, validação, rate limiting e fallback |
 | Fase 3 | amigos, equipes, conquistas, rankings e moderação |
 
 ---
 
-## Decisões pendentes que afetam este código
+## Decisões de domínio que afetam este código
 
-As decisões 1 e 5 da seção 20 da especificação ainda não foram fechadas, e o código atual
-marca cada uma no ponto em que ela aparece. A decisão 2 (estratégia de tokens) está fechada e
-implementada — ver a seção [Estratégia de token](#estratégia-de-token).
+As decisões 1, 2 e 5 da seção 20 da especificação estão **fechadas**. As duas
+calculadoras abaixo implementam a regra decidida e têm teste; nenhuma delas é
+exposta por endpoint ainda — isso entra na Sprint 4.
 
 | Decisão | Onde aparece no código |
 |---|---|
-| **1 — fórmula de 1RM (Brzycki × Epley) e limites de validade** | `workout/service/OneRepMaxCalculator.java` usa Brzycki como escolha provisória e limita a estimativa a 10 repetições. A escolha precisa ser confirmada antes de expor a métrica. |
+| **1 — fórmula de 1RM e limites de validade** | **Resolvida: Brzycki.** `workout/service/OneRepMaxCalculator.java` aplica `carga × 36 / (37 − reps)` apenas de 1 a 10 repetições; fora do intervalo não devolve estimativa. |
 | **2 — estratégia de tokens (JWT × sessão, rotação e revogação do refresh)** | **Resolvida.** O access token é um JWT de 15 min e o refresh token é um valor opaco rotativo, com detecção de reuso, guardado apenas como hash (`auth/service/RefreshTokenService.java`). |
-| **5 — regras de volume para peso corporal, séries sem carga e movimentos isométricos** | `workout/service/VolumeCalculator.java` conta apenas a carga externa: série sem carga (`weight_kg` nulo) vale zero no volume. |
+| **5 — regras de volume para peso corporal, séries sem carga e movimentos isométricos** | **Resolvida: só carga externa.** `workout/service/VolumeCalculator.java` conta apenas `carga × repetições`; série sem carga (`weight_kg` nulo), exercício assistido e movimento isométrico somam zero. |
 
 ---
 

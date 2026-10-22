@@ -75,18 +75,34 @@ export function useAddSessionExercise(sessionId: string | null = null) {
   });
 }
 
+/**
+ * Set payload with an optional pre-generated idempotency key.
+ *
+ * The caller generates the key before the first attempt so the same key can be
+ * reused if the request is retried through the offline queue (SPEC A.3).
+ */
+export type RegisterSetMutationInput = RegisterSetInput & {
+  idempotencyKey?: string;
+};
+
 /** Registers a set inside a running session. */
 export function useRegisterSet(sessionId: string | null) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (inputs: RegisterSetInput[]) => {
+    mutationFn: async (inputs: RegisterSetMutationInput[]) => {
       if (!sessionId) {
         throw new Error('No active session');
       }
       const created: ExerciseSet[] = [];
       for (const input of inputs) {
-        created.push(await registerSet(sessionId, input, createIdempotencyKey()));
+        created.push(
+          await registerSet(
+            sessionId,
+            input,
+            input.idempotencyKey ?? createIdempotencyKey()
+          )
+        );
       }
       return created;
     },

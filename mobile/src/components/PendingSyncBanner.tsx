@@ -7,6 +7,8 @@ import { Button } from './Button';
 export type PendingSyncBannerProps = {
   /** Number of operations waiting to be sent to the backend. */
   pendingCount: number;
+  /** Number of operations permanently rejected by the backend. */
+  failedCount?: number;
   /** True when the device has no connectivity. */
   isOffline?: boolean;
   onSync?: () => void;
@@ -21,32 +23,48 @@ export type PendingSyncBannerProps = {
  */
 export function PendingSyncBanner({
   pendingCount,
+  failedCount = 0,
   isOffline = false,
   onSync,
   testID,
 }: PendingSyncBannerProps) {
-  const isOfflineState = isOffline || pendingCount > 0;
+  const hasFailed = failedCount > 0;
+  const isOfflineState = isOffline || pendingCount > 0 || hasFailed;
   if (!isOfflineState) {
     return null;
   }
 
   const message = isOffline
     ? 'Sem conexão. As alterações serão sincronizadas quando a internet voltar.'
-    : `${pendingCount} ${pendingCount === 1 ? 'alteração pendente' : 'alterações pendentes'} de sincronização.`;
+    : pendingCount > 0
+      ? `${pendingCount} ${pendingCount === 1 ? 'alteração pendente' : 'alterações pendentes'} de sincronização.`
+      : `${failedCount} ${failedCount === 1 ? 'alteração não pôde' : 'alterações não puderam'} ser sincronizada${failedCount === 1 ? '' : 's'}.`;
+
+  const tone = isOffline
+    ? styles.offline
+    : hasFailed && pendingCount === 0
+      ? styles.failed
+      : styles.pending;
+  const icon = isOffline
+    ? 'cloud-offline-outline'
+    : hasFailed && pendingCount === 0
+      ? 'alert-circle-outline'
+      : 'sync-outline';
+  const iconColor = isOffline
+    ? colors.warning
+    : hasFailed && pendingCount === 0
+      ? colors.danger
+      : colors.info;
 
   return (
     <View
-      style={[styles.container, isOffline ? styles.offline : styles.pending]}
+      style={[styles.container, tone]}
       accessibilityRole="alert"
       testID={testID ?? 'pending-sync-banner'}
     >
-      <Ionicons
-        name={isOffline ? 'cloud-offline-outline' : 'sync-outline'}
-        size={18}
-        color={isOffline ? colors.warning : colors.info}
-      />
+      <Ionicons name={icon} size={18} color={iconColor} />
       <Text style={styles.message}>{message}</Text>
-      {onSync && !isOffline ? (
+      {onSync && !isOffline && pendingCount > 0 ? (
         <Button
           label="Sincronizar"
           onPress={onSync}
@@ -76,6 +94,10 @@ const styles = StyleSheet.create({
   offline: {
     backgroundColor: colors.warningSoft,
     borderColor: colors.warning,
+  },
+  failed: {
+    backgroundColor: colors.dangerSoft,
+    borderColor: colors.danger,
   },
   message: {
     ...typography.caption,

@@ -24,8 +24,10 @@ jest.mock('../src/features/workouts/useOfflineSync', () => ({
   useOfflineSync: () => ({
     enqueue: jest.fn(),
     refresh: jest.fn(),
+    syncNow: jest.fn(),
     setOffline: jest.fn(),
     pendingCount: 0,
+    failedCount: 0,
     isOffline: false,
   }),
 }));
@@ -117,13 +119,19 @@ beforeEach(() => {
   useSessionStore.setState({
     session: createSession(),
     pendingCount: 0,
+    failedCount: 0,
     isOffline: false,
   });
 });
 
 afterEach(() => {
   queryClient.clear();
-  useSessionStore.setState({ session: null, pendingCount: 0, isOffline: false });
+  useSessionStore.setState({
+    session: null,
+    pendingCount: 0,
+    failedCount: 0,
+    isOffline: false,
+  });
 });
 
 describe('StartWorkoutScreen', () => {
