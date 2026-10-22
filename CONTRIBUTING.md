@@ -55,7 +55,7 @@ O controller **não** tem regra de negócio. A entity **não** vira JSON.
 
 ## Backend
 
-- Java 21, Spring Boot 3, Maven.
+- Java 25, Spring Boot 3.5, Maven.
 - DTOs são `record`s; entities são classes com acesso por campo.
 - Validação: Bean Validation no DTO + regra de domínio no service.
 - Toda consulta a recurso privado filtra por owner **no repository ou service**.

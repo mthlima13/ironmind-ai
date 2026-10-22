@@ -6,7 +6,7 @@
 # ==============================================================================
 
 # ---------- Stage 1: build ----------
-FROM maven:3.9-eclipse-temurin-21 AS build
+FROM maven:3.9-eclipse-temurin-25 AS build
 
 WORKDIR /build
 
@@ -18,7 +18,7 @@ COPY src ./src
 RUN mvn -B -q clean package -DskipTests
 
 # ---------- Stage 2: runtime ----------
-FROM eclipse-temurin:21-jre-alpine AS runtime
+FROM eclipse-temurin:25-jre-alpine AS runtime
 
 # curl is used by the container healthcheck.
 RUN apk add --no-cache curl tzdata && \

@@ -67,7 +67,7 @@ Consulte [`docs/SPEC.md`](docs/SPEC.md) para a visão completa e honesta.
 | Camada | Tecnologias |
 |---|---|
 | Mobile | React Native · Expo · TypeScript · Expo Router · TanStack Query · Zustand · Expo SQLite · expo-secure-store — **alvo: Android** |
-| Backend | Java 21 · Spring Boot 3 · Spring Security · Spring Data JPA · Bean Validation |
+| Backend | Java 25 · Spring Boot 3.5 · Spring Security · Spring Data JPA · Bean Validation |
 | API | REST `/api/v1` · OpenAPI 3 (springdoc) · JWT com access + refresh token |
 | Dados | PostgreSQL 16 · Flyway · Testcontainers |
 | Infra | Docker · Docker Compose · GitHub Actions |
@@ -79,7 +79,7 @@ Consulte [`docs/SPEC.md`](docs/SPEC.md) para a visão completa e honesta.
 
 ### Pré-requisitos
 
-- Java 21 (JDK)
+- Java 25 (JDK)
 - Maven 3.10+
 - Node.js 24+ e npm 11+
 - Docker Desktop (para PostgreSQL e para os testes de integração)

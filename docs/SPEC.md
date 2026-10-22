@@ -675,7 +675,7 @@ comportamento anterior quando o usuário nega.
 
 ### 9.2 Backend
 
-- **Java 21** + **Spring Boot 3.x**
+- **Java 25** + **Spring Boot 3.5.x**
 - **Spring Security** (JWT com access + refresh token)
 - **Spring Data JPA** + **Hibernate**
 - **Bean Validation**
@@ -1373,10 +1373,10 @@ ciclo de vida da sessão com o app em background.
 ### Sprint 2 — Usuários, preferências e exercícios
 
 - [x] Implementar cadastro, login, refresh e recuperação de acesso.
-- [ ] Implementar perfil, preferências e unidades.
+- [x] Implementar perfil, preferências e unidades.
 - [x] Criar catálogo seed de exercícios + exercises personalizados.
 - [x] Implementar busca e filtros.
-- [ ] Escrever testes de autorização.
+- [x] Escrever testes de autorização.
 
 ### Sprint 3 — Treinos
 

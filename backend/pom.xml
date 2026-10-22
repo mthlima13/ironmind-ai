@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.4.1</version>
+        <version>3.5.16</version>
         <relativePath/>
     </parent>
 
@@ -18,8 +18,8 @@
     <description>IronMind AI backend - REST API for the IronMind AI fitness application</description>
 
     <properties>
-        <java.version>21</java.version>
-        <springdoc.version>2.7.0</springdoc.version>
+        <java.version>25</java.version>
+        <springdoc.version>2.8.17</springdoc.version>
         <!--
             1.21.x is required for Docker Engine API >= 1.40 (Docker Desktop 29).
             Older Testcontainers versions negotiate an API version the engine

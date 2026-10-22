@@ -1,6 +1,6 @@
 # IronMind AI — Backend
 
-API REST do aplicativo **IronMind AI** (Java 21 · Spring Boot 3.4 · PostgreSQL 16 · Flyway).
+API REST do aplicativo **IronMind AI** (Java 25 · Spring Boot 3.5 · PostgreSQL 16 · Flyway).
 
 A especificação canônica do produto é [`docs/SPEC.md`](../docs/SPEC.md). Este README
 descreve **apenas o que existe hoje**: nenhum recurso planejado é apresentado como
@@ -28,7 +28,7 @@ implementado.
 
 | Ferramenta | Versão | Observação |
 |---|---|---|
-| JDK | 21 | `java -version` |
+| JDK | 25 | `java -version` |
 | Maven | 3.10+ | `mvn -version` |
 | Docker | 24+ | apenas para o PostgreSQL e para os testes de integração |
 | PostgreSQL | 16 | o Flyway exige 13+ (o `gen_random_uuid()` é nativo a partir do 13) |
