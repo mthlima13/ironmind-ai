@@ -1271,6 +1271,15 @@ A matriz é reavaliada a cada release. Não é um checklist de uma vez.
 UI com Detox ou Appium é o caminho quando a cobertura de regras de domínio
 estabilizar.
 
+**Execução parcial registrada (API 35):** emulador Android 15 (API 35, x86_64,
+perfil Pixel 6), com o app falando com a API e o banco reais. Verificado:
+cadastro pela interface, navegação entre as cinco abas, leitura do catálogo e
+do perfil vinda do backend, e o comportamento de erro das telas que dependem
+de endpoints das Sprints 3 e 4. **Pendente:** aparelho físico de outra marca,
+tela de 5 polegadas, modo multi-janela, TalkBack, escala máxima de fonte e o
+ciclo de vida da sessão com o app em background.
+
+
 ### 16.6 Distribuição
 
 - Build em **AAB** via EAS Build ou Gradle local (`./gradlew bundleRelease`).

@@ -217,25 +217,64 @@ Authorization: Bearer <accessToken>
 
 ```json
 {
-  "id": "…",
-  "name": "Ana Souza",
-  "email": "ana@example.com",
-  "role": "USER",
-  "timezone": "America/Sao_Paulo",
-  "createdAt": "2026-10-21T19:43:06Z",
+  "user": {
+    "id": "…",
+    "name": "Ana Souza",
+    "email": "ana@example.com",
+    "role": "USER"
+  },
   "preferences": {
     "preferredUnits": "KG",
-    "trainingExperience": "BEGINNER",
+    "trainingExperience": "INTERMEDIATE",
     "goal": "HYPERTROPHY",
-    "availableEquipment": ["barra", "halteres"],
+    "availableEquipment": ["Barra", "Halteres"],
     "trainingDays": 4,
-    "privacySettings": {}
-  }
+    "privacySettings": {
+      "publicProfile": false,
+      "showRecords": true,
+      "allowSharing": false
+    }
+  },
+  "timezone": "America/Sao_Paulo"
 }
 ```
 
-`PATCH /api/v1/users/me` aceita `name`, `timezone` e `preferences` (parcial). O
-`user_id` **nunca** vem do corpo: vem do token.
+O perfil é **aninhado**: `user`, `preferences` e `timezone` no mesmo nível.
+
+```http
+PATCH /api/v1/users/me
+Authorization: Bearer <accessToken>
+Content-Type: application/json
+
+{
+  "name": "Ana Souza",
+  "timezone": "America/Sao_Paulo",
+  "preferences": { "goal": "STRENGTH", "trainingDays": 5 }
+}
+```
+
+`200` com o mesmo corpo do `GET`. Regras:
+
+| Campo | Regra |
+|---|---|
+| `name` | 2 a 120 caracteres |
+| `timezone` | identificador IANA válido (`America/Sao_Paulo`); inválido devolve `422` |
+| `preferences.preferredUnits` | `KG` \| `LB` |
+| `preferences.trainingExperience` | `BEGINNER` \| `INTERMEDIATE` \| `ADVANCED` |
+| `preferences.goal` | `HYPERTROPHY` \| `STRENGTH` \| `ENDURANCE` \| `GENERAL` |
+| `preferences.availableEquipment` | lista de strings |
+| `preferences.trainingDays` | inteiro de 1 a 7 |
+| `preferences.privacySettings` | `publicProfile`, `showRecords`, `allowSharing` (booleanos) |
+
+- **Atualização parcial e mesclada.** Um campo omitido mantém o valor atual.
+  Enviar só `preferences.goal` não apaga `availableEquipment`.
+- **`email` e `role` não são alteráveis** por este endpoint.
+- **`privacySettings` é sempre devolvido completo**, com os padrões
+  `publicProfile=false`, `showRecords=true`, `allowSharing=false`. Um valor
+  malformado no banco é sanitizado, não derruba a resposta.
+- O `user_id` **nunca** vem do corpo nem da query: vem do token. Um `userId`
+  enviado no corpo é **ignorado**, não rejeitado.
+- Recurso de outro usuário responde **404**, nunca 403.
 
 ### Exercícios
 

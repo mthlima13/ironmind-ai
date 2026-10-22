@@ -6,7 +6,7 @@
  * - the draft of the workout session in progress, so closing the app never
  *   loses a session (SPEC 16.5 - persistence).
  */
-import * as SQLite from 'expo-sqlite';
+import type { SQLiteDatabase } from 'expo-sqlite';
 
 import type { WorkoutSession } from '../types/workout';
 
@@ -27,12 +27,36 @@ export type PendingOperation = {
   createdAt: string;
 };
 
-let databasePromise: Promise<SQLite.SQLiteDatabase> | null = null;
+let databasePromise: Promise<SQLiteDatabase> | null = null;
+let sqlitePromise: Promise<typeof import('expo-sqlite') | null> | null = null;
 
-async function getDatabase(): Promise<SQLite.SQLiteDatabase | null> {
+/**
+ * Loads the SQLite module without making it a hard requirement.
+ *
+ * The native module is not always present: Expo Go ships the version of
+ * `expo-sqlite` built into it, and a release of the package that needs a newer
+ * native code fails to load. A static import would throw while the module is
+ * evaluated and take the whole app down at start up, even though the offline
+ * queue is only a convenience.
+ *
+ * The module is therefore loaded lazily and its absence degrades the queue to a
+ * no-op instead of breaking the app.
+ */
+function loadSqlite(): Promise<typeof import('expo-sqlite') | null> {
+  if (!sqlitePromise) {
+    sqlitePromise = import('expo-sqlite').catch(() => null);
+  }
+  return sqlitePromise;
+}
+
+async function getDatabase(): Promise<SQLiteDatabase | null> {
   try {
+    const sqlite = await loadSqlite();
+    if (!sqlite) {
+      return null;
+    }
     if (!databasePromise) {
-      databasePromise = SQLite.openDatabaseAsync(DATABASE_NAME);
+      databasePromise = sqlite.openDatabaseAsync(DATABASE_NAME);
     }
     return await databasePromise;
   } catch {

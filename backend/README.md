@@ -134,12 +134,14 @@ mvn verify        # equivalente, com a verificação do pacote
 | `OneRepMaxCalculatorTest` | unitário | não |
 | `GlobalExceptionHandlerTest` | unitário (MockMvc) | não |
 | `ExerciseServiceTest` | unitário (Mockito) | não |
+| `UserServiceTest` | unitário (Mockito) | não |
 | `PasswordPolicyTest` | unitário | não |
 | `RefreshTokenServiceTest` | unitário (Mockito) | não |
 | `PasswordResetServiceTest` | unitário (Mockito) | não |
 | `AuthRateLimiterTest` | unitário | não |
 | `PersistenceIntegrationTest` | integração (PostgreSQL 16 real) | sim |
 | `AuthFlowIntegrationTest` | integração (PostgreSQL 16 real) | sim |
+| `UserProfileIntegrationTest` | integração (PostgreSQL 16 real) | sim |
 
 O banco usado pela integração é resolvido pelo `TestDatabase`, nesta ordem:
 
@@ -253,6 +255,52 @@ curl -X POST http://localhost:8080/api/v1/auth/reset-password \
 > O token de recuperação **nunca** volta na resposta HTTP. No ambiente de desenvolvimento ele
 > é escrito no log pelo `LoggingRecoveryMailSender`.
 
+### Perfil e preferências
+
+`GET /api/v1/users/me` devolve o perfil **aninhado** do usuário do token — o mesmo formato
+consumido pelo aplicativo (`mobile/src/types/user.ts`):
+
+```bash
+curl -X GET http://localhost:8080/api/v1/users/me \
+  -H "Authorization: Bearer <token>"
+```
+
+```json
+{
+  "user": { "id": "...", "name": "Ana Souza", "email": "ana@example.com", "role": "USER" },
+  "preferences": {
+    "preferredUnits": "KG",
+    "trainingExperience": "INTERMEDIATE",
+    "goal": "HYPERTROPHY",
+    "availableEquipment": ["Barra", "Halteres"],
+    "trainingDays": 4,
+    "privacySettings": { "publicProfile": false, "showRecords": true, "allowSharing": false }
+  },
+  "timezone": "America/Sao_Paulo"
+}
+```
+
+`PATCH /api/v1/users/me` atualiza o perfil. A atualização é **parcial e mesclada**: o campo
+omitido mantém o valor atual, e as preferências são mescladas campo a campo.
+
+```bash
+curl -X PATCH http://localhost:8080/api/v1/users/me \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Ana Souza","preferences":{"goal":"HYPERTROPHY","trainingDays":4}}'
+```
+
+| Regra | Comportamento |
+|---|---|
+| Identidade | O dono vem **sempre** do token. `id`, `userId` e `user` no corpo são ignorados. |
+| E-mail e papel | Não são alteráveis por este endpoint. |
+| Mesclagem | Campo omitido mantém o valor atual; `preferences` mescla campo a campo. |
+| `privacySettings` | As três flags (`publicProfile`, `showRecords`, `allowSharing`) sempre voltam resolvidas, com os padrões `false`, `true` e `false`. Um `jsonb` malformado é saneado, não quebra a resposta. |
+| `availableEquipment` | Lista de textos. Um valor que não é lista é recusado com `422` no campo `preferences.availableEquipment`. |
+| `trainingDays` | Inteiro de 1 a 7 (a API valida antes do `CHECK` do banco). |
+| `name` | De 2 a 120 caracteres. |
+| `timezone` | Identificador IANA válido, como `America/Sao_Paulo`. |
+
 ### Paginação
 
 `GET /api/v1/exercises?page=0&size=20&sort=name,asc` — o envelope é o do Apêndice A.2
@@ -295,13 +343,15 @@ diferente devolve **409 `IDEMPOTENCY_KEY_REUSED`**.
 | `POST /api/v1/auth/logout` | Implementado |
 | `POST /api/v1/auth/forgot-password` (resposta genérica) | Implementado |
 | `POST /api/v1/auth/reset-password` (token de uso único) | Implementado |
+| `GET /api/v1/users/me` (perfil e preferências aninhados) | Implementado |
+| `PATCH /api/v1/users/me` (atualização parcial e mesclada) | Implementado |
 | Hash de senha com Argon2id (parâmetros OWASP) | Implementado |
 | Limitador de taxa da autenticação (janela fixa, em memória) | Implementado |
 | Contrato de erro único, `traceId` no MDC e no header, handler global | Implementado |
 | Cálculo de volume (`carga × repetições`) | Implementado |
 | Estimativa de 1RM (fórmula de Brzycki) | Implementado |
 | Kernel de segurança: cadeia de filtros, JWT (access e refresh), CORS, OpenAPI | Implementado |
-| Modelo de persistência de usuário, sessão, série e recorde | Implementado (sem endpoints) |
+| Modelo de persistência de sessão, série e recorde | Implementado (sem endpoints) |
 
 ### Estratégia de token
 
@@ -351,6 +401,8 @@ a senha com um hash falso, para não responder mais rápido do que quando a cont
 | `POST` | `/api/v1/auth/logout` | público (o refresh token é a credencial) |
 | `POST` | `/api/v1/auth/forgot-password` | público |
 | `POST` | `/api/v1/auth/reset-password` | público |
+| `GET` | `/api/v1/users/me` | exige token |
+| `PATCH` | `/api/v1/users/me` | exige token |
 | `GET` | `/actuator/health`, `/actuator/info` | público |
 
 ---
@@ -361,7 +413,6 @@ Nada abaixo existe no código — é a ordem prevista na seção 17 da especific
 
 | Sprint | Entrega |
 |---|---|
-| Sprint 2 | perfil, preferências e testes de autorização cruzada (o restante da Sprint 2 está implementado) |
 | Sprint 3 | programas, dias e exercícios; início, pausa e conclusão de sessão; registro e correção de séries com idempotência; histórico paginado |
 | Sprint 4 | detecção transacional de recordes; dashboard e gráficos por exercício |
 | Sprint 5 | serviço de IA com saída estruturada, validação, rate limiting e fallback |
@@ -427,7 +478,7 @@ backend/src/main/java/com/ironmind/
 ├── exercise/     # slice vertical do catálogo de exercícios
 ├── program/      # programas e dias (planejado — Sprint 3)
 ├── record/       # recordes pessoais (modelo de persistência; detecção na Sprint 4)
-├── user/         # conta e preferências (modelo de persistência + cadastro)
+├── user/         # perfil e preferências: controller, service, DTOs e persistência
 └── workout/      # sessões e séries (modelo de persistência) + volume e 1RM
 ```
 

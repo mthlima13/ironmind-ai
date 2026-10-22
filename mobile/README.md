@@ -112,6 +112,70 @@ A suíte cobre, entre outras coisas:
 
 ---
 
+### Teste de contrato contra a API real
+
+Além da suíte com mock, existe um contrato que fala com um backend de verdade.
+Ele é **opt-in**: sem `IT_API_URL` a suíte é pulada e o `npx jest` continua
+hermético.
+
+```bash
+# backend rodando
+cd backend && mvn spring-boot:run          # em outro terminal
+cd mobile
+IT_API_URL=http://localhost:8080/api/v1 npx jest apiContract
+```
+
+O que ele prova, contra a API real:
+
+| Cenário | Esperado |
+|---|---|
+| Cadastro | `201` com access token, refresh token e usuário |
+| Senha fraca | `422` com o detalhe por campo (`password`) |
+| Login | `200` e perfil aninhado com `privacySettings` normalizado |
+| Atualização parcial | campo omitido mantém o valor anterior |
+| `userId` no corpo | ignorado; o perfil continua sendo o do token |
+| Catálogo | envelope paginado do Apêndice A.2 |
+| Renovação | token novo, e o antigo é recusado (`INVALID_REFRESH_TOKEN`) |
+| Reuso | a família inteira de tokens é revogada |
+| Logout | `204` e a sessão não renova mais |
+| Sem token | `401` |
+
+O projeto de Jest do contrato roda em ambiente Node, com a condição de
+exportação `node`: sob o preset do React Native o Axios resolve para o build de
+browser, que não tem o adapter HTTP, e toda requisição volta vazia.
+
+### Emulador Android local
+
+O SDK e o emulador não fazem parte do projeto, mas o fluxo é este:
+
+```bash
+# 1. SDK (uma vez)
+sdkmanager "platform-tools" "platforms;android-35" "emulator" \
+          "system-images;android-35;google_apis;x86_64"
+
+# 2. AVD
+avdmanager create avd -n ironmind_api35 \
+  -k "system-images;android-35;google_apis;x86_64" -d pixel_6
+
+# 3. Emulador
+emulator -avd ironmind_api35 -no-snapshot -gpu swiftshader_indirect &
+
+# 4. App
+npx expo start --android
+```
+
+Dois detalhes que só aparecem no emulador:
+
+- **A URL do Metro.** O Expo abre o projeto pelo IP que ele detecta na máquina.
+  Em uma máquina com WSL, esse IP não é alcançável pelo emulador. Abra o app
+  apontando para o loopback do host: `adb shell am start -a android.intent.action.VIEW -d "exp://10.0.2.2:8081"`.
+- **A URL da API.** O emulador enxerga o host em `10.0.2.2`, e é o que está em
+  `.env`. Um aparelho físico na mesma rede precisa do IP da LAN.
+
+> O `expo-sqlite` não existe em toda build do Expo Go. O app carrega o módulo
+> de forma preguiçosa e trata a ausência: uma feature opcional nunca impede o
+> app de abrir.
+
 ## 4. Estrutura de pastas
 
 ```text
@@ -192,9 +256,15 @@ Cobertura mínima esperada em cada release:
 | Fontes | escala de fonte no maior valor do sistema |
 | Acessibilidade | TalkBack, contraste e alvo de toque |
 
-> Esta matriz **não foi executada** neste ambiente: não há SDK do Android nem
-> aparelho disponível. O que existe hoje são testes automatizados de componente
-> (back handler e safe area) e a validação de tipos/lint.
+> **Execução parcial registrada.** A matriz foi executada em um emulador
+> Android 15 (API 35, x86_64, perfil Pixel 6), com o app conectado à API e ao
+> banco reais: cadastro pela interface, navegação entre as cinco abas, leitura
+> do catálogo e do perfil vindos do backend.
+>
+> Ainda **não** foram verificados: aparelho físico de outra marca, tela de 5
+> polegadas, modo multi-janela, TalkBack, escala máxima de fonte e o ciclo
+> completo de vida da sessão com o app em background.
+
 
 ---
 

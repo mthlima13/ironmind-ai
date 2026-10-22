@@ -40,14 +40,15 @@ O IronMind AI resolve isso em duas frentes:
 | Área | Situação |
 |---|---|
 | Schema do banco (13 tabelas, migrações Flyway, seed de 59 exercícios) | Implementado |
-| Backend: health, slice de exercícios, kernel de segurança JWT | Implementado |
+| Backend: health, catálogo de exercícios, perfil e preferências | Implementado |
+| Autenticação completa: cadastro, login, refresh rotativo, logout, recuperação | Implementado |
 | Contrato de erro da API, trace ID, tratamento global de exceções | Implementado |
 | Cálculo de volume e estimativa de 1RM | Implementado |
-| App Android: 5 abas, autenticação, dashboard, catálogo, editor de programa, registro de série, histórico, perfil | Implementado (com dados mockados) |
+| App Android: 5 abas, autenticação, dashboard, catálogo, editor de programa, registro de série, histórico, perfil | Implementado |
 | Adaptações Android: back do sistema, edge-to-edge, permissões em runtime, safe area | Implementado |
-| Testes | 23 no backend + 36 no mobile, todos passando |
-| API real consumida pelo app | Planejado — o app usa um adaptador de mock |
-| Cadastro e login reais no backend | Planejado — Sprint 2 |
+| Testes | 83 no backend + 85 no mobile (75 unitários + 10 de contrato contra a API real) |
+| Teste de contrato mobile x API real, no CI | Implementado |
+| App rodando em emulador Android 15 contra API e banco reais | Verificado |
 | Programas, sessões e séries na API | Planejado — Sprint 3 |
 | Analytics, recordes e dashboard no backend | Planejado — Sprint 4 |
 | Integração com IA | Planejado — Sprint 5 |

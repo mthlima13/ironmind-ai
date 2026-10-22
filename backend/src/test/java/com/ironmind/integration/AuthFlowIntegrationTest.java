@@ -19,6 +19,7 @@ import com.ironmind.user.repository.UserRepository;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -47,6 +49,9 @@ import org.springframework.test.web.servlet.MockMvc;
 class AuthFlowIntegrationTest {
 
     private static final String PASSWORD = "senha1234";
+
+    /** Prefix of every e-mail created by this suite, used to clean the database. */
+    private static final String TEST_EMAIL_PREFIX = "it-";
 
     @BeforeAll
     static void startDatabase() {
@@ -81,6 +86,9 @@ class AuthFlowIntegrationTest {
 
     @Autowired
     private RefreshTokenRepository refreshTokenRepository;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @MockitoBean
     private RecoveryMailSender recoveryMailSender;
@@ -377,6 +385,19 @@ class AuthFlowIntegrationTest {
     }
 
     private static String uniqueEmail(String prefix) {
-        return prefix + "-" + UUID.randomUUID() + "@example.com";
+        return TEST_EMAIL_PREFIX + prefix + "-" + UUID.randomUUID() + "@example.com";
+    }
+
+    /**
+     * Removes the rows created by the test.
+     *
+     * <p>The class is not transactional, because the idempotency of the registration depends on
+     * the commit of the request. The revocation of a token family is committed on its own
+     * transaction, so it also survives the rollback of the test. Without this cleanup the suite
+     * would leave accounts, preferences and token families behind in the database.
+     */
+    @AfterEach
+    void removeTestData() {
+        jdbcTemplate.update("DELETE FROM users WHERE email LIKE ?", TEST_EMAIL_PREFIX + "%@example.com");
     }
 }

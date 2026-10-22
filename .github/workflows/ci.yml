@@ -88,6 +88,75 @@ jobs:
           path: mobile/coverage/
           retention-days: 7
 
+  contract:
+    name: Contrato mobile x API real
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: ironmind
+          POSTGRES_USER: ironmind
+          POSTGRES_PASSWORD: changeme
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ironmind -d ironmind"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+
+      - name: Set up Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Build and start the backend
+        working-directory: backend
+        env:
+          DB_URL: jdbc:postgresql://localhost:5432/ironmind
+          DB_USER: ironmind
+          DB_PASSWORD: changeme
+          JWT_SECRET: ci-secret-for-the-contract-test-32bytes
+        run: |
+          mvn -B -q clean package -DskipTests
+          nohup java -jar target/ironmind-backend-*.jar > backend.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:8080/api/v1/health > /dev/null; then
+              echo "API no ar"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::A API nao subiu"
+          cat backend.log
+          exit 1
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Contract test against the running API
+        env:
+          IT_API_URL: http://localhost:8080/api/v1
+        run: npx jest apiContract --ci
+
   secret-scan:
     name: Segredos e arquivos sensiveis
     runs-on: ubuntu-latest

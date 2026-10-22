@@ -7,6 +7,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -96,7 +97,9 @@ public class UserPreferences {
     }
 
     public List<String> getAvailableEquipment() {
-        return List.copyOf(availableEquipment);
+        // The column is free form: a value written outside the API can hold a null entry, so the
+        // copy cannot use List.copyOf, that rejects null elements.
+        return Collections.unmodifiableList(new ArrayList<>(availableEquipment));
     }
 
     public Short getTrainingDays() {
@@ -104,6 +107,28 @@ public class UserPreferences {
     }
 
     public Map<String, Object> getPrivacySettings() {
-        return Map.copyOf(privacySettings);
+        // The column is free form: a value written outside the API can hold a null value, so the
+        // copy cannot use Map.copyOf, that rejects null values.
+        return Collections.unmodifiableMap(new LinkedHashMap<>(privacySettings));
+    }
+
+    /**
+     * Replaces the preferences with the merged values.
+     *
+     * @param preferredUnits     unit system preferred by the user
+     * @param trainingExperience experience of the user
+     * @param goal               goal of the training
+     * @param availableEquipment equipment available to the user
+     * @param trainingDays       days of training per week
+     * @param privacySettings    visibility settings of the user
+     */
+    public void update(PreferredUnits preferredUnits, TrainingExperience trainingExperience, TrainingGoal goal,
+            List<String> availableEquipment, Short trainingDays, Map<String, Object> privacySettings) {
+        this.preferredUnits = preferredUnits;
+        this.trainingExperience = trainingExperience;
+        this.goal = goal;
+        this.availableEquipment = availableEquipment == null ? new ArrayList<>() : new ArrayList<>(availableEquipment);
+        this.trainingDays = trainingDays;
+        this.privacySettings = privacySettings == null ? new LinkedHashMap<>() : new LinkedHashMap<>(privacySettings);
     }
 }

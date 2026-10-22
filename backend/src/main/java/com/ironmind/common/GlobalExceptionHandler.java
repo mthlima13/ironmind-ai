@@ -1,6 +1,7 @@
 package com.ironmind.common;
 
 import com.ironmind.common.exception.ApiException;
+import com.ironmind.common.exception.FieldValidationException;
 import com.ironmind.common.exception.RateLimitExceededException;
 import com.ironmind.common.web.TraceIds;
 import jakarta.servlet.http.HttpServletRequest;
@@ -125,6 +126,23 @@ public class GlobalExceptionHandler {
         ErrorCode errorCode = ex.getErrorCode();
         ApiError body = ApiError.of(errorCode, ex.getMessage(), request.getRequestURI(), traceIdOf(request));
         return ResponseEntity.status(errorCode.status()).body(body);
+    }
+
+    /**
+     * A business rule of the service layer rejected a field of the payload.
+     *
+     * <p>The name of the rejected field is kept in the answer, so the client can point the user
+     * to the right input.
+     */
+    @ExceptionHandler(FieldValidationException.class)
+    public ResponseEntity<ApiError> handleFieldValidation(FieldValidationException ex,
+            HttpServletRequest request) {
+        ApiError body = ApiError.of(ErrorCode.VALIDATION_ERROR,
+                ex.getMessage(),
+                request.getRequestURI(),
+                traceIdOf(request),
+                ex.getFieldErrors());
+        return ResponseEntity.status(ErrorCode.VALIDATION_ERROR.status()).body(body);
     }
 
     /**
