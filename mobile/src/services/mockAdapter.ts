@@ -33,7 +33,7 @@ import {
 import type { Exercise } from '../types/exercise';
 import type { WorkoutProgram } from '../types/program';
 import type { InjuryRestriction, AuthUser, UserProfile } from '../types/user';
-import type { ExerciseSet, WorkoutSession } from '../types/workout';
+import type { ExerciseSet, SessionExercise, WorkoutSession } from '../types/workout';
 
 const STATUS_TEXT: Record<number, string> = {
   200: 'OK',
@@ -630,6 +630,59 @@ function buildRoutes(state: MockState): MockRoute[] {
 
       state.sessions.unshift(session);
       return session;
+    }),
+
+    buildRoute('POST', '/workout-sessions/:id/exercises', true, ({ params, body, path }) => {
+      const session = state.sessions.find((item) => item.id === params.id);
+      if (!session) {
+        fail(404, API_ERROR_CODES.NOT_FOUND, 'Sessão não encontrada.', path);
+      }
+      if (session.status === 'COMPLETED' || session.status === 'ABANDONED') {
+        fail(
+          409,
+          API_ERROR_CODES.CONFLICT,
+          'A sessão já foi finalizada e não aceita novos exercícios.',
+          path
+        );
+      }
+
+      const exerciseId = typeof body.exerciseId === 'string' ? body.exerciseId : '';
+      const exercise = MOCK_EXERCISES.find((item) => item.id === exerciseId);
+      if (!exercise) {
+        fail(
+          422,
+          API_ERROR_CODES.VALIDATION_ERROR,
+          'O exercício não existe no catálogo.',
+          path,
+          [{ field: 'exerciseId', message: 'exercício inexistente' }]
+        );
+      }
+      if (session.exercises.some((item) => item.exerciseId === exerciseId)) {
+        fail(
+          409,
+          API_ERROR_CODES.CONFLICT,
+          'Este exercício já está na sessão.',
+          path
+        );
+      }
+
+      const requestedPosition = Number(body.position);
+      const position = Number.isFinite(requestedPosition)
+        ? requestedPosition
+        : session.exercises.length + 1;
+
+      const sessionExercise: SessionExercise = {
+        id: nextId('sex', state),
+        exerciseId: exercise.id,
+        exercise,
+        position,
+        ...(typeof body.notes === 'string' ? { notes: body.notes } : {}),
+        sets: [],
+      };
+
+      session.exercises.push(sessionExercise);
+      session.exercises.sort((first, second) => first.position - second.position);
+      return sessionExercise;
     }),
 
     buildRoute('POST', '/workout-sessions/:id/sets', true, ({ params, body, path }) => {

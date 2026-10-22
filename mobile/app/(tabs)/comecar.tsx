@@ -11,6 +11,7 @@ import { LoadingState } from '../../src/components/LoadingState';
 import { PendingSyncBanner } from '../../src/components/PendingSyncBanner';
 import { Screen } from '../../src/components/Screen';
 import { useProfile } from '../../src/features/auth/useProfile';
+import { ExerciseList } from '../../src/features/exercises/ExerciseList';
 import { usePrograms } from '../../src/features/programs/usePrograms';
 import {
   SetLogger,
@@ -18,6 +19,7 @@ import {
 } from '../../src/features/workouts/SetLogger';
 import { useSessionStore } from '../../src/features/workouts/session.store';
 import {
+  useAddSessionExercise,
   useCompleteSession,
   useLastSessionSets,
   useRegisterSet,
@@ -28,6 +30,7 @@ import { ROUTES } from '../../src/navigation/linking';
 import { ENDPOINTS } from '../../src/services/endpoints';
 import { mapApiError } from '../../src/services/api';
 import { colors, radii, spacing, typography } from '../../src/theme';
+import type { Exercise, ExerciseFilters } from '../../src/types/exercise';
 import { createIdempotencyKey } from '../../src/utils/id';
 
 export default function StartWorkoutScreen() {
@@ -40,6 +43,7 @@ export default function StartWorkoutScreen() {
   const session = useSessionStore((state) => state.session);
   const setSession = useSessionStore((state) => state.setSession);
   const addSet = useSessionStore((state) => state.addSet);
+  const addExercise = useSessionStore((state) => state.addExercise);
   const clearSession = useSessionStore((state) => state.clearSession);
   const pendingCount = useSessionStore((state) => state.pendingCount);
   const isOffline = useSessionStore((state) => state.isOffline);
@@ -50,10 +54,17 @@ export default function StartWorkoutScreen() {
 
   const startMutation = useStartSession();
   const registerMutation = useRegisterSet(session?.id ?? null);
+  const addExerciseMutation = useAddSessionExercise(session?.id ?? null);
   const completeMutation = useCompleteSession(session?.id ?? null);
 
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [exerciseFilters, setExerciseFilters] = useState<ExerciseFilters>({
+    search: '',
+    muscleGroup: 'ALL',
+  });
+  const [pendingExercise, setPendingExercise] = useState<Exercise | null>(null);
   const autoStartedRef = useRef(false);
 
   const unit = profile?.preferences.preferredUnits ?? 'KG';
@@ -124,6 +135,43 @@ export default function StartWorkoutScreen() {
     }
   };
 
+  /**
+   * Adds an exercise to the running session and selects it, so the user can
+   * start logging the sets right away (SPEC RF-007 and 7.8).
+   *
+   * The new exercise goes to the end of the list: the position defines the
+   * execution order.
+   */
+  const handleAddExercise = async (exercise: Exercise) => {
+    if (!session) {
+      return;
+    }
+
+    setPendingExercise(exercise);
+
+    try {
+      const created = await addExerciseMutation.mutateAsync({
+        exerciseId: exercise.id,
+        position: session.exercises.length + 1,
+        notes: null,
+      });
+      addExercise(created);
+      setSelectedExerciseId(created.id);
+      setPendingExercise(null);
+      setIsPickerOpen(false);
+    } catch {
+      // The failure is shown by the mutation state, with a retry action.
+    }
+  };
+
+  const handleRetryAddExercise = () => {
+    if (pendingExercise) {
+      void handleAddExercise(pendingExercise);
+      return;
+    }
+    addExerciseMutation.reset();
+  };
+
   const handleFinish = async () => {
     if (!session) {
       return;
@@ -139,8 +187,8 @@ export default function StartWorkoutScreen() {
       <Screen title="Treino concluído" testID="start-workout-screen">
         <Card title="Sessão finalizada">
           <Text style={styles.summaryText}>
-            As séries registradas já estão no histórico e os recordes foram
-            reavaliados pelo servidor.
+            As séries registradas já estão no histórico e podem ser consultadas
+            na aba Evolução.
           </Text>
         </Card>
         <Button
@@ -162,10 +210,24 @@ export default function StartWorkoutScreen() {
     return (
       <Screen
         title="Começar treino"
-        subtitle="Escolha um dia do programa para iniciar a sessão."
+        subtitle="Escolha um dia do programa ou inicie um treino livre."
         testID="start-workout-screen"
       >
         <PendingSyncBanner pendingCount={pendingCount} isOffline={isOffline} />
+
+        <Button
+          label="Treino livre"
+          variant="secondary"
+          onPress={() =>
+            startMutation.mutate(
+              { programId: null, programDayId: null },
+              { onSuccess: (created) => setSession(created) }
+            )
+          }
+          loading={startMutation.isPending}
+          icon={<Ionicons name="flash-outline" size={18} color={colors.accent} />}
+          testID="start-free-session-button"
+        />
 
         {isLoadingPrograms ? <LoadingState label="Carregando programas…" /> : null}
 
@@ -230,40 +292,89 @@ export default function StartWorkoutScreen() {
 
       <Card title="Exercícios" subtitle="Toque no exercício para registrar as séries">
         {session.exercises.length === 0 ? (
-          <Text style={styles.summaryText}>
-            Esta sessão ainda não tem exercícios.
-          </Text>
+          <EmptyState
+            title="Nenhum exercício na sessão"
+            description="Esta sessão ainda não tem exercícios. Adicione um exercício do catálogo para começar a registrar as séries."
+            actionLabel="Adicionar exercício"
+            onAction={() => setIsPickerOpen(true)}
+            actionTestID="add-exercise-button"
+            testID="session-exercises-empty"
+          />
         ) : (
-          session.exercises.map((sessionExercise) => {
-            const isSelected = sessionExercise.id === selectedExerciseId;
-            return (
-              <Pressable
-                key={sessionExercise.id}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isSelected }}
-                onPress={() => setSelectedExerciseId(sessionExercise.id)}
-                style={[styles.exerciseRow, isSelected ? styles.exerciseRowActive : null]}
-                testID={`session-exercise-${sessionExercise.id}`}
-              >
-                <View style={styles.exerciseInfo}>
-                  <Text style={styles.exerciseName}>
-                    {sessionExercise.exercise.name}
-                  </Text>
-                  <Text style={styles.exerciseMeta}>
-                    {sessionExercise.sets.length}{' '}
-                    {sessionExercise.sets.length === 1 ? 'série registrada' : 'séries registradas'}
-                  </Text>
-                </View>
-                <Ionicons
-                  name={isSelected ? 'chevron-up' : 'chevron-down'}
-                  size={18}
-                  color={colors.textMuted}
-                />
-              </Pressable>
-            );
-          })
+          <>
+            {session.exercises.map((sessionExercise) => {
+              const isSelected = sessionExercise.id === selectedExerciseId;
+              return (
+                <Pressable
+                  key={sessionExercise.id}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isSelected }}
+                  onPress={() => setSelectedExerciseId(sessionExercise.id)}
+                  style={[styles.exerciseRow, isSelected ? styles.exerciseRowActive : null]}
+                  testID={`session-exercise-${sessionExercise.id}`}
+                >
+                  <View style={styles.exerciseInfo}>
+                    <Text style={styles.exerciseName}>
+                      {sessionExercise.exercise.name}
+                    </Text>
+                    <Text style={styles.exerciseMeta}>
+                      {sessionExercise.sets.length}{' '}
+                      {sessionExercise.sets.length === 1 ? 'série registrada' : 'séries registradas'}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name={isSelected ? 'chevron-up' : 'chevron-down'}
+                    size={18}
+                    color={colors.textMuted}
+                  />
+                </Pressable>
+              );
+            })}
+
+            <Button
+              label="Adicionar exercício"
+              variant="secondary"
+              onPress={() => setIsPickerOpen(true)}
+              icon={<Ionicons name="add-circle-outline" size={18} color={colors.accent} />}
+              testID="add-exercise-button"
+            />
+          </>
         )}
       </Card>
+
+      {isPickerOpen ? (
+        <Card
+          title="Adicionar exercício"
+          subtitle="Busque no catálogo e toque no exercício para adicioná-lo à sessão"
+        >
+          <ExerciseList
+            filters={exerciseFilters}
+            onChangeFilters={setExerciseFilters}
+            onSelect={(exercise) => {
+              void handleAddExercise(exercise);
+            }}
+          />
+
+          {addExerciseMutation.isPending ? (
+            <LoadingState label="Adicionando exercício…" />
+          ) : null}
+
+          {addExerciseMutation.isError ? (
+            <ErrorState
+              message={mapApiError(addExerciseMutation.error).message}
+              onRetry={handleRetryAddExercise}
+              testID="add-exercise-error"
+            />
+          ) : null}
+
+          <Button
+            label="Fechar catálogo"
+            variant="ghost"
+            onPress={() => setIsPickerOpen(false)}
+            testID="close-exercise-picker"
+          />
+        </Card>
+      ) : null}
 
       {selectedExercise ? (
         <Card title="Registrar séries">

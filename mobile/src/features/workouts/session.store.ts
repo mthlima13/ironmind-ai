@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import type { ExerciseSet, WorkoutSession } from '../../types/workout';
+import type { ExerciseSet, SessionExercise, WorkoutSession } from '../../types/workout';
 
 export type SessionSyncState = 'synced' | 'pending' | 'offline';
 
@@ -15,6 +15,8 @@ type SessionState = {
   setPendingCount: (count: number) => void;
   setOffline: (isOffline: boolean) => void;
   addSet: (sessionExerciseId: string, set: ExerciseSet) => void;
+  /** Keeps an exercise added during the workout inside the running session. */
+  addExercise: (sessionExercise: SessionExercise) => void;
   clearSession: () => void;
 };
 
@@ -37,6 +39,21 @@ export const useSessionStore = create<SessionState>()((set) => ({
             sessionExercise.id === sessionExerciseId
               ? { ...sessionExercise, sets: [...sessionExercise.sets, exerciseSet] }
               : sessionExercise
+          ),
+        },
+      };
+    }),
+  addExercise: (sessionExercise) =>
+    set((state) => {
+      if (!state.session) {
+        return state;
+      }
+      return {
+        session: {
+          ...state.session,
+          // The position defines the execution order (SPEC 7.8).
+          exercises: [...state.session.exercises, sessionExercise].sort(
+            (first, second) => first.position - second.position
           ),
         },
       };

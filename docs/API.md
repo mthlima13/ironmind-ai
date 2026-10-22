@@ -299,9 +299,85 @@ Filtros: `q` (nome), `muscleGroup`, `equipment`, `movementType`, `onlyMine`
 |---|---|---|---|
 | `GET` | `/programs` | ✔ | Listar programas do usuário |
 | `POST` | `/programs` | ✔ | Criar programa |
-| `GET` | `/programs/{id}` | ✔ | Consultar com dias e exercícios |
-| `PUT` | `/programs/{id}` | ✔ | Atualizar |
-| `DELETE` | `/programs/{id}` | ✔ | Arquivar |
+| `GET` | `/programs/{id}` | ✔ | Consultar programa com dias e exercícios |
+| `PUT` | `/programs/{id}` | ✔ | Atualizar programa |
+| `DELETE` | `/programs/{id}` | ✔ | Arquivar programa |
+
+```http
+POST /api/v1/programs
+Authorization: Bearer <accessToken>
+Content-Type: application/json
+
+{
+  "name": "Push / Pull / Legs",
+  "description": "Divisão de 3 dias",
+  "goal": "HYPERTROPHY",
+  "splitType": "PPL",
+  "days": [
+    {
+      "name": "Peito e tríceps",
+      "exercises": [
+        {
+          "exerciseId": "…",
+          "targetSets": 3,
+          "targetRepsMin": 8,
+          "targetRepsMax": 12,
+          "restSeconds": 120,
+          "notes": null
+        }
+      ]
+    }
+  ]
+}
+```
+
+`201` com o programa completo:
+
+```json
+{
+  "id": "…",
+  "name": "Push / Pull / Legs",
+  "description": "Divisão de 3 dias",
+  "goal": "HYPERTROPHY",
+  "splitType": "PPL",
+  "isArchived": false,
+  "createdAt": "2026-10-21T19:43:06Z",
+  "days": [
+    {
+      "id": "…",
+      "programId": "…",
+      "name": "Peito e tríceps",
+      "position": 1,
+      "exercises": [
+        {
+          "id": "…",
+          "exerciseId": "…",
+          "exercise": { "id": "…", "name": "Supino reto com barra", "…": "…" },
+          "position": 1,
+          "targetSets": 3,
+          "targetRepsMin": 8,
+          "targetRepsMax": 12,
+          "restSeconds": 120,
+          "notes": null
+        }
+      ]
+    }
+  ]
+}
+```
+
+Regras:
+
+| Item | Regra |
+|---|---|
+| Dono | vem do token; `userId` no corpo é ignorado |
+| Programa alheio | **404**, nunca 403 |
+| `POST` e `PUT` | **substituem** a estrutura inteira; a ordem do corpo define `position` |
+| `exerciseId` inexistente | `422` com `fieldErrors` apontando `days[0].exercises[1].exerciseId` |
+| `targetSets` | >= 1 |
+| `targetRepsMin` / `targetRepsMax` | `targetRepsMax` >= `targetRepsMin` |
+| `restSeconds` | entre 0 e 600 |
+| `DELETE` | **arquiva** (`isArchived = true`); o programa sai da listagem e continua acessível por `GET /programs/{id}` |
 
 ### Sessões e séries
 
@@ -311,11 +387,121 @@ Filtros: `q` (nome), `muscleGroup`, `equipment`, `movementType`, `onlyMine`
 | `GET` | `/workout-sessions` | ✔ | Histórico paginado |
 | `GET` | `/workout-sessions/{id}` | ✔ | Consultar sessão |
 | `PATCH` | `/workout-sessions/{id}` | ✔ | Pausar / retomar / abandonar |
-| `POST` | `/workout-sessions/{id}/exercises` | ✔ | Adicionar exercício |
+| `POST` | `/workout-sessions/{id}/exercises` | ✔ | Adicionar exercício à sessão |
 | `POST` | `/workout-sessions/{id}/sets` | ✔ | Registrar série |
 | `PATCH` | `/sets/{id}` | ✔ | Corrigir série |
-| `DELETE` | `/sets/{id}` | ✔ | Excluir série e reavaliar recordes |
+| `DELETE` | `/sets/{id}` | ✔ | Excluir série |
 | `POST` | `/workout-sessions/{id}/complete` | ✔ | Finalizar sessão |
+
+```http
+POST /api/v1/workout-sessions
+Authorization: Bearer <accessToken>
+Content-Type: application/json
+
+{ "programId": null, "programDayId": null }
+```
+
+`201` com a sessão. `programId` e `programDayId` são opcionais: `null` significa
+treino livre. Quando informado, o programa e o dia precisam ser do usuário —
+caso contrário, **404**.
+
+A sessão traz os exercícios e as séries embutidos:
+
+```json
+{
+  "id": "…",
+  "programId": null,
+  "programDayId": null,
+  "startedAt": "2026-10-21T19:43:06Z",
+  "completedAt": null,
+  "status": "IN_PROGRESS",
+  "notes": null,
+  "exercises": [
+    {
+      "id": "…",
+      "exerciseId": "…",
+      "exercise": { "id": "…", "name": "Supino reto com barra", "…": "…" },
+      "position": 1,
+      "notes": null,
+      "targetSets": 3,
+      "targetRepsMin": 8,
+      "targetRepsMax": 12,
+      "restSeconds": 120,
+      "sets": [
+        {
+          "id": "…",
+          "setNumber": 1,
+          "weightKg": 80.0,
+          "repetitions": 10,
+          "durationSeconds": null,
+          "distanceMeters": null,
+          "perceivedExertion": 8,
+          "restAfterSeconds": 90,
+          "completedAt": "2026-10-21T19:45:00Z"
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Estados da sessão** (`status`): `IN_PROGRESS` → `PAUSED` → `IN_PROGRESS` →
+`COMPLETED` ou `ABANDONED`.
+
+| Transição | Quem dispara |
+|---|---|
+| `IN_PROGRESS` → `PAUSED` | `PATCH /workout-sessions/{id}` |
+| `PAUSED` → `IN_PROGRESS` | `PATCH /workout-sessions/{id}` |
+| `IN_PROGRESS`/`PAUSED` → `COMPLETED` | `POST /workout-sessions/{id}/complete` |
+| `IN_PROGRESS`/`PAUSED` → `ABANDONED` | `PATCH /workout-sessions/{id}` |
+
+Uma sessão `COMPLETED` ou `ABANDONED` é **imutável**: não aceita novas séries nem
+mudanças de estado. Tentar isso devolve `409` `CONFLICT`.
+
+#### Registrar uma série
+
+```http
+POST /api/v1/workout-sessions/{id}/sets
+Authorization: Bearer <accessToken>
+Content-Type: application/json
+Idempotency-Key: 3f8c1d2e-9b7a-4c1e-8f2b-0a1c3d5e7f90
+
+{
+  "sessionExerciseId": "…",
+  "weightKg": 80.0,
+  "repetitions": 10,
+  "perceivedExertion": 8,
+  "restAfterSeconds": 90
+}
+```
+
+`201` com a série. `weightKg` é a **unidade canônica** (kg) e pode ser `null`
+para peso corporal. `perceivedExertion` é o RPE de 1 a 10.
+
+A chave de idempotência segue o contrato do Apêndice A.3: repetir com a mesma
+chave e o mesmo corpo devolve **a mesma série** com `200`, sem duplicar; a mesma
+chave com corpo diferente devolve `409` `IDEMPOTENCY_KEY_REUSED`.
+
+O `setNumber` é atribuído pelo servidor: é a posição da série dentro do
+exercício da sessão. Não vai no corpo.
+
+#### Preenchimento rápido (RF-010)
+
+Não existe endpoint separado: o app usa o **histórico**. A primeira sessão da
+listagem que contém o exercício é a última em que ele foi executado, e as
+séries dela são a sugestão. O cliente busca `GET /workout-sessions` e escolhe.
+
+#### Corrigir e excluir séries
+
+```http
+PATCH /api/v1/sets/{id}
+{ "weightKg": 82.5, "repetitions": 8 }
+```
+
+`200` com a série corrigida. `DELETE /api/v1/sets/{id}` devolve `204`. A
+reavaliação dos recordes derivatives entra na Sprint 4; até lá, a exclusão
+apaga o vínculo da série e mantém o valor do recorde.
+
 
 ### Analytics, recordes e restrições
 

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type {
+  AddSessionExerciseInput,
   ExerciseSet,
   PreviousSetValues,
   RegisterSetInput,
@@ -8,6 +9,7 @@ import type {
 } from '../../types/workout';
 import { createIdempotencyKey } from '../../utils/id';
 import {
+  addSessionExercise,
   completeSession,
   fetchLastSessionSets,
   fetchSessions,
@@ -45,6 +47,28 @@ export function useStartSession() {
 
   return useMutation({
     mutationFn: (input: StartSessionInput) => startSession(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workout-sessions'] });
+    },
+  });
+}
+
+/**
+ * Adds an exercise to the running session (SPEC RF-007).
+ *
+ * It is the only way to fill a free session: it starts without exercises and
+ * the user adds them one by one while the workout happens.
+ */
+export function useAddSessionExercise(sessionId: string | null = null) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: AddSessionExerciseInput) => {
+      if (!sessionId) {
+        throw new Error('No active session');
+      }
+      return addSessionExercise(sessionId, input);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workout-sessions'] });
     },

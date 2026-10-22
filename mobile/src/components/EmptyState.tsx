@@ -10,6 +10,8 @@ export type EmptyStateProps = {
   /** Label of the first use action, e.g. "Criar programa". */
   actionLabel?: string;
   onAction?: () => void;
+  /** Test id of the first use action. */
+  actionTestID?: string;
   icon?: ReactNode;
   testID?: string;
 };
@@ -19,6 +21,7 @@ export function EmptyState({
   description,
   actionLabel,
   onAction,
+  actionTestID,
   icon,
   testID,
 }: EmptyStateProps) {
@@ -33,7 +36,7 @@ export function EmptyState({
           onPress={onAction}
           variant="secondary"
           style={styles.action}
-          testID="empty-state-action"
+          testID={actionTestID ?? 'empty-state-action'}
         />
       ) : null}
     </View>

@@ -2,9 +2,11 @@ import { api } from '../../services/api';
 import { ENDPOINTS, IDEMPOTENCY_HEADER } from '../../services/endpoints';
 import type { Page } from '../../types/api';
 import type {
+  AddSessionExerciseInput,
   ExerciseSet,
   PreviousSetValues,
   RegisterSetInput,
+  SessionExercise,
   StartSessionInput,
   WorkoutSession,
 } from '../../types/workout';
@@ -28,6 +30,27 @@ export async function startSession(
     programId: input.programId ?? null,
     programDayId: input.programDayId ?? null,
   });
+  return response.data;
+}
+
+/**
+ * Adds an exercise to a running session (SPEC RF-007 and 7.8).
+ *
+ * A free session starts without exercises: the user adds them one by one
+ * while the workout happens. The position defines the execution order.
+ */
+export async function addSessionExercise(
+  sessionId: string,
+  input: AddSessionExerciseInput
+): Promise<SessionExercise> {
+  const response = await api.post<SessionExercise>(
+    ENDPOINTS.sessions.addExercise(sessionId),
+    {
+      exerciseId: input.exerciseId,
+      position: input.position,
+      notes: input.notes ?? null,
+    }
+  );
   return response.data;
 }
 

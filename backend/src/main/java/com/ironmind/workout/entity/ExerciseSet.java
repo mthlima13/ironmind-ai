@@ -62,11 +62,36 @@ public class ExerciseSet {
     }
 
     public ExerciseSet(UUID id, SessionExercise sessionExercise, int setNumber, BigDecimal weightKg, int repetitions) {
+        this(id, sessionExercise, setNumber, weightKg, repetitions, null, null, null, null, null);
+    }
+
+    /**
+     * Creates the set with every value the API accepts.
+     *
+     * @param id                identifier of the set
+     * @param sessionExercise   exercise of the session the set belongs to
+     * @param setNumber         position of the set inside the exercise, starting at one
+     * @param weightKg          load in kilograms, {@code null} for bodyweight movements
+     * @param repetitions       number of repetitions
+     * @param durationSeconds   duration of the set, for isometric and cardio movements
+     * @param distanceMeters    distance of the set, for cardio movements
+     * @param perceivedExertion rate of perceived exertion, from 1 to 10
+     * @param restAfterSeconds  rest taken after the set
+     * @param idempotencyKey    durable idempotency key of the registration
+     */
+    public ExerciseSet(UUID id, SessionExercise sessionExercise, int setNumber, BigDecimal weightKg, int repetitions,
+            Integer durationSeconds, Integer distanceMeters, Short perceivedExertion, Integer restAfterSeconds,
+            String idempotencyKey) {
         this.id = id;
         this.sessionExercise = sessionExercise;
         this.setNumber = setNumber;
         this.weightKg = weightKg;
         this.repetitions = repetitions;
+        this.durationSeconds = durationSeconds;
+        this.distanceMeters = distanceMeters;
+        this.perceivedExertion = perceivedExertion;
+        this.restAfterSeconds = restAfterSeconds;
+        this.idempotencyKey = idempotencyKey;
         this.completedAt = Instant.now();
         this.createdAt = this.completedAt;
     }
@@ -117,5 +142,28 @@ public class ExerciseSet {
 
     public String getIdempotencyKey() {
         return idempotencyKey;
+    }
+
+    /**
+     * Corrects the values of the set.
+     *
+     * <p>The identifier and the number of the set never change: a correction keeps the link with
+     * the history (SPEC.md section 7.8).
+     *
+     * @param weightKg          load in kilograms, {@code null} for bodyweight movements
+     * @param repetitions       number of repetitions
+     * @param durationSeconds   duration of the set, for isometric and cardio movements
+     * @param distanceMeters    distance of the set, for cardio movements
+     * @param perceivedExertion rate of perceived exertion, from 1 to 10
+     * @param restAfterSeconds  rest taken after the set
+     */
+    public void update(BigDecimal weightKg, int repetitions, Integer durationSeconds, Integer distanceMeters,
+            Short perceivedExertion, Integer restAfterSeconds) {
+        this.weightKg = weightKg;
+        this.repetitions = repetitions;
+        this.durationSeconds = durationSeconds;
+        this.distanceMeters = distanceMeters;
+        this.perceivedExertion = perceivedExertion;
+        this.restAfterSeconds = restAfterSeconds;
     }
 }

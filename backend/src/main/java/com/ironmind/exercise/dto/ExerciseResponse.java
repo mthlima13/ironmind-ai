@@ -17,7 +17,7 @@ import java.util.UUID;
  * @param equipment            equipment required by the movement
  * @param instructions         execution instructions
  * @param movementType         kind of movement
- * @param system               whether the exercise belongs to the global catalog
+ * @param isSystem             whether the exercise belongs to the global catalog
  * @param createdByUserId      owner of a personal exercise, {@code null} for the global catalog
  * @param createdAt            moment of the creation
  * @param updatedAt            moment of the last update
@@ -31,7 +31,7 @@ public record ExerciseResponse(
         String equipment,
         String instructions,
         MovementType movementType,
-        boolean system,
+        boolean isSystem,
         UUID createdByUserId,
         Instant createdAt,
         Instant updatedAt) {

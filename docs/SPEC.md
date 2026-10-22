@@ -472,6 +472,69 @@ A estimativa é calculada apenas no backend e marcada como estimativa na interfa
 1. Revoga o refresh token apresentado.
 2. É idempotente: revogar um token já revogado não é erro.
 
+### 7.8 Sessão de treino
+
+**Início**
+
+1. Uma sessão começa `IN_PROGRESS`, com `startedAt` e o dono da sessão.
+2. Quando a sessão é iniciada a partir de um dia de programa
+   (`programDayId`), o backend **copia os exercícios do dia para a sessão**, na
+   mesma ordem, com as metas de séries e repetições. A resposta traz a sessão
+   já com os exercícios: o aplicativo não precisa montar a lista.
+3. O programa e o dia precisam ser do dono da sessão. Referência alheia
+   responde **404**.
+4. Uma sessão livre (sem `programDayId`) começa sem exercícios. Os exercícios
+   são adicionados um a um durante o treino.
+
+**Exercícios da sessão**
+
+1. O `position` define a ordem de execução.
+2. O exercício precisa existir no catálogo; referência inexistente responde
+   `422` com o caminho do campo.
+3. O mesmo exercício não é adicionado duas vezes na mesma sessão.
+
+**Plano do exercício (snapshot)**
+
+1. Quando a sessão nasce de um dia de programa, o plano do exercício é
+   **copiado** para a sessão: séries alvo, faixa de repetições e descanso.
+2. O plano é um **snapshot**: editar o programa depois **não** muda as sessões
+   já realizadas.
+3. O plano viaja em colunas próprias (`target_sets`, `target_reps_min`,
+   `target_reps_max`, `rest_seconds`), para poder ser comparado com o que foi
+   executado. As observações guardam também a versão legível do plano
+   ("4x6-8 (descanso 150s)").
+4. Em treino livre, o exercício é adicionado sem plano e os campos ficam
+   nulos.
+
+**Séries**
+
+1. O `setNumber` é atribuído pelo servidor: é a posição da série dentro do
+   exercício da sessão. Ele **não** vem do corpo da requisição.
+2. `weightKg` é a unidade canônica (kg) e pode ser `null` para peso corporal.
+3. `perceivedExertion` é o RPE, de 1 a 10.
+4. A chave de idempotência é gravada **na própria série**, em uma coluna com
+   índice único. É o mecanismo durável: sobrevive a um restart do servidor, ao
+   contrário do cache em memória.
+5. Corrigir uma série mantém o seu `id` e o seu `setNumber`.
+
+**Estados**
+
+1. `IN_PROGRESS` → `PAUSED` → `IN_PROGRESS` → `COMPLETED` ou `ABANDONED`.
+2. Pausar e retomar são livres; concluir e abandonar **não** voltam atrás.
+3. Uma sessão `COMPLETED` ou `ABANDONED` é **imutável**: não aceita novas
+   séries, nem correção de séries existentes, nem mudança de estado. A tentativa
+   responde `409` `CONFLICT`.
+4. Concluir preenche `completedAt`.
+
+**Histórico**
+
+1. A listagem é paginada e devolve **somente as sessões do dono**.
+2. A ordenação padrão é `startedAt` descendente: a sessão mais recente
+   primeiro.
+3. A listagem traz os exercícios e as séries embutidas, porque é assim que o
+   aplicativo monta a tela de histórico e o preenchimento rápido.
+
+
 ---
 
 ## 8. Arquitetura
@@ -755,6 +818,10 @@ UUID como chave primária em todas as tabelas. Todas as entidades com
 | `exercise_id` | UUID FK → exercises | |
 | `position` | int | |
 | `notes` | text | nullable |
+| `target_sets` | int | nullable — séries planejadas no dia do programa |
+| `target_reps_min` | int | nullable — limite inferior das repetições planejadas |
+| `target_reps_max` | int | nullable — limite superior das repetições planejadas |
+| `rest_seconds` | int | nullable — descanso entre as séries planejadas |
 
 ### 10.9 `exercise_sets`
 
@@ -1313,12 +1380,12 @@ ciclo de vida da sessão com o app em background.
 
 ### Sprint 3 — Treinos
 
-- [ ] Criar programas, dias e exercícios.
-- [ ] Implementar início, pausa e conclusão de sessão.
-- [ ] Registrar e corrigir séries, com idempotência.
-- [ ] Implementar preenchimento rápido.
-- [ ] Consultar histórico paginado.
-- [ ] Criar testes de regras de negócio.
+- [x] Criar programas, dias e exercícios.
+- [x] Implementar início, pausa e conclusão de sessão.
+- [x] Registrar e corrigir séries, com idempotência.
+- [x] Implementar preenchimento rápido.
+- [x] Consultar histórico paginado.
+- [x] Criar testes de regras de negócio.
 
 ### Sprint 4 — Estatísticas e recordes
 

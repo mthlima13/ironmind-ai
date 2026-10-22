@@ -50,6 +50,17 @@ export type WorkoutSession = {
   exercises: SessionExercise[];
 };
 
+/**
+ * Payload accepted when adding an exercise to a session (SPEC 11.4).
+ *
+ * The position defines the execution order (SPEC 7.8).
+ */
+export type AddSessionExerciseInput = {
+  exerciseId: string;
+  position: number;
+  notes?: string | null;
+};
+
 /** Payload accepted when registering a set (SPEC 11.4). */
 export type RegisterSetInput = {
   sessionExerciseId: string;

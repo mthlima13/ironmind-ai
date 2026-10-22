@@ -104,11 +104,14 @@ A suíte cobre, entre outras coisas:
 | `__tests__/authSession.test.ts` | renovação automática do token, limpeza da sessão quando o refresh é recusado, `Idempotency-Key` no cadastro e logout com revogação |
 | `__tests__/passwordRecovery.test.tsx` | telas de recuperação de acesso: renderização, validação, envio e token inválido |
 | `__tests__/mockAuth.test.ts` | contrato dos endpoints de autenticação do adaptador de mock |
+| `__tests__/mockWorkout.test.ts` | contrato do mock no treino livre: sessão sem exercícios, adição de exercício, exercício repetido e exercício inexistente |
 | `__tests__/deepLink.test.ts` | link profundo de recuperação de senha (`ironmind://reset-password?token=...`) |
 | `__tests__/emptyState.test.tsx` | estado vazio com ação de primeiro uso |
 | `__tests__/backHandler.test.tsx` | gesto de back do Android e confirmação obrigatória com sessão em andamento |
 | `__tests__/screen.test.tsx` | renderização de tela com `useSafeAreaInsets` mockado |
 | `__tests__/authValidation.test.ts` | validação dos formulários de login, cadastro e recuperação |
+| `__tests__/sessionExercise.test.tsx` | serviço, hook e store do treino livre: `POST /workout-sessions/{id}/exercises`, ordem por posição, exercício guardado na sessão em andamento e invalidação do histórico |
+| `__tests__/startWorkout.test.tsx` | tela de treino: sessão sem exercícios oferece a ação de adicionar, o exercício escolhido entra na sessão já selecionado e a falha mostra retry |
 
 ---
 
@@ -334,8 +337,17 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
 - Lista de programas com dias; editor de dia com nome, exercícios, séries alvo,
   faixa de repetições, descanso e ordenação.
 
-**Sessão e registro de série (RF-006, RF-008, RF-010)**
+**Sessão e registro de série (RF-006, RF-007, RF-008, RF-010)**
 - Início, escolha do dia, listagem dos exercícios da sessão e finalização.
+- **Treino livre:** a sessão pode ser iniciada sem programa (botão "Treino
+  livre") e começa **sem exercícios**, como o servidor devolve (SPEC 7.8).
+- **Adicionar exercício na sessão (RF-007):** a tela de treino reaproveita o
+  **catálogo** (busca + filtro por grupo muscular) para adicionar exercícios
+  avulsos — tanto na sessão vazia do treino livre quanto no meio do treino, no
+  fim da lista. O exercício entra na sessão **já selecionado**, pronto para o
+  registro das séries, e a posição define a ordem de execução.
+- Estados da tela de treino: carregando, erro com retry (inclusive na falha ao
+  adicionar o exercício) e vazio com ação de primeiro uso.
 - `SetLogger` com carga, repetições e RPE opcional, contador de séries,
   validação por linha e **atalho "usar valores da última sessão"**.
 - Conversão de unidade na fronteira de apresentação (kg ⇄ lb); o valor
@@ -393,8 +405,9 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
 
 - O app **não fala com um backend real** ainda: o adaptador de mock em
   `src/services/mockAdapter.ts` cobre autenticação (cadastro, login, renovação,
-  logout e recuperação de acesso), perfil, exercícios, programas, sessões,
-  séries, analytics, recordes e restrições. O backend Spring Boot existe em
+  logout e recuperação de acesso), perfil, exercícios, programas, sessões
+  (início, adição de exercícios, conclusão), séries, analytics, recordes e
+  restrições. O backend Spring Boot existe em
   [`../backend`](../backend), mas só expõe o catálogo de exercícios e o health
   neste momento.
 - A fila offline **grava** as operações pendentes, mas o envio automático
