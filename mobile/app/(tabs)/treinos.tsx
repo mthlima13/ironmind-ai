@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -9,13 +9,15 @@ import { EmptyState } from '../../src/components/EmptyState';
 import { ErrorState } from '../../src/components/ErrorState';
 import { LoadingState } from '../../src/components/LoadingState';
 import { Screen } from '../../src/components/Screen';
+import { CustomExerciseForm } from '../../src/features/exercises/CustomExerciseForm';
 import { ExerciseList } from '../../src/features/exercises/ExerciseList';
 import { ProgramDayEditor } from '../../src/features/programs/ProgramDayEditor';
-import { usePrograms } from '../../src/features/programs/usePrograms';
-import type { ProgramDay, WorkoutProgram } from '../../src/types/program';
+import { usePrograms, useUpdateProgram } from '../../src/features/programs/usePrograms';
+import type { CreateProgramInput, ProgramDay, WorkoutProgram } from '../../src/types/program';
 import type { ExerciseFilters } from '../../src/types/exercise';
 import { ROUTES } from '../../src/navigation/linking';
 import { mapApiError } from '../../src/services/api';
+import { createIdempotencyKey } from '../../src/utils/id';
 import { colors, radii, spacing, typography } from '../../src/theme';
 
 type Section = 'programas' | 'exercicios';
@@ -29,8 +31,10 @@ export default function WorkoutsScreen() {
   });
   const [expandedDayId, setExpandedDayId] = useState<string | null>(null);
   const [draftDays, setDraftDays] = useState<Record<string, ProgramDay>>({});
+  const [isCreateExerciseOpen, setIsCreateExerciseOpen] = useState(false);
 
   const { data, isLoading, isError, error, refetch } = usePrograms();
+  const updateProgram = useUpdateProgram();
 
   const programs: WorkoutProgram[] = useMemo(() => data?.content ?? [], [data]);
 
@@ -49,6 +53,50 @@ export default function WorkoutsScreen() {
       pathname: ROUTES.comecar,
       params: { programId, programDayId },
     });
+  };
+
+  const saveDay = async (program: WorkoutProgram, day: ProgramDay) => {
+    // The backend replaces the whole structure and derives the positions from
+    // the order of the lists (SPEC RF-005).
+    const payload: CreateProgramInput = {
+      name: program.name,
+      description: program.description ?? '',
+      goal: program.goal,
+      splitType: program.splitType,
+      days: program.days.map((currentDay) => {
+        const source = currentDay.id === day.id ? day : currentDay;
+        return {
+          name: source.name,
+          exercises: source.exercises
+            .slice()
+            .sort((a, b) => a.position - b.position)
+            .map((ex) => ({
+              exerciseId: ex.exerciseId,
+              targetSets: ex.targetSets,
+              targetRepsMin: ex.targetRepsMin,
+              targetRepsMax: ex.targetRepsMax,
+              restSeconds: ex.restSeconds,
+              notes: ex.notes ?? undefined,
+            })),
+        };
+      }),
+    };
+
+    try {
+      await updateProgram.mutateAsync({
+        id: program.id,
+        input: payload,
+        idempotencyKey: createIdempotencyKey(),
+      });
+      setDraftDays((current) => {
+        const next = { ...current };
+        delete next[day.id];
+        return next;
+      });
+      Alert.alert('Programa atualizado', 'As alterações do dia foram salvas.');
+    } catch (err) {
+      Alert.alert('Erro ao salvar', mapApiError(err).message);
+    }
   };
 
   return (
@@ -174,15 +222,23 @@ export default function WorkoutsScreen() {
                     </Pressable>
 
                     {isExpanded ? (
-                      <ProgramDayEditor
-                        day={draft}
-                        onChange={(updated) =>
-                          setDraftDays((current) => ({
-                            ...current,
-                            [updated.id]: updated,
-                          }))
-                        }
-                      />
+                      <View style={styles.editorContainer}>
+                        <ProgramDayEditor
+                          day={draft}
+                          onChange={(updated) =>
+                            setDraftDays((current) => ({
+                              ...current,
+                              [updated.id]: updated,
+                            }))
+                          }
+                        />
+                        <Button
+                          label={updateProgram.isPending ? 'Salvando…' : 'Salvar dia'}
+                          onPress={() => saveDay(program, draft)}
+                          disabled={updateProgram.isPending}
+                          testID={`save-day-${day.id}`}
+                        />
+                      </View>
                     ) : null}
                   </View>
                 );
@@ -191,10 +247,29 @@ export default function WorkoutsScreen() {
           ))}
         </View>
       ) : (
-        <ExerciseList
-          filters={filters}
-          onChangeFilters={setFilters}
-        />
+        <View style={styles.section}>
+          <Button
+            label={isCreateExerciseOpen ? 'Fechar formulário' : 'Criar exercício personalizado'}
+            variant="secondary"
+            icon={<Ionicons name="add-circle-outline" size={18} color={colors.accent} />}
+            onPress={() => setIsCreateExerciseOpen((current) => !current)}
+            testID="toggle-custom-exercise-form"
+          />
+
+          {isCreateExerciseOpen ? (
+            <Card
+              title="Novo exercício"
+              subtitle="O exercício fica disponível apenas para a sua conta."
+            >
+              <CustomExerciseForm onCreated={() => setIsCreateExerciseOpen(false)} />
+            </Card>
+          ) : null}
+
+          <ExerciseList
+            filters={filters}
+            onChangeFilters={setFilters}
+          />
+        </View>
       )}
     </Screen>
   );
@@ -262,5 +337,8 @@ const styles = StyleSheet.create({
   editToggleText: {
     ...typography.caption,
     color: colors.accent,
+  },
+  editorContainer: {
+    gap: spacing.sm,
   },
 });

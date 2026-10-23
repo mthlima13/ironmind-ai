@@ -35,30 +35,31 @@ O IronMind AI resolve isso em duas frentes:
 
 > **Estágio atual: Sprints 1 a 5 concluídas; Sprint 6 em andamento.** Autenticação,
 > catálogo, sessões, séries, analytics, recordes, restrições e a proposta de treino
-> da IA funcionam de ponta a ponta contra a API real. Programas são criados pela
-> proposta de IA revisada; a edição manual de um dia ainda não persiste. Na Sprint
-> 6, a exclusão de conta in-app (exigência do Google Play) está implementada; a
-> política de privacidade e os termos de uso existem apenas como rascunho, e o AAB
-> assinado ainda não foi gerado.
+> da IA funcionam de ponta a ponta contra a API real. Programas podem ser criados
+> pela proposta de IA revisada ou manualmente, e a edição de um dia persiste pela
+> API. Na Sprint 6, a exclusão de conta in-app (exigência do Google Play) está
+> implementada, assim como pausar/retomar/abandonar a sessão, corrigir e excluir
+> séries e criar exercícios personalizados no app. A política de privacidade e os
+> termos de uso existem apenas como rascunho, e o AAB assinado ainda não foi gerado.
 
 | Área | Situação |
 |---|---|
 | Schema do banco (15 tabelas, migrações Flyway, seed de 59 exercícios) | Implementado |
 | Backend: health, catálogo de exercícios, perfil e preferências | Implementado |
 | Autenticação completa: cadastro, login, refresh rotativo, logout, recuperação | Implementado |
-| Programas de treino (API): criar, listar, substituir, arquivar | Implementado — a edição manual de um dia no app ainda não persiste |
+| Programas de treino (API): criar, listar, substituir, arquivar | Implementado, com edição manual de dia persistida pelo app |
 | Sessões (API): iniciar, pausar, retomar, concluir, histórico paginado | Implementado |
 | Séries (API): registrar, corrigir, excluir, com idempotência durável | Implementado |
 | Sessão offline: fila local com reenvio automático, idempotência e contagem de pendências | Implementado |
 | Contrato de erro da API, trace ID, tratamento global de exceções | Implementado |
 | Calculadoras de volume e 1RM expostas por `/analytics/*` | Implementado |
 | Detecção transacional de recordes pessoais | Implementado |
-| App Android: 5 abas, autenticação, catálogo, editor de dia em memória, registro de série, histórico, perfil | Implementado |
+| App Android: 5 abas, autenticação, catálogo, programa com edição de dia, sessão com pausa/retomada/abandono, séries com correção e exclusão, exercício personalizado, histórico, perfil | Implementado |
 | Dashboard e evolução por exercício no app | Implementado |
 | IA inicial: proposta de treino validada, sugestão de carga por regras, coaching e voz | Implementado no backend — provedor `mock` por padrão; no app, só a proposta de treino tem tela |
 | Tela de revisão e salvamento da proposta de IA | Implementado |
 | Adaptações Android: back do sistema, edge-to-edge, permissões em runtime, safe area | Implementado |
-| Testes | 191 testes no backend + 111 casos no mobile (mais 17 de contrato contra a API real, opcionais) |
+| Testes | 191 testes no backend + 117 casos no mobile (mais 17 de contrato contra a API real, opcionais) |
 | Teste de contrato mobile x API real, no CI | Implementado |
 | App rodando em emulador Android 15 contra API e banco reais | Verificado |
 | Recursos sociais e gamificação | Planejado — Fase 3 |

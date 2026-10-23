@@ -1493,10 +1493,14 @@ ciclo de vida da sessão com o app em background.
 - [ ] Documentar instalação, execução e demonstração.
 
 > **Entregue nesta rodada:** exclusão de conta in-app (API, tela, testes),
-> rascunhos de política de privacidade e termos de uso e checklist de
-> publicação em [`PLAY-RELEASE.md`](PLAY-RELEASE.md). Os itens da lista acima
-> continuam abertos: a matriz Android, o AAB assinado e a publicação no Play
-> dependem de aparelho físico, keystore e conta de desenvolvedor.
+> rascunhos de política de privacidade e termos de uso, checklist de
+> publicação em [`PLAY-RELEASE.md`](PLAY-RELEASE.md) e o fechamento das
+> pendências funcionais do app: pausar/retomar/abandonar sessão, corrigir e
+> excluir séries, persistir a edição manual de um dia do programa
+> (`PUT /programs/{id}`) e criar exercícios personalizados, tudo coberto por
+> testes do adaptador mock. Os itens da lista acima continuam abertos: a
+> matriz Android, o AAB assinado e a publicação no Play dependem de aparelho
+> físico, keystore e conta de desenvolvedor.
 
 > As sprints são uma divisão de trabalho sugerida — **não** são estimativa
 > garantida de prazo.

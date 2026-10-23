@@ -121,8 +121,9 @@ export function ExerciseList({
               <View style={styles.itemText}>
                 <Text style={styles.itemName}>{exercise.name}</Text>
                 <Text style={styles.itemMeta}>
-                  {MUSCLE_GROUP_LABELS[exercise.primaryMuscleGroup]} ·{' '}
-                  {exercise.equipment}
+                  {MUSCLE_GROUP_LABELS[exercise.primaryMuscleGroup] ??
+                    exercise.primaryMuscleGroup}{' '}
+                  · {exercise.equipment}
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />

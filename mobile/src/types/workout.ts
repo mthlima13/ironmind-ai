@@ -28,6 +28,21 @@ export type ExerciseSet = {
   completedAt: string;
 };
 
+/**
+ * Partial correction of a registered set (SPEC 7.8).
+ *
+ * An omitted field keeps the current value; `weightKg: null` clears the load
+ * for bodyweight movements.
+ */
+export type UpdateSetInput = {
+  weightKg?: number | null;
+  repetitions?: number | null;
+  durationSeconds?: number | null;
+  distanceMeters?: number | null;
+  perceivedExertion?: number | null;
+  restAfterSeconds?: number | null;
+};
+
 /** Exercise performed inside a session (SPEC 10.8). */
 export type SessionExercise = {
   id: string;

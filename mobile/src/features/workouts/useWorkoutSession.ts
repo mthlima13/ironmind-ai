@@ -5,9 +5,12 @@ import type {
   ExerciseSet,
   PreviousSetValues,
   RegisterSetInput,
+  SessionStatus,
   StartSessionInput,
+  UpdateSetInput,
 } from '../../types/workout';
 import { createIdempotencyKey } from '../../utils/id';
+import { deleteSet, updateSet } from '../sets/set.service';
 import {
   addSessionExercise,
   completeSession,
@@ -15,6 +18,7 @@ import {
   fetchSessions,
   registerSet,
   startSession,
+  updateSessionStatus,
 } from './workout.service';
 
 export const workoutQueryKeys = {
@@ -112,6 +116,23 @@ export function useRegisterSet(sessionId: string | null) {
   });
 }
 
+/** Updates session status (pause/resume/abandon). */
+export function useUpdateSessionStatus(sessionId: string | null) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ status, notes }: { status: SessionStatus; notes?: string | null }) => {
+      if (!sessionId) {
+        throw new Error('No active session');
+      }
+      return updateSessionStatus(sessionId, { status, notes });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workout-sessions'] });
+    },
+  });
+}
+
 /** Finishes the running session. */
 export function useCompleteSession(sessionId: string | null) {
   const queryClient = useQueryClient();
@@ -123,6 +144,31 @@ export function useCompleteSession(sessionId: string | null) {
       }
       return completeSession(sessionId);
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workout-sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['analytics'] });
+    },
+  });
+}
+
+/** Updates an existing set. */
+export function useUpdateSet() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ setId, input }: { setId: string; input: UpdateSetInput }) =>
+      updateSet(setId, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workout-sessions'] });
+      queryClient.invalidateQueries({ queryKey: ['analytics'] });
+    },
+  });
+}
+
+/** Deletes an existing set. */
+export function useDeleteSet() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (setId: string) => deleteSet(setId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workout-sessions'] });
       queryClient.invalidateQueries({ queryKey: ['analytics'] });

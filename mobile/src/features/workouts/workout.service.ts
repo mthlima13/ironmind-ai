@@ -7,9 +7,15 @@ import type {
   PreviousSetValues,
   RegisterSetInput,
   SessionExercise,
+  SessionStatus,
   StartSessionInput,
   WorkoutSession,
 } from '../../types/workout';
+
+export type UpdateSessionStatusInput = {
+  status: SessionStatus;
+  notes?: string | null;
+};
 
 /** Paginated session history (SPEC RF-011). */
 export async function fetchSessions(
@@ -75,6 +81,21 @@ export async function registerSet(
       restAfterSeconds: input.restAfterSeconds ?? null,
     },
     { headers: { [IDEMPOTENCY_HEADER]: idempotencyKey } }
+  );
+  return response.data;
+}
+
+/** Updates the status of a running session (pause/resume/abandon). */
+export async function updateSessionStatus(
+  sessionId: string,
+  input: UpdateSessionStatusInput
+): Promise<WorkoutSession> {
+  const response = await api.patch<WorkoutSession>(
+    ENDPOINTS.sessions.update(sessionId),
+    {
+      status: input.status,
+      notes: input.notes ?? null,
+    }
   );
   return response.data;
 }

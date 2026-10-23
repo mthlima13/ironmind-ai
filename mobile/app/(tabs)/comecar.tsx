@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -10,6 +10,7 @@ import { ErrorState } from '../../src/components/ErrorState';
 import { LoadingState } from '../../src/components/LoadingState';
 import { PendingSyncBanner } from '../../src/components/PendingSyncBanner';
 import { Screen } from '../../src/components/Screen';
+import { TextField } from '../../src/components/TextField';
 import { useProfile } from '../../src/features/auth/useProfile';
 import { ExerciseList } from '../../src/features/exercises/ExerciseList';
 import { usePrograms } from '../../src/features/programs/usePrograms';
@@ -21,9 +22,12 @@ import { useSessionStore } from '../../src/features/workouts/session.store';
 import {
   useAddSessionExercise,
   useCompleteSession,
+  useDeleteSet,
   useLastSessionSets,
   useRegisterSet,
   useStartSession,
+  useUpdateSessionStatus,
+  useUpdateSet,
 } from '../../src/features/workouts/useWorkoutSession';
 import { useOfflineSync } from '../../src/features/workouts/useOfflineSync';
 import { ROUTES } from '../../src/navigation/linking';
@@ -31,6 +35,7 @@ import { ENDPOINTS } from '../../src/services/endpoints';
 import { mapApiError } from '../../src/services/api';
 import { colors, radii, spacing, typography } from '../../src/theme';
 import type { Exercise, ExerciseFilters } from '../../src/types/exercise';
+import { SESSION_STATUSES, type ExerciseSet } from '../../src/types/workout';
 import { createIdempotencyKey } from '../../src/utils/id';
 
 export default function StartWorkoutScreen() {
@@ -44,6 +49,8 @@ export default function StartWorkoutScreen() {
   const setSession = useSessionStore((state) => state.setSession);
   const addSet = useSessionStore((state) => state.addSet);
   const addExercise = useSessionStore((state) => state.addExercise);
+  const updateSetInStore = useSessionStore((state) => state.updateSet);
+  const removeSetFromStore = useSessionStore((state) => state.removeSet);
   const clearSession = useSessionStore((state) => state.clearSession);
   const pendingCount = useSessionStore((state) => state.pendingCount);
   const failedCount = useSessionStore((state) => state.failedCount);
@@ -57,6 +64,9 @@ export default function StartWorkoutScreen() {
   const registerMutation = useRegisterSet(session?.id ?? null);
   const addExerciseMutation = useAddSessionExercise(session?.id ?? null);
   const completeMutation = useCompleteSession(session?.id ?? null);
+  const statusMutation = useUpdateSessionStatus(session?.id ?? null);
+  const updateSetMutation = useUpdateSet();
+  const deleteSetMutation = useDeleteSet();
 
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
   const [isCompleted, setIsCompleted] = useState(false);
@@ -66,6 +76,11 @@ export default function StartWorkoutScreen() {
     muscleGroup: 'ALL',
   });
   const [pendingExercise, setPendingExercise] = useState<Exercise | null>(null);
+  const [editingSet, setEditingSet] = useState<{
+    setId: string;
+    weightKg: string;
+    repetitions: string;
+  } | null>(null);
   const autoStartedRef = useRef(false);
 
   const unit = profile?.preferences.preferredUnits ?? 'KG';
@@ -201,6 +216,109 @@ export default function StartWorkoutScreen() {
     setIsCompleted(true);
   };
 
+  /** Pauses or resumes the running session (SPEC 7.8). */
+  const handleTogglePause = () => {
+    if (!session) {
+      return;
+    }
+    const nextStatus =
+      session.status === SESSION_STATUSES.PAUSED
+        ? SESSION_STATUSES.IN_PROGRESS
+        : SESSION_STATUSES.PAUSED;
+    statusMutation.mutate(
+      { status: nextStatus },
+      { onSuccess: (updated) => setSession({ ...session, status: updated.status }) }
+    );
+  };
+
+  /** Abandons the session after the user confirms (SPEC 7.8). */
+  const handleAbandon = () => {
+    if (!session) {
+      return;
+    }
+    Alert.alert(
+      'Abandonar treino?',
+      'A sessão será encerrada e não contará como treino concluído.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Abandonar',
+          style: 'destructive',
+          onPress: () => {
+            statusMutation.mutate(
+              { status: SESSION_STATUSES.ABANDONED },
+              {
+                onSuccess: () => {
+                  clearSession();
+                  setSelectedExerciseId(null);
+                },
+              }
+            );
+          },
+        },
+      ]
+    );
+  };
+
+  const beginSetEdit = (set: ExerciseSet) => {
+    setEditingSet({
+      setId: set.id,
+      weightKg: set.weightKg === null ? '' : String(set.weightKg),
+      repetitions: String(set.repetitions),
+    });
+  };
+
+  /** Corrects a set already registered (SPEC 7.8). */
+  const handleSaveSetEdit = async () => {
+    if (!editingSet || !selectedExercise) {
+      return;
+    }
+    const weight = editingSet.weightKg.trim();
+    const repetitions = Number(editingSet.repetitions);
+    if (!Number.isFinite(repetitions) || repetitions < 1) {
+      Alert.alert('Repetições inválidas', 'Informe um número de repetições maior que zero.');
+      return;
+    }
+    try {
+      const updated = await updateSetMutation.mutateAsync({
+        setId: editingSet.setId,
+        input: {
+          weightKg: weight === '' ? null : Number(weight),
+          repetitions,
+        },
+      });
+      updateSetInStore(selectedExercise.id, updated);
+      setEditingSet(null);
+    } catch (error) {
+      Alert.alert('Erro ao salvar série', mapApiError(error).message);
+    }
+  };
+
+  /** Removes a set from the running session (SPEC 7.8). */
+  const handleDeleteSet = (set: ExerciseSet) => {
+    if (!selectedExercise) {
+      return;
+    }
+    Alert.alert('Excluir série?', `A série ${set.setNumber} será removida da sessão.`, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Excluir',
+        style: 'destructive',
+        onPress: () => {
+          deleteSetMutation.mutate(set.id, {
+            onSuccess: () => {
+              removeSetFromStore(selectedExercise.id, set.id);
+              setEditingSet(null);
+            },
+            onError: (error) => {
+              Alert.alert('Erro ao excluir série', mapApiError(error).message);
+            },
+          });
+        },
+      },
+    ]);
+  };
+
   if (isCompleted) {
     return (
       <Screen title="Treino concluído" testID="start-workout-screen">
@@ -303,9 +421,11 @@ export default function StartWorkoutScreen() {
     );
   }
 
+  const isPaused = session.status === SESSION_STATUSES.PAUSED;
+
   return (
     <Screen
-      title="Sessão em andamento"
+      title={isPaused ? 'Sessão pausada' : 'Sessão em andamento'}
       subtitle={`Iniciada em ${new Date(session.startedAt).toLocaleTimeString('pt-BR', {
         hour: '2-digit',
         minute: '2-digit',
@@ -318,6 +438,23 @@ export default function StartWorkoutScreen() {
         isOffline={isOffline}
         onSync={() => void syncNow()}
       />
+
+      <View style={styles.statusRow}>
+        <Button
+          label={isPaused ? 'Retomar sessão' : 'Pausar sessão'}
+          variant="secondary"
+          onPress={handleTogglePause}
+          loading={statusMutation.isPending}
+          testID="toggle-session-pause"
+        />
+        <Button
+          label="Abandonar"
+          variant="ghost"
+          onPress={handleAbandon}
+          disabled={statusMutation.isPending}
+          testID="abandon-session-button"
+        />
+      </View>
 
       <Card title="Exercícios" subtitle="Toque no exercício para registrar as séries">
         {session.exercises.length === 0 ? (
@@ -420,6 +557,85 @@ export default function StartWorkoutScreen() {
                 : undefined
             }
           />
+
+          {selectedExercise.sets.length > 0 ? (
+            <View style={styles.setsList}>
+              <Text style={styles.setsTitle}>Séries registradas</Text>
+              {selectedExercise.sets
+                .slice()
+                .sort((a, b) => a.setNumber - b.setNumber)
+                .map((set) => (
+                  <View key={set.id} style={styles.setRow}>
+                    <View style={styles.setInfo}>
+                      <Text style={styles.setText}>
+                        Série {set.setNumber}: {set.weightKg === null ? 'Corpo livre' : `${set.weightKg} kg`} × {set.repetitions}
+                      </Text>
+                    </View>
+                    <View style={styles.setActions}>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Corrigir série ${set.setNumber}`}
+                        onPress={() => beginSetEdit(set)}
+                        style={styles.setAction}
+                        testID={`edit-set-${set.id}`}
+                      >
+                        <Ionicons name="create-outline" size={18} color={colors.accent} />
+                      </Pressable>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Excluir série ${set.setNumber}`}
+                        onPress={() => handleDeleteSet(set)}
+                        style={styles.setAction}
+                        testID={`delete-set-${set.id}`}
+                      >
+                        <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                      </Pressable>
+                    </View>
+                  </View>
+                ))}
+            </View>
+          ) : null}
+
+          {editingSet ? (
+            <View style={styles.editSetPanel}>
+              <Text style={styles.setsTitle}>Corrigir série</Text>
+              <TextField
+                label="Carga (kg)"
+                value={editingSet.weightKg}
+                onChangeText={(value) =>
+                  setEditingSet((current) =>
+                    current ? { ...current, weightKg: value } : current
+                  )
+                }
+                placeholder="Opcional"
+                keyboardType="decimal-pad"
+              />
+              <TextField
+                label="Repetições"
+                value={editingSet.repetitions}
+                onChangeText={(value) =>
+                  setEditingSet((current) =>
+                    current ? { ...current, repetitions: value } : current
+                  )
+                }
+                keyboardType="number-pad"
+              />
+              <View style={styles.editSetActions}>
+                <Button
+                  label={updateSetMutation.isPending ? 'Salvando…' : 'Salvar'}
+                  onPress={handleSaveSetEdit}
+                  disabled={updateSetMutation.isPending}
+                  size="md"
+                />
+                <Button
+                  label="Cancelar"
+                  variant="ghost"
+                  onPress={() => setEditingSet(null)}
+                  size="md"
+                />
+              </View>
+            </View>
+          ) : null}
         </Card>
       ) : null}
 
@@ -486,5 +702,55 @@ const styles = StyleSheet.create({
   exerciseMeta: {
     ...typography.caption,
     color: colors.textMuted,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
+  },
+  setsList: {
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  setsTitle: {
+    ...typography.bodyStrong,
+    color: colors.text,
+  },
+  setRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    paddingTop: spacing.sm,
+    gap: spacing.sm,
+  },
+  setInfo: {
+    flex: 1,
+  },
+  setText: {
+    ...typography.body,
+    color: colors.textSecondary,
+  },
+  setActions: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  setAction: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+    minWidth: 44,
+  },
+  editSetPanel: {
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    paddingTop: spacing.md,
+  },
+  editSetActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
 });

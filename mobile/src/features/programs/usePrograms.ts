@@ -1,6 +1,8 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { fetchPrograms } from './program.service';
+import type { CreateProgramInput } from '../../types/program';
+import { createIdempotencyKey } from '../../utils/id';
+import { createProgram, fetchPrograms, updateProgram } from './program.service';
 
 export const programQueryKeys = {
   all: ['programs'] as const,
@@ -13,5 +15,34 @@ export function usePrograms(page = 0, size = 20) {
     queryKey: programQueryKeys.list(page, size),
     queryFn: () => fetchPrograms(page, size),
     staleTime: 60_000,
+  });
+}
+
+export function useCreateProgram() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ input, idempotencyKey }: { input: CreateProgramInput; idempotencyKey?: string }) =>
+      createProgram(input, idempotencyKey ?? createIdempotencyKey()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: programQueryKeys.all });
+    },
+  });
+}
+
+export function useUpdateProgram() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      input,
+      idempotencyKey,
+    }: {
+      id: string;
+      input: CreateProgramInput;
+      idempotencyKey?: string;
+    }) => updateProgram(id, input, idempotencyKey ?? createIdempotencyKey()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: programQueryKeys.all });
+    },
   });
 }

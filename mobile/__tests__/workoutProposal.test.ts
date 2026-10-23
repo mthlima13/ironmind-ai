@@ -30,7 +30,7 @@ const PROPOSAL: WorkoutProposal = {
         {
           exerciseId: 'ex-supino-reto',
           name: 'Supino reto com barra',
-          primaryMuscleGroup: 'CHEST',
+          primaryMuscleGroup: 'Peito',
           sets: 3,
           repsMin: 8,
           repsMax: 12,
@@ -39,7 +39,7 @@ const PROPOSAL: WorkoutProposal = {
         {
           exerciseId: 'ex-remada-curva',
           name: 'Remada curvada',
-          primaryMuscleGroup: 'BACK',
+          primaryMuscleGroup: 'Costas',
           sets: 4,
           repsMin: 6,
           repsMax: 10,

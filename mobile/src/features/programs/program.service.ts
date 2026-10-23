@@ -38,3 +38,17 @@ export async function createProgram(
   );
   return response.data;
 }
+
+/** Updates a program with its days and exercises (SPEC RF-005). */
+export async function updateProgram(
+  id: string,
+  input: CreateProgramInput,
+  idempotencyKey: string = createIdempotencyKey()
+): Promise<WorkoutProgram> {
+  const response = await api.put<WorkoutProgram>(
+    ENDPOINTS.programs.update(id),
+    input,
+    { headers: { [IDEMPOTENCY_HEADER]: idempotencyKey } }
+  );
+  return response.data;
+}
