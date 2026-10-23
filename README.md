@@ -33,32 +33,32 @@ O IronMind AI resolve isso em duas frentes:
 
 ## Status do projeto
 
-> **Estágio atual: Sprints 1 a 3 concluídas.** Autenticação, catálogo, sessões e
-> séries funcionam de ponta a ponta contra a API real; programas são listados e
-> iniciados, mas a edição ainda não persiste. A Sprint 4 (estatísticas e
-> recordes) é a próxima: enquanto ela não termina, o dashboard e a evolução por
-> exercício do app rodam contra o adaptador de mock.
+> **Estágio atual: Sprints 1 a 5 concluídas.** Autenticação, catálogo, sessões,
+> séries, analytics, recordes, restrições e a proposta de treino da IA funcionam
+> de ponta a ponta contra a API real. Programas são criados pela proposta de IA
+> revisada; a edição manual de um dia ainda não persiste. A Sprint 6 (qualidade
+> e publicação) é a próxima.
 
 | Área | Situação |
 |---|---|
 | Schema do banco (15 tabelas, migrações Flyway, seed de 59 exercícios) | Implementado |
 | Backend: health, catálogo de exercícios, perfil e preferências | Implementado |
 | Autenticação completa: cadastro, login, refresh rotativo, logout, recuperação | Implementado |
-| Programas de treino (API): criar, listar, substituir, arquivar | Implementado — a tela do app ainda não persiste as edições |
+| Programas de treino (API): criar, listar, substituir, arquivar | Implementado — a edição manual de um dia no app ainda não persiste |
 | Sessões (API): iniciar, pausar, retomar, concluir, histórico paginado | Implementado |
 | Séries (API): registrar, corrigir, excluir, com idempotência durável | Implementado |
 | Sessão offline: fila local com reenvio automático, idempotência e contagem de pendências | Implementado |
 | Contrato de erro da API, trace ID, tratamento global de exceções | Implementado |
-| Calculadoras de volume e 1RM (regras decididas e testadas) | Parcial — ainda sem endpoint; Sprint 4 |
-| Detecção transacional de recordes pessoais | Planejado — Sprint 4 |
+| Calculadoras de volume e 1RM expostas por `/analytics/*` | Implementado |
+| Detecção transacional de recordes pessoais | Implementado |
 | App Android: 5 abas, autenticação, catálogo, editor de dia em memória, registro de série, histórico, perfil | Implementado |
-| Dashboard e evolução por exercício no app | Parcial — dados do adaptador de mock até a Sprint 4 |
+| Dashboard e evolução por exercício no app | Implementado |
+| IA inicial: proposta de treino validada, sugestão de carga por regras, coaching e voz | Implementado no backend — provedor `mock` por padrão; no app, só a proposta de treino tem tela |
+| Tela de revisão e salvamento da proposta de IA | Implementado |
 | Adaptações Android: back do sistema, edge-to-edge, permissões em runtime, safe area | Implementado |
-| Testes | 131 testes no backend + 114 casos no mobile (97 unitários + 17 de contrato contra a API real) |
+| Testes | 181 testes no backend + 106 casos no mobile (mais 17 de contrato contra a API real, opcionais) |
 | Teste de contrato mobile x API real, no CI | Implementado |
 | App rodando em emulador Android 15 contra API e banco reais | Verificado |
-| Analytics, recordes e restrições no backend | Planejado — Sprint 4 |
-| Integração com IA | Planejado — Sprint 5 |
 | Recursos sociais e gamificação | Planejado — Fase 3 |
 | Exclusão de conta in-app | Planejado — Sprint 6 (exigência do Google Play) |
 
@@ -127,6 +127,10 @@ powershell -ExecutionPolicy Bypass -File scripts\backend.ps1 stop
 
 > O Postgres precisa estar no ar antes: `cd infra && docker compose up -d postgres`.
 > O Flyway cria o schema, mas não cria o banco.
+>
+> A IA sobe com `LLM_PROVIDER=mock`, que responde sem rede e sem credenciais.
+> Para usar um provedor real, defina `LLM_PROVIDER=openai`, `LLM_API_KEY` e
+> `LLM_MODEL`; sem esses valores o backend falha rápido na inicialização.
 
 ### 3. Aplicativo mobile
 
@@ -166,10 +170,10 @@ cd android && ./gradlew bundleRelease
 ### 4. Testes
 
 ```bash
-# backend — 131 testes
+# backend — 181 testes
 cd backend && mvn test
 
-# mobile — typecheck + 114 casos de teste
+# mobile — typecheck + 106 casos (mais 17 de contrato contra a API real, opt-in)
 cd mobile && npx tsc --noEmit && npx jest
 ```
 

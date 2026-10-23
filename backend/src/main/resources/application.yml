@@ -103,12 +103,36 @@ app:
   llm:
     # The key of the provider is only read by the backend and never reaches the
     # mobile application.
+    # "mock" answers deterministically and needs no credentials; "openai" calls
+    # the real provider and fails fast when the key or the model is missing.
+    provider: ${LLM_PROVIDER:mock}
     api-key: ${LLM_API_KEY:}
     model: ${LLM_MODEL:}
     base-url: ${LLM_BASE_URL:https://api.openai.com/v1}
     timeout-ms: ${LLM_TIMEOUT_MS:15000}
     max-output-tokens: ${LLM_MAX_OUTPUT_TOKENS:2000}
     daily-quota-per-user: ${LLM_DAILY_QUOTA_PER_USER:50}
+    # Resilience of the provider: a transient failure is retried a limited
+    # number of times and a sequence of failures opens the circuit, so an
+    # unavailable provider answers fast instead of holding every request.
+    max-retries: ${LLM_MAX_RETRIES:1}
+    circuit-breaker-failure-threshold: ${LLM_CIRCUIT_FAILURE_THRESHOLD:5}
+    circuit-breaker-open-seconds: ${LLM_CIRCUIT_OPEN_SECONDS:30}
+  ai:
+    # Bounds applied to every structured answer, whatever the model returns.
+    limits:
+      max-days: ${AI_MAX_DAYS:7}
+      max-exercises-per-day: ${AI_MAX_EXERCISES_PER_DAY:10}
+      max-sets: ${AI_MAX_SETS:8}
+      max-reps: ${AI_MAX_REPS:30}
+      max-rest-seconds: ${AI_MAX_REST_SECONDS:600}
+      max-catalog-exercises: ${AI_MAX_CATALOG_EXERCISES:80}
+      default-reps-min: ${AI_DEFAULT_REPS_MIN:8}
+      default-reps-max: ${AI_DEFAULT_REPS_MAX:12}
+      default-rest-seconds: ${AI_DEFAULT_REST_SECONDS:90}
+    rate-limit:
+      max-requests: ${AI_RATE_LIMIT_REQUESTS:10}
+      window-seconds: ${AI_RATE_LIMIT_WINDOW_SECONDS:60}
 
 logging:
   level:

@@ -29,4 +29,13 @@ public interface WorkoutProgramRepository extends JpaRepository<WorkoutProgram, 
      */
     @Query("select p from WorkoutProgram p where p.user.id = :userId")
     Page<WorkoutProgram> findAllByUser(@Param("userId") UUID userId, Pageable pageable);
+
+    /**
+     * Tells whether the program exists and belongs to the given user.
+     *
+     * <p>Used to link a reviewed AI proposal to the program the user saved, without ever
+     * revealing the program of another user.
+     */
+    @Query("select count(p) > 0 from WorkoutProgram p where p.id = :id and p.user.id = :userId")
+    boolean existsOwnedBy(@Param("id") UUID id, @Param("userId") UUID userId);
 }

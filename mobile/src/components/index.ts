@@ -18,5 +18,7 @@ export { SetRow } from './SetRow';
 export type { SetDraft, SetRowProps } from './SetRow';
 export { StatCard } from './StatCard';
 export type { StatCardProps } from './StatCard';
+export { Stepper } from './Stepper';
+export type { StepperProps } from './Stepper';
 export { TextField } from './TextField';
 export type { TextFieldProps } from './TextField';

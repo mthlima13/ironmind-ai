@@ -21,6 +21,11 @@ export type TextFieldProps = {
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   autoComplete?: 'email' | 'password' | 'name' | 'off' | 'new-password';
   editable?: boolean;
+  /** Renders a multi-line input, used for prompts and descriptions. */
+  multiline?: boolean;
+  /** Visible lines of a multi-line input. */
+  numberOfLines?: number;
+  maxLength?: number;
   testID?: string;
 };
 
@@ -36,6 +41,9 @@ export function TextField({
   autoCapitalize = 'none',
   autoComplete = 'off',
   editable = true,
+  multiline = false,
+  numberOfLines,
+  maxLength,
   testID,
 }: TextFieldProps) {
   const [isFocused, setIsFocused] = useState(false);
@@ -57,8 +65,13 @@ export function TextField({
         autoCapitalize={autoCapitalize}
         autoComplete={autoComplete}
         editable={editable}
+        multiline={multiline}
+        numberOfLines={numberOfLines}
+        maxLength={maxLength}
+        textAlignVertical={multiline ? 'top' : 'center'}
         style={[
           styles.input,
+          multiline ? styles.inputMultiline : null,
           isFocused ? styles.inputFocused : null,
           error ? styles.inputError : null,
           !editable ? styles.inputDisabled : null,
@@ -96,6 +109,10 @@ const styles = StyleSheet.create({
   },
   inputFocused: {
     borderColor: colors.accent,
+  },
+  inputMultiline: {
+    minHeight: 96,
+    paddingTop: spacing.md,
   },
   inputError: {
     borderColor: colors.danger,

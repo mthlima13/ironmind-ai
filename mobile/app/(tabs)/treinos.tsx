@@ -97,6 +97,14 @@ export default function WorkoutsScreen() {
             testID="workouts-coach-button"
           />
 
+          <Button
+            label="Proposta de treino com IA"
+            variant="secondary"
+            icon={<Ionicons name="sparkles-outline" size={18} color={colors.accent} />}
+            onPress={() => router.push(ROUTES.propostas)}
+            testID="workouts-proposal-button"
+          />
+
           {isLoading ? <LoadingState label="Carregando programas…" /> : null}
 
           {isError ? (

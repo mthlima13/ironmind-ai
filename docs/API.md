@@ -8,19 +8,19 @@ em `/swagger-ui.html` com o backend em execução.
 - **Formato:** JSON (`application/json`)
 - **Autenticação:** `Authorization: Bearer <accessToken>`
 
-> **O que existe hoje.** Sprints 1 a 3 entregues: autenticação, perfil e
+> **O que existe hoje.** Sprints 1 a 5 entregues: autenticação, perfil e
 > preferências, catálogo de exercícios, programas e o fluxo completo de sessão
-> (início, pausa/retomada, registro e correção de séries, conclusão).
+> (início, pausa/retomada, registro e correção de séries, conclusão), analytics,
+> recordes, restrições e a IA inicial (proposta de treino, sugestão de carga,
+> coaching e interpretação de voz).
 >
-> As seções **Analytics, recordes e restrições** e **IA** são o contrato
-> planejado das Sprints 4 e 5: esses endpoints ainda **não** existem no backend.
-> No app, as telas que dependem deles rodam apenas contra o adaptador de mock
-> (`mobile/src/services/mockAdapter.ts`).
+> O app continua funcionando sem backend: com
+> `EXPO_PUBLIC_USE_MOCK_API=true` todas as telas rodam contra o adaptador de mock
+> (`mobile/src/services/mockAdapter.ts`), que segue o mesmo contrato.
 
 | Status | Endpoints |
 |---|---|
-| **Implementado** | `GET /health`; `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/forgot-password`, `/auth/reset-password`; `GET/PATCH /users/me`; `GET/POST /exercises`, `GET/PATCH /exercises/{id}`; `GET/POST /programs`, `GET/PUT/DELETE /programs/{id}`; `GET/POST /workout-sessions`, `GET/PATCH /workout-sessions/{id}`, `POST /workout-sessions/{id}/exercises`, `POST /workout-sessions/{id}/sets`, `POST /workout-sessions/{id}/complete`, `PATCH/DELETE /sets/{id}` |
-| Planejado | `/analytics/*`, `/records` e `/restrictions` (Sprint 4); `/ai/*` (Sprint 5) |
+| **Implementado** | `GET /health`; `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/forgot-password`, `/auth/reset-password`; `GET/PATCH /users/me`; `GET/POST /exercises`, `GET/PATCH /exercises/{id}`; `GET/POST /programs`, `GET/PUT/DELETE /programs/{id}`; `GET/POST /workout-sessions`, `GET/PATCH /workout-sessions/{id}`, `POST /workout-sessions/{id}/exercises`, `POST /workout-sessions/{id}/sets`, `POST /workout-sessions/{id}/complete`, `PATCH/DELETE /sets/{id}`; `GET /analytics/overview`, `GET /analytics/exercises/{id}`, `GET /records`, `GET/PUT /restrictions`; `POST /ai/workout-proposals`, `/ai/load-suggestions`, `/ai/coach`, `/ai/voice-interpretation`, `/ai/recommendations/{id}/decision` |
 
 ---
 
@@ -519,17 +519,233 @@ transacional.
 
 ### IA
 
-> **Planejado para a Sprint 5.** Nenhum endpoint de IA existe no backend hoje.
+> A IA é acessada **somente** pelo backend: a chave do provedor nunca chega ao
+> app. Por padrão o backend usa o provedor `mock` (`LLM_PROVIDER=mock`), que
+> responde de forma determinística e não gasta créditos; `LLM_PROVIDER=openai`
+> exige `LLM_API_KEY` e `LLM_MODEL` e falha rápido quando faltam.
+>
+> A IA **nunca** grava no banco e **nunca** inventa identificador de exercício:
+> toda resposta é validada pelo backend e nada vira programa sem a revisão do
+> usuário.
 
 | Método | Endpoint | Auth | Descrição |
 |---|---|---|---|
-| `POST` | `/ai/workout-proposals` | ✔ | Gerar proposta de treino |
-| `POST` | `/ai/load-suggestions` | ✔ | Sugerir carga e repetições |
+| `POST` | `/ai/workout-proposals` | ✔ | Gerar proposta de treino (idempotente) |
+| `POST` | `/ai/load-suggestions` | ✔ | Sugerir carga e repetições (idempotente) |
 | `POST` | `/ai/coach` | ✔ | Chat de coaching contextualizado |
 | `POST` | `/ai/voice-interpretation` | ✔ | Interpretar transcrição de voz |
+| `POST` | `/ai/recommendations/{id}/decision` | ✔ | Registrar aceite, edição ou rejeição |
 
-> Endpoints de IA têm rate limiting por usuário, limite diário de custo e
-> falha controlada (`503` / `502`) — nunca stack trace.
+#### Proposta de treino
+
+```http
+POST /api/v1/ai/workout-proposals
+Authorization: Bearer <accessToken>
+Idempotency-Key: <uuid>
+Content-Type: application/json
+
+{
+  "prompt": "Treino de hipertrofia para 4 dias",
+  "trainingDays": 4,
+  "goal": "HYPERTROPHY"
+}
+```
+
+`trainingDays` (1 a 7) e `goal` são opcionais; quando ausentes valem as
+preferências do usuário.
+
+`200` com a proposta validada:
+
+```json
+{
+  "recommendationId": "…",
+  "status": "PENDING",
+  "model": "mock-ironmind-v1",
+  "name": "Treino de hipertrofia",
+  "goal": "HYPERTROPHY",
+  "days": [
+    {
+      "name": "Dia 1",
+      "exercises": [
+        {
+          "exerciseId": "…",
+          "name": "Supino reto com barra",
+          "primaryMuscleGroup": "Peito",
+          "sets": 3,
+          "repsMin": 8,
+          "repsMax": 12,
+          "restSeconds": 90
+        }
+      ]
+    }
+  ],
+  "explanation": "…",
+  "warnings": [],
+  "disclaimer": "Sugestão informativa gerada por IA. Revise antes de salvar."
+}
+```
+
+Regras:
+
+| Item | Regra |
+|---|---|
+| Catálogo | só exercícios visíveis ao usuário, já filtrados por restrição ativa e equipamento |
+| `exerciseId` fora do catálogo | descartado, com aviso em `warnings` |
+| Limites | dias, exercícios por dia, séries, repetições e descanso são ajustados pelo backend |
+| Dias sem exercício e exercícios repetidos | removidos antes da resposta |
+| O que fica gravado | apenas a recomendação (`PENDING`) e um resumo não sensível do pedido; o texto do prompt não é armazenado |
+| Salvar | continua sendo `POST /programs`, com o payload revisado pelo usuário |
+| Idempotência | mesma chave e mesmo corpo devolvem a mesma recomendação, com o status atual |
+
+#### Sugestão de carga
+
+```http
+POST /api/v1/ai/load-suggestions
+Authorization: Bearer <accessToken>
+Idempotency-Key: <uuid>
+Content-Type: application/json
+
+{
+  "exerciseId": "…",
+  "targetRepsMin": 8,
+  "targetRepsMax": 12
+}
+```
+
+`200`:
+
+```json
+{
+  "recommendationId": "…",
+  "status": "PENDING",
+  "exerciseId": "…",
+  "exerciseName": "Supino reto com barra",
+  "sets": [
+    { "setNumber": 1, "weightKg": 82.5, "repetitions": 8, "durationSeconds": null, "distanceMeters": null }
+  ],
+  "rule": "KEEP",
+  "confidence": "MEDIUM",
+  "explanation": "…",
+  "sessionsConsidered": 3,
+  "lastPerformedAt": "2026-10-20T18:00:00Z",
+  "warnings": [],
+  "disclaimer": "…",
+  "applied": false
+}
+```
+
+A sugestão é **calculada por regras** a partir do histórico concluído, nunca
+pelo modelo, e jamais é aplicada automaticamente (`applied` é sempre `false`):
+
+| Regra | Quando |
+|---|---|
+| `INSUFFICIENT_HISTORY` | não há sessão concluída com o exercício; nenhuma carga é sugerida |
+| `REDUCE` | a última sessão teve RPE ≥ 9 ou ficou abaixo do mínimo de repetições |
+| `INCREASE` | pelo menos 3 sessões, topo da faixa atingido nas 2 últimas e RPE ≤ 8 em todas |
+| `KEEP` | nenhuma das anteriores: mantém a carga e as séries da última sessão |
+
+O incremento é de 2,5 kg a partir de 20 kg e de 1 kg abaixo disso. Exercício
+inexistente ou de outro usuário responde `404`; exercício bloqueado por
+restrição ativa responde `422`.
+
+#### Coaching
+
+```http
+POST /api/v1/ai/coach
+Authorization: Bearer <accessToken>
+Content-Type: application/json
+
+{ "message": "Como estou indo esta semana?" }
+```
+
+`200`:
+
+```json
+{
+  "reply": "…",
+  "model": "mock-ironmind-v1",
+  "disclaimers": ["Resposta informativa gerada por IA; não substitui a avaliação de um profissional de saúde ou de educação física."]
+}
+```
+
+O contexto enviado ao modelo é um resumo curto do histórico recente (sessões
+concluídas nas últimas quatro semanas), sem texto livre de restrições nem dado
+de saúde. A resposta passa por uma verificação de segurança: diagnóstico,
+prescrição de tratamento e recomendação de substâncias são substituídos por uma
+resposta segura e menção a dor sempre acrescenta a orientação de interromper o
+movimento e procurar um profissional. A conversa **não** é armazenada.
+
+#### Interpretação de voz
+
+```http
+POST /api/v1/ai/voice-interpretation
+Authorization: Bearer <accessToken>
+Content-Type: application/json
+
+{ "transcript": "80 kg 10 repetições" }
+```
+
+`200`:
+
+```json
+{
+  "sets": [
+    { "setNumber": 1, "weightKg": 80, "repetitions": 10, "durationSeconds": null, "distanceMeters": null }
+  ],
+  "notes": null,
+  "model": "mock-ironmind-v1",
+  "warnings": [],
+  "disclaimer": "Confira os valores antes de registrar a série."
+}
+```
+
+O áudio é transcrito **no dispositivo**: o backend recebe apenas texto. A
+interpretação só pré-preenche o formulário de série e não é armazenada; o
+usuário confirma cada valor antes do registro.
+
+#### Decisão sobre a recomendação
+
+```http
+POST /api/v1/ai/recommendations/{id}/decision
+Authorization: Bearer <accessToken>
+Content-Type: application/json
+
+{ "status": "EDITED", "programId": "…" }
+```
+
+| Campo | Regra |
+|---|---|
+| `status` | `ACCEPTED`, `EDITED` ou `REJECTED` |
+| `programId` | opcional; precisa pertencer ao mesmo usuário |
+
+`200`:
+
+```json
+{
+  "id": "…",
+  "status": "EDITED",
+  "acceptedAt": "2026-10-22T12:00:00Z",
+  "savedProgramId": "…"
+}
+```
+
+Uma recomendação já revisada responde `409`. Recurso de outro usuário responde
+`404`.
+
+#### Erros e limites
+
+| Situação | Resposta |
+|---|---|
+| Provedor indisponível, timeout ou circuito aberto | `503` `AI_UNAVAILABLE` |
+| Resposta do provedor fora do formato esperado | `502` `AI_INVALID_RESPONSE` |
+| Limite de chamadas ou cota diária | `429` `RATE_LIMITED`, com `Retry-After` |
+| Chave de idempotência reutilizada com outro corpo | `409` `IDEMPOTENCY_KEY_REUSED` |
+| Recomendação já revisada | `409` `CONFLICT` |
+
+Por padrão cada usuário pode fazer 10 chamadas de IA por janela de 60 s
+(`AI_RATE_LIMIT_REQUESTS` / `AI_RATE_LIMIT_WINDOW_SECONDS`) e 50 por dia
+(`LLM_DAILY_QUOTA_PER_USER`). A verificação acontece antes da chamada ao
+provedor: uma requisição recusada não gasta token.
 
 ---
 

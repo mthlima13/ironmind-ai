@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchPrograms } from './program.service';
 
 export const programQueryKeys = {
+  all: ['programs'] as const,
   list: (page: number, size: number) => ['programs', page, size] as const,
 };
 

@@ -1,7 +1,8 @@
 import { api } from '../../services/api';
-import { ENDPOINTS } from '../../services/endpoints';
+import { ENDPOINTS, IDEMPOTENCY_HEADER } from '../../services/endpoints';
 import type { Page } from '../../types/api';
-import type { WorkoutProgram } from '../../types/program';
+import type { CreateProgramInput, WorkoutProgram } from '../../types/program';
+import { createIdempotencyKey } from '../../utils/id';
 
 /** Programs owned by the user (SPEC RF-005). */
 export async function fetchPrograms(
@@ -17,5 +18,23 @@ export async function fetchPrograms(
 /** Program with its days and exercises. */
 export async function fetchProgram(id: string): Promise<WorkoutProgram> {
   const response = await api.get<WorkoutProgram>(ENDPOINTS.programs.detail(id));
+  return response.data;
+}
+
+/**
+ * Creates a program with its days and exercises (SPEC RF-005).
+ *
+ * The idempotency key makes a retried save return the same program instead of
+ * creating a second one (SPEC A.3).
+ */
+export async function createProgram(
+  input: CreateProgramInput,
+  idempotencyKey: string = createIdempotencyKey()
+): Promise<WorkoutProgram> {
+  const response = await api.post<WorkoutProgram>(
+    ENDPOINTS.programs.create,
+    input,
+    { headers: { [IDEMPOTENCY_HEADER]: idempotencyKey } }
+  );
   return response.data;
 }

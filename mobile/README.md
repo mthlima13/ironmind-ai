@@ -54,10 +54,12 @@ adaptador de mock embutido (`src/services/mockAdapter.ts`) que implementa os
 mesmos contratos descritos na SPEC (paginação do Apêndice A.2, formato de erro
 do A.1, autenticação do A.4 e idempotência do A.3).
 
-O mock também implementa o fluxo de sessão completo: cadastro (com
+O mock também implementa o fluxo de sessão completo — cadastro (com
 `Idempotency-Key`), login, renovação, logout com revogação e recuperação de
-acesso. A conta de demonstração do mock é `alex@ironmind.ai` com a senha
-`ironmind123` — qualquer outra conta pode ser criada pela tela de cadastro.
+acesso — além de analytics, recordes, restrições e a proposta de treino da IA
+(com revisão e salvamento do programa). A conta de demonstração do mock é
+`alex@ironmind.ai` com a senha `ironmind123` — qualquer outra conta pode ser
+criada pela tela de cadastro.
 
 Para apontar para o backend real, copie `.env.example` para `.env` e ajuste:
 
@@ -67,9 +69,8 @@ EXPO_PUBLIC_USE_MOCK_API=false
 ```
 
 > O `.env.example` vem com `EXPO_PUBLIC_USE_MOCK_API=true`. Com `false`, o app
-> usa a API real para autenticação, perfil, catálogo, programas, sessões e
-> séries; analytics, recordes e restrições continuam dependendo do mock até a
-> Sprint 4.
+> usa a API real para todas as features, incluindo analytics, recordes,
+> restrições e a proposta de treino da IA.
 
 > `.env` nunca é versionado. Somente valores públicos de build ficam no bundle.
 
@@ -118,6 +119,7 @@ A suíte cobre, entre outras coisas:
 | `__tests__/sessionExercise.test.tsx` | serviço, hook e store do treino livre: `POST /workout-sessions/{id}/exercises`, ordem por posição, exercício guardado na sessão em andamento e invalidação do histórico |
 | `__tests__/startWorkout.test.tsx` | tela de treino: sessão sem exercícios oferece a ação de adicionar, o exercício escolhido entra na sessão já selecionado e a falha mostra retry |
 | `__tests__/offlineSync.test.ts` | reenvio da fila offline: ordem, parada em falha de rede/servidor, rejeição definitiva para `ERROR`, sessão expirada e proteção contra envio duplicado |
+| `__tests__/workoutProposal.test.ts` | revisão da proposta de IA: conversão para o payload do programa, limites, faixa de repetições, detecção de edição e fluxo completo contra o mock (gerar, salvar, decidir) |
 
 ---
 
@@ -193,7 +195,8 @@ mobile/
 │   ├── _layout.tsx             # providers (QueryClient, auth, fontes), Stack, back handler
 │   ├── auth/                   # grupo de autenticação (login, cadastro e recuperação)
 │   ├── reset-password.tsx      # rota do link profundo de recuperação de senha
-│   ├── coach.tsx               # placeholder do chat de IA (Fase 2)
+│   ├── coach.tsx               # placeholder do chat de IA
+│   ├── propostas.tsx           # revisão e salvamento da proposta de treino da IA
 │   └── (tabs)/
 │       ├── _layout.tsx         # as 5 abas da SPEC 15.1
 │       ├── index.tsx           # Início — dashboard
@@ -203,13 +206,15 @@ mobile/
 │       └── perfil.tsx          # Perfil — preferências, restrições, privacidade
 ├── src/
 │   ├── components/             # Button, Card, Screen, EmptyState, ErrorState,
-│   │                           # LoadingState, PendingSyncBanner, SetRow, TextField, ...
+│   │                           # LoadingState, PendingSyncBanner, SetRow, Stepper,
+│   │                           # TextField, ...
 │   ├── features/
 │   │   ├── auth/               # store, hooks, validação e telas de acesso
 │   │   ├── workouts/           # sessão, SetLogger e sincronização offline
 │   │   ├── exercises/          # busca e filtro do catálogo
 │   │   ├── programs/           # editor de programa (dias → exercícios → séries)
 │   │   ├── analytics/          # dashboard, evolução por exercício e recordes
+│   │   ├── ai/                 # proposta de treino, revisão e decisão
 │   │   ├── coach/              # placeholder do chat de IA
 │   │   ├── profile/            # restrições do usuário
 │   │   └── voice/              # estrutura de permissões de câmera/microfone (Fase 2)
@@ -334,8 +339,7 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
 **Dashboard (RF-015)**
 - Resumo da semana: volume, sessões, recordes, tempo médio, comparação com a
   semana anterior, gráfico de atividade por dia e últimas sessões.
-- Os dados vêm de `GET /analytics/overview`; até a Sprint 4 esse endpoint só
-  existe no adaptador de mock.
+- Os dados vêm de `GET /analytics/overview`.
 
 **Catálogo de exercícios (RF-003)**
 - Busca por nome/equipamento e filtro por grupo muscular, com estados de
@@ -346,6 +350,8 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
   faixa de repetições, descanso e ordenação.
 - O editor altera o dia **em memória**: o backend já aceita `PUT /programs/{id}`,
   mas a tela ainda não envia as mudanças.
+- A tela de proposta de IA cria programas com `POST /programs` depois da
+  revisão do usuário.
 
 **Sessão e registro de série (RF-006, RF-007, RF-008, RF-010)**
 - Início, escolha do dia, listagem dos exercícios da sessão e finalização.
@@ -367,9 +373,8 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
 - Histórico paginado com "carregar mais", lista de recordes e evolução por
   exercício. Os números vêm do servidor — o app **não calcula** volume, 1RM nem
   recordes.
-- O histórico (`GET /workout-sessions`) usa a API real. Evolução e recordes
-  dependem de `/analytics/*` e `/records`, que ainda não existem no backend:
-  rodam contra o mock até a Sprint 4.
+- O histórico (`GET /workout-sessions`), a evolução (`/analytics/*`) e os
+  recordes (`/records`) usam a API real.
 
 **Perfil e privacidade (RF-002, RF-016)**
 - Unidade, experiência, objetivo, limitações informadas e controles de
@@ -398,10 +403,24 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
 - As séries registradas offline aparecem na sessão em andamento com um id
   provisório; o servidor atribui o id definitivo quando a fila é reenviada.
 
+**Proposta de treino com IA (RF-018)**
+- Tela aberta a partir de Treinos: o usuário descreve o que quer, escolhe os
+  dias por semana (ou usa as preferências) e recebe uma proposta **validada pelo
+  backend**.
+- A revisão permite ajustar séries, repetições e descanso de cada exercício e o
+  nome do programa. "Salvar como programa" envia o payload revisado para
+  `POST /programs` e depois registra a decisão (`EDITED` ou `ACCEPTED`) em
+  `POST /ai/recommendations/{id}/decision`; "Rejeitar proposta" registra
+  `REJECTED` sem criar nada.
+- A tela mostra a explicação, os ajustes feitos pelo backend (`warnings`) e o
+  aviso de que a sugestão é informativa.
+- **A IA nunca grava no banco**: o programa só existe depois do salvamento
+  explícito do usuário.
+
 **Chat de IA**
 - Apenas a **entrada** para o chat existe (acesso a partir de Treinos e
-  Evolução). A feature em si é da Fase 2 e está claramente marcada como
-  planejada.
+  Evolução). O endpoint `POST /ai/coach` já existe no backend, mas a tela de
+  conversa ainda é um placeholder.
 
 ---
 
@@ -409,17 +428,17 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
 
 | Item | Situação |
 |---|---|
-| Backend real (Spring Boot) | **consumido** para autenticação, perfil, catálogo, programas, sessões e séries. Analytics, recordes e restrições ainda rodam contra o mock (Sprint 4) |
-| Criar/editar/excluir programas pela API | o backend já expõe `POST /programs`, `PUT /programs/{id}` e `DELETE /programs/{id}`; falta a tela do app chamar essas rotas (hoje o editor não persiste) |
+| Backend real (Spring Boot) | **consumido** para autenticação, perfil, catálogo, programas, sessões, séries, analytics, recordes, restrições e proposta de treino da IA |
+| Criar/editar/excluir programas pela API | a proposta de IA cria programas via `POST /programs`; o editor manual ainda altera o dia só em memória e não há ação de arquivar na tela |
 | Exercício personalizado do usuário (RF-004) | backend pronto (`POST /exercises`); falta a tela do app |
 | Corrigir/excluir série já registrada (RF-009) | backend pronto (`PATCH` e `DELETE /sets/{id}`); falta a interface no app |
 | Pausar/retomar/abandonar sessão | backend pronto (`PATCH /workout-sessions/{id}`); a tela só inicia e finaliza |
 | Envio real do e-mail de recuperação | a tela e o contrato da API existem, mas **a entrega do e-mail é do backend** (porta de e-mail plugável, SPEC 14.1) |
 | Estimativa de 1RM e volume calculados no app | **por decisão** — o cálculo é do backend (SPEC 1.4) |
-| Geração de programa por IA (RF-018) | Fase 2 |
-| Sugestão de carga (RF-019) | Fase 2 |
-| Chat de coaching (RF-020) | Fase 2 — apenas o placeholder de navegação |
-| Registro por voz (RF-021) | Fase 2 — apenas a estrutura de permissões |
+| Geração de programa por IA (RF-018) | **implementada** com revisão e salvamento explícito |
+| Sugestão de carga (RF-019) | backend pronto (`POST /ai/load-suggestions`); o registro de série ainda não consome a sugestão |
+| Chat de coaching (RF-020) | backend pronto (`POST /ai/coach`); no app continua sendo apenas o placeholder de navegação |
+| Registro por voz (RF-021) | backend pronto (`POST /ai/voice-interpretation`); o app só tem a estrutura de permissões |
 | Resolução de conflitos na sincronização (RF-022) | parcial: a fila reenvia sozinha e nunca duplica, mas não há edição offline nem resolução de conflito entre versões |
 | Comunidade, gamificação e moderação (RF-023 a RF-025) | Fase 3 |
 | Cardio, medidas corporais, device health (RF-026 a RF-029) | Fase 4 |
@@ -431,10 +450,13 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
 
 ## 10. Limitações conhecidas
 
-- O app fala com o backend real em autenticação, perfil, catálogo, programas,
-  sessões e séries. **Analytics, recordes e restrições** ainda só existem no
-  adaptador de mock (`src/services/mockAdapter.ts`) e serão ligados ao backend
-  na Sprint 4.
+- O app fala com o backend real em todas as features; `EXPO_PUBLIC_USE_MOCK_API=true`
+  mantém o adaptador de mock para desenvolvimento e testes.
+- A IA é acessada **somente** pelo backend. O app consome a proposta de treino,
+  mas ainda não usa as telas de sugestão de carga, chat de coaching nem
+  transcrição de voz — os endpoints existem no backend.
+- Com `LLM_PROVIDER=mock` (padrão do backend), as respostas da IA são
+  determinísticas e não vêm de um modelo real.
 - A fila offline reenvia sozinha quando a conexão volta, mas **não resolve
   conflito** entre a versão local e a do servidor: a primeira gravação válida
   vence e uma rejeição definitiva (`4xx`) fica marcada como `ERROR` no banner.
@@ -442,7 +464,8 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
   `PUT /programs/{id}`, mas a tela ainda não persiste.
 - Não há interface para corrigir/excluir série, pausar/retomar sessão nem criar
   exercício personalizado — as rotas existem no backend.
-- O chat de IA é um placeholder honesto, sem chamadas de IA.
+- O chat de IA continua sendo um placeholder no app, embora o endpoint de
+  coaching já exista no backend.
 - A **entrega do e-mail** de recuperação de acesso é do backend: o app só
   chama `POST /auth/forgot-password` e mostra sempre a mesma resposta.
 - A renovação automática do token foi exercitada com um adapter falso do

@@ -77,6 +77,13 @@ export default function RootLayout() {
               }}
             />
             <Stack.Screen
+              name="propostas"
+              options={{
+                presentation: 'modal',
+                title: 'Proposta de IA',
+              }}
+            />
+            <Stack.Screen
               name="reset-password"
               options={{
                 title: 'Definir nova senha',

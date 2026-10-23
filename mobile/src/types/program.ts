@@ -65,3 +65,12 @@ export type ProgramDayDraft = {
   name: string;
   exercises: ProgramExerciseDraft[];
 };
+
+/** Payload used to create a program (SPEC RF-005). */
+export type CreateProgramInput = {
+  name: string;
+  description: string;
+  goal: TrainingGoal;
+  splitType: SplitType;
+  days: ProgramDayDraft[];
+};

@@ -61,6 +61,8 @@ export const ENDPOINTS = {
     loadSuggestions: '/ai/load-suggestions',
     coach: '/ai/coach',
     voiceInterpretation: '/ai/voice-interpretation',
+    recommendationDecision: (id: string) =>
+      `/ai/recommendations/${id}/decision`,
   },
 } as const;
 

@@ -1,6 +1,7 @@
 package com.ironmind.exercise.repository;
 
 import com.ironmind.exercise.entity.Exercise;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -14,4 +15,14 @@ import org.springframework.stereotype.Repository;
  */
 @Repository
 public interface ExerciseRepository extends JpaRepository<Exercise, UUID>, JpaSpecificationExecutor<Exercise> {
+
+    /**
+     * Lists the exercises of the global catalog.
+     */
+    List<Exercise> findByCreatedByUserIdIsNull();
+
+    /**
+     * Lists the personal exercises of the given user.
+     */
+    List<Exercise> findByCreatedByUserId(UUID userId);
 }

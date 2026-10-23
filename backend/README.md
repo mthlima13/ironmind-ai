@@ -104,12 +104,21 @@ desenvolvimento. A referência completa está em [`.env.example`](../.env.exampl
 | `RATE_LIMIT_WINDOW_SECONDS` | `60` | tamanho da janela do limitador |
 | `MAIL_PROVIDER` | `logging` | provedor do e-mail de recuperação (`logging` só escreve no log) |
 | `CORS_ALLOWED_ORIGINS` | origens locais | origens autorizadas a chamar a API |
-| `LLM_API_KEY` | vazio | chave do provedor de IA (Fase 2) |
-| `LLM_MODEL` | vazio | modelo usado (Fase 2) |
-| `LLM_BASE_URL` | `https://api.openai.com/v1` | base do provedor (Fase 2) |
-| `LLM_TIMEOUT_MS` | `15000` | timeout da chamada (Fase 2) |
-| `LLM_MAX_OUTPUT_TOKENS` | `2000` | limite de tokens (Fase 2) |
-| `LLM_DAILY_QUOTA_PER_USER` | `50` | cota diária por usuário (Fase 2) |
+| `LLM_PROVIDER` | `mock` | provedor de IA (`mock` determinístico, sem custo; `openai` real) |
+| `LLM_API_KEY` | vazio | chave do provedor; obrigatória quando `LLM_PROVIDER=openai` |
+| `LLM_MODEL` | vazio | modelo usado; obrigatório quando `LLM_PROVIDER=openai` |
+| `LLM_BASE_URL` | `https://api.openai.com/v1` | base do provedor |
+| `LLM_TIMEOUT_MS` | `15000` | timeout da chamada ao provedor |
+| `LLM_MAX_OUTPUT_TOKENS` | `2000` | limite de tokens da resposta |
+| `LLM_DAILY_QUOTA_PER_USER` | `50` | chamadas de IA por usuário e por dia |
+| `LLM_MAX_RETRIES` | `1` | tentativas extras em falha transitória |
+| `LLM_CIRCUIT_FAILURE_THRESHOLD` | `5` | falhas seguidas que abrem o circuito |
+| `LLM_CIRCUIT_OPEN_SECONDS` | `30` | tempo com o circuito aberto |
+| `AI_RATE_LIMIT_REQUESTS` | `10` | chamadas de IA por usuário e por janela |
+| `AI_RATE_LIMIT_WINDOW_SECONDS` | `60` | tamanho da janela do limitador de IA |
+| `AI_MAX_DAYS`, `AI_MAX_EXERCISES_PER_DAY`, `AI_MAX_SETS`, `AI_MAX_REPS`, `AI_MAX_REST_SECONDS` | `7`, `10`, `8`, `30`, `600` | limites aplicados às respostas estruturadas |
+| `AI_DEFAULT_REPS_MIN`, `AI_DEFAULT_REPS_MAX`, `AI_DEFAULT_REST_SECONDS` | `8`, `12`, `90` | valores usados quando a faixa de repetições ou o descanso não são informados |
+| `AI_MAX_CATALOG_EXERCISES` | `80` | tamanho máximo do catálogo enviado no contexto |
 | `SPRING_PROFILES_ACTIVE` | `local` | perfil ativo (`local` ou `test`) |
 
 > **Aviso de segurança:** com o `JWT_SECRET` padrão, a aplicação **sobe** e escreve um aviso
@@ -598,18 +607,27 @@ a senha com um hash falso, para não responder mais rápido do que quando a cont
 | `POST` | `/api/v1/workout-sessions/{id}/complete` | exige token |
 | `PATCH` | `/api/v1/sets/{id}` | exige token |
 | `DELETE` | `/api/v1/sets/{id}` | exige token |
+| `GET` | `/api/v1/analytics/overview` | exige token |
+| `GET` | `/api/v1/analytics/exercises/{id}` | exige token |
+| `GET` | `/api/v1/records` | exige token |
+| `GET` | `/api/v1/restrictions` | exige token |
+| `PUT` | `/api/v1/restrictions` | exige token |
+| `POST` | `/api/v1/ai/workout-proposals` | exige token |
+| `POST` | `/api/v1/ai/load-suggestions` | exige token |
+| `POST` | `/api/v1/ai/coach` | exige token |
+| `POST` | `/api/v1/ai/voice-interpretation` | exige token |
+| `POST` | `/api/v1/ai/recommendations/{id}/decision` | exige token |
 | `GET` | `/actuator/health`, `/actuator/info` | público |
 
 ---
 
 ## O que está planejado
 
-Nada abaixo existe no código — é a ordem prevista na seção 17 da especificação.
+As Sprints 1 a 5 estão entregues. O que resta do plano:
 
 | Sprint | Entrega |
 |---|---|
-| Sprint 4 | endpoints de analytics (`/analytics/overview`, `/analytics/exercises/{id}`), recordes (`/records`) e restrições (`/restrictions`); expor volume e 1RM; detecção transacional de recordes; dashboard e gráficos por exercício |
-| Sprint 5 | serviço de IA com saída estruturada, validação, rate limiting e fallback |
+| Sprint 6 | ampliar testes de integração e cobertura, revisar segurança, privacidade e acessibilidade, preparar homologação e publicar o AAB no track de teste do Google Play |
 | Fase 3 | amigos, equipes, conquistas, rankings e moderação |
 
 ---
@@ -617,8 +635,8 @@ Nada abaixo existe no código — é a ordem prevista na seção 17 da especific
 ## Decisões de domínio que afetam este código
 
 As decisões 1, 2 e 5 da seção 20 da especificação estão **fechadas**. As duas
-calculadoras abaixo implementam a regra decidida e têm teste; nenhuma delas é
-exposta por endpoint ainda — isso entra na Sprint 4.
+calculadoras abaixo implementam a regra decidida e têm teste; volume e 1RM são
+expostos por `/analytics/*` desde a Sprint 4.
 
 | Decisão | Onde aparece no código |
 |---|---|
@@ -663,6 +681,20 @@ exposta por endpoint ainda — isso entra na Sprint 4.
   `token_hash` são `char(64)` e por isso usam `@JdbcTypeCode(SqlTypes.CHAR)`.
 - **`PATCH` não limpa campos.** Campos omitidos no corpo mantêm o valor atual; não há como
   apagar uma descrição.
+- **Provedor de IA padrão é o mock.** `LLM_PROVIDER=mock` responde de forma determinística e
+  não acessa a rede; ele existe para desenvolvimento e testes. A publicação exige um provedor
+  real configurado (`LLM_PROVIDER=openai` + `LLM_API_KEY` + `LLM_MODEL`), ou as respostas
+  continuarão sendo as do mock.
+- **Coaching sem memória de conversa.** Cada chamada de `/ai/coach` recebe apenas um resumo
+  curto do histórico recente; a conversa não é persistida e não há contexto entre chamadas.
+- **Sugestão de carga é baseada em regras.** Não usa LLM: as regras são conservadoras e
+  explicáveis, e a sugestão nunca é aplicada automaticamente — o usuário confirma cada valor.
+- **Rate limiting de IA em memória.** O limitador de `/ai/*` (`ai/service/AiRateLimiter.java`)
+  usa janela fixa no heap, com a mesma limitação do limitador de autenticação: não sobrevive a
+  restart nem é compartilhado entre instâncias. A cota diária usa a mesma estrutura.
+- **Retenção de prompt.** A proposta de treino grava apenas a recomendação e um resumo não
+  sensível do pedido em `ai_recommendations.input_summary`; o texto do prompt, a conversa de
+  coaching e a transcrição de voz não são armazenados.
 
 ---
 
@@ -671,13 +703,13 @@ exposta por endpoint ainda — isso entra na Sprint 4.
 ```text
 backend/src/main/java/com/ironmind/
 ├── IronMindApplication.java
-├── ai/           # integração com o LLM (planejada — Sprint 5)
-├── analytics/    # dashboard e evolução (planejada — Sprint 4)
+├── ai/           # IA: proposta de treino, sugestão de carga, coaching e voz
+├── analytics/    # dashboard e evolução por exercício
 ├── auth/         # autenticação: controller, tokens, senha, e-mail e rate limiting
 ├── common/       # ApiError, handler global, trace id, exceções, idempotência, config
 ├── exercise/     # slice vertical do catálogo de exercícios
 ├── program/      # slice vertical dos programas de treino (dias e exercícios)
-├── record/       # recordes pessoais (modelo de persistência; detecção na Sprint 4)
+├── record/       # recordes pessoais e detecção transacional
 ├── user/         # perfil e preferências: controller, service, DTOs e persistência
 └── workout/      # slice vertical das sessões de treino e das séries + volume e 1RM
 ```

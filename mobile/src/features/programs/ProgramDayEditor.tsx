@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Button } from '../../components/Button';
+import { Stepper } from '../../components/Stepper';
 import { TextField } from '../../components/TextField';
 import { colors, layout, radii, spacing, typography } from '../../theme';
 import type { ProgramDay, ProgramExercise } from '../../types/program';
@@ -13,47 +14,6 @@ export type ProgramDayEditorProps = {
   /** Called whenever the day changes. */
   onChange: (day: ProgramDay) => void;
 };
-
-function Stepper({
-  label,
-  value,
-  onChange,
-  testID,
-}: {
-  label: string;
-  value: number;
-  onChange: (value: number) => void;
-  testID: string;
-}) {
-  return (
-    <View style={styles.stepper}>
-      <Text style={styles.stepperLabel}>{label}</Text>
-      <View style={styles.stepperControls}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Diminuir ${label}`}
-          testID={`${testID}-decrease`}
-          onPress={() => onChange(Math.max(0, value - 1))}
-          style={styles.stepperButton}
-        >
-          <Ionicons name="remove" size={16} color={colors.text} />
-        </Pressable>
-        <Text style={styles.stepperValue} testID={testID}>
-          {value}
-        </Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Aumentar ${label}`}
-          testID={`${testID}-increase`}
-          onPress={() => onChange(value + 1)}
-          style={styles.stepperButton}
-        >
-          <Ionicons name="add" size={16} color={colors.text} />
-        </Pressable>
-      </View>
-    </View>
-  );
-}
 
 /**
  * Editor of a program day: exercises, target sets and reps, rest and order
@@ -298,34 +258,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.md,
-  },
-  stepper: {
-    gap: spacing.xs,
-    minWidth: 88,
-  },
-  stepperLabel: {
-    ...typography.label,
-    color: colors.textMuted,
-  },
-  stepperControls: {
-    alignItems: 'center',
-    backgroundColor: colors.surfaceElevated,
-    borderColor: colors.border,
-    borderRadius: radii.sm,
-    borderWidth: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    minHeight: layout.minTouchTarget,
-  },
-  stepperButton: {
-    alignItems: 'center',
-    height: layout.minTouchTarget,
-    justifyContent: 'center',
-    width: 36,
-  },
-  stepperValue: {
-    ...typography.bodyStrong,
-    color: colors.text,
   },
   picker: {
     backgroundColor: colors.surfaceElevated,

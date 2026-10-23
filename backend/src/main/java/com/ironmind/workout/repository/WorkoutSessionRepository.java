@@ -57,4 +57,12 @@ public interface WorkoutSessionRepository extends JpaRepository<WorkoutSession, 
      */
     Optional<WorkoutSession> findFirstByUserIdAndStatusAndCompletedAtIsNotNullOrderByCompletedAtDesc(
             UUID userId, SessionStatus status);
+
+    /**
+     * Counts the completed sessions of the user after the given instant.
+     *
+     * <p>Feeds the short history summary sent to the language model, which never receives the
+     * sessions themselves (SPEC.md section 12.2, step 4).
+     */
+    long countByUserIdAndStatusAndCompletedAtAfter(UUID userId, SessionStatus status, Instant from);
 }

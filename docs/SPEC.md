@@ -1022,6 +1022,11 @@ Prefixo: `/api/v1`. Todos os endpoints privados exigem `Authorization: Bearer <t
 | `POST` | `/ai/load-suggestions` | Sugerir carga e repetições |
 | `POST` | `/ai/coach` | Conversa de coaching contextualizada |
 | `POST` | `/ai/voice-interpretation` | Interpretar transcrição de voz |
+| `POST` | `/ai/recommendations/{id}/decision` | Registrar aceite, edição ou rejeição |
+
+> A conversa de coaching e a transcrição de voz não são armazenadas. Apenas
+> propostas de treino e sugestões de carga viram recomendação persistida, com
+> um resumo não sensível do pedido, para registrar a decisão do usuário.
 
 ### 11.7 Convenções da API
 
@@ -1085,6 +1090,20 @@ O modelo retorna um objeto estruturado validado por esquema definido no backend.
 
 > A IA não inventa IDs de exercício e não grava diretamente no banco.
 
+**Implementação atual:**
+
+- O contexto enviado ao modelo é mínimo: preferências, experiência,
+  equipamentos, região das restrições ativas, catálogo já filtrado e um resumo
+  do histórico recente. Texto livre de restrições e dado de saúde não são
+  enviados.
+- A proposta validada é gravada como recomendação `PENDING`, junto de um resumo
+  não sensível do pedido. O texto do prompt não é armazenado.
+- O programa em si continua sendo criado por `POST /programs`, com o payload
+  revisado pelo usuário. A recomendação é vinculada ao programa salvo por
+  `POST /ai/recommendations/{id}/decision`.
+- `ACCEPTED`, `EDITED` e `REJECTED` registram a decisão do usuário; uma
+  recomendação já revisada responde `409`.
+
 ### 12.3 Sugestão de carga
 
 Começar com **regras simples e explicáveis**, antes de qualquer modelo próprio:
@@ -1101,6 +1120,22 @@ Começar com **regras simples e explicáveis**, antes de qualquer modelo própri
 
 A IA pode, em fase posterior, resumir tendências e sugerir ajustes — sempre
 com a mesma regra: proposta → validação → revisão do usuário.
+
+**Implementação atual:** a sugestão é calculada por regras no backend, a partir
+das sessões concluídas:
+
+| Regra | Condição |
+|---|---|
+| `INSUFFICIENT_HISTORY` | não há sessão concluída com o exercício; nenhuma carga é sugerida |
+| `REDUCE` | última sessão com RPE ≥ 9 ou abaixo do mínimo de repetições |
+| `INCREASE` | ao menos 3 sessões, topo da faixa nas 2 últimas e RPE ≤ 8 em todas |
+| `KEEP` | nenhuma das anteriores: repete carga e séries da última sessão |
+
+O incremento é de 2,5 kg a partir de 20 kg e de 1 kg abaixo disso. A sugestão
+traz a regra e a explicação que a originaram, nunca é aplicada automaticamente
+(`applied: false`) e a decisão do usuário é registrada pelo endpoint de decisão.
+Exercício de outro usuário responde `404`; exercício bloqueado por restrição
+ativa responde `422`.
 
 ### 12.4 Limites de segurança
 
@@ -1424,12 +1459,12 @@ ciclo de vida da sessão com o app em background.
 
 ### Sprint 5 — IA inicial
 
-- [ ] Integrar API de LLM pelo backend com serviço isolado.
-- [ ] Definir esquema de saída estruturada e DTOs de validação.
-- [ ] Implementar geração de propostas com validação de IDs e limites.
-- [ ] Implementar sugestão de carga baseada em regras.
-- [ ] Implementar tela de revisão e salvamento do programa.
-- [ ] Aplicar rate limiting, logs seguros e tratamento de falhas.
+- [x] Integrar API de LLM pelo backend com serviço isolado.
+- [x] Definir esquema de saída estruturada e DTOs de validação.
+- [x] Implementar geração de propostas com validação de IDs e limites.
+- [x] Implementar sugestão de carga baseada em regras.
+- [x] Implementar tela de revisão e salvamento do programa.
+- [x] Aplicar rate limiting, logs seguros e tratamento de falhas.
 
 ### Sprint 6 — Qualidade e entrega
 
