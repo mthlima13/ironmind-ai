@@ -18,6 +18,7 @@ export const ENDPOINTS = {
   },
   users: {
     me: '/users/me',
+    deleteMe: '/users/me',
   },
   exercises: {
     list: '/exercises',

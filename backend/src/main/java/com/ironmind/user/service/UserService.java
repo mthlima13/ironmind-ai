@@ -3,6 +3,7 @@ package com.ironmind.user.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.ironmind.common.exception.FieldValidationException;
 import com.ironmind.common.exception.ResourceNotFoundException;
+import com.ironmind.user.dto.DeleteAccountRequest;
 import com.ironmind.user.dto.PrivacySettings;
 import com.ironmind.user.dto.UpdatePreferencesRequest;
 import com.ironmind.user.dto.UpdateProfileRequest;
@@ -21,6 +22,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +41,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional(readOnly = true)
 public class UserService {
+
+    private static final Logger log = LoggerFactory.getLogger(UserService.class);
 
     /**
      * Days of training of the default preferences.
@@ -75,10 +81,13 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final UserPreferencesRepository userPreferencesRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    public UserService(UserRepository userRepository, UserPreferencesRepository userPreferencesRepository) {
+    public UserService(UserRepository userRepository, UserPreferencesRepository userPreferencesRepository,
+            PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.userPreferencesRepository = userPreferencesRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     /**
@@ -121,6 +130,37 @@ public class UserService {
     private User requireUser(UUID userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("usuário", userId));
+    }
+
+    /**
+     * Erases the account of the authenticated user and every record that belongs to it.
+     *
+     * <p>The deletion is a hard delete: the {@code users} row is removed and the foreign keys
+     * cascade to the preferences, the refresh tokens, the recovery tokens, the programs, the
+     * sessions, the sets, the personal records, the restrictions and the AI recommendations
+     * (SPEC.md section 14.3). Nothing is kept as an archive, so the e-mail becomes available for a
+     * new account.
+     *
+     * <p>The password is required as a second proof of ownership. A wrong password rejects the
+     * operation with a field error and keeps the account untouched; the owner of the token is the
+     * only one who can ask for the deletion.
+     *
+     * @param userId  identifier of the authenticated user, always taken from the access token
+     * @param request payload with the current password
+     * @throws ResourceNotFoundException when the account does not exist anymore
+     * @throws FieldValidationException  when the informed password does not match the stored hash
+     */
+    @Transactional
+    public void deleteAccount(UUID userId, DeleteAccountRequest request) {
+        User user = requireUser(userId);
+        if (request == null || request.password() == null
+                || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+            throw new FieldValidationException("password", "Senha incorreta.");
+        }
+
+        userRepository.delete(user);
+        // Only the identifier is logged: the e-mail, the name and the password never reach the log.
+        log.info("Account deleted: {}", userId);
     }
 
     /**

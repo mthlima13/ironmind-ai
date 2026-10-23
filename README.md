@@ -33,11 +33,13 @@ O IronMind AI resolve isso em duas frentes:
 
 ## Status do projeto
 
-> **Estágio atual: Sprints 1 a 5 concluídas.** Autenticação, catálogo, sessões,
-> séries, analytics, recordes, restrições e a proposta de treino da IA funcionam
-> de ponta a ponta contra a API real. Programas são criados pela proposta de IA
-> revisada; a edição manual de um dia ainda não persiste. A Sprint 6 (qualidade
-> e publicação) é a próxima.
+> **Estágio atual: Sprints 1 a 5 concluídas; Sprint 6 em andamento.** Autenticação,
+> catálogo, sessões, séries, analytics, recordes, restrições e a proposta de treino
+> da IA funcionam de ponta a ponta contra a API real. Programas são criados pela
+> proposta de IA revisada; a edição manual de um dia ainda não persiste. Na Sprint
+> 6, a exclusão de conta in-app (exigência do Google Play) está implementada; a
+> política de privacidade e os termos de uso existem apenas como rascunho, e o AAB
+> assinado ainda não foi gerado.
 
 | Área | Situação |
 |---|---|
@@ -56,11 +58,13 @@ O IronMind AI resolve isso em duas frentes:
 | IA inicial: proposta de treino validada, sugestão de carga por regras, coaching e voz | Implementado no backend — provedor `mock` por padrão; no app, só a proposta de treino tem tela |
 | Tela de revisão e salvamento da proposta de IA | Implementado |
 | Adaptações Android: back do sistema, edge-to-edge, permissões em runtime, safe area | Implementado |
-| Testes | 181 testes no backend + 106 casos no mobile (mais 17 de contrato contra a API real, opcionais) |
+| Testes | 191 testes no backend + 111 casos no mobile (mais 17 de contrato contra a API real, opcionais) |
 | Teste de contrato mobile x API real, no CI | Implementado |
 | App rodando em emulador Android 15 contra API e banco reais | Verificado |
 | Recursos sociais e gamificação | Planejado — Fase 3 |
-| Exclusão de conta in-app | Planejado — Sprint 6 (exigência do Google Play) |
+| Exclusão de conta in-app | Implementado — `DELETE /users/me` exige a senha, apaga todos os dados em cascata e libera o e-mail; tela em Perfil com confirmação em duas etapas |
+| Política de privacidade e termos de uso | Rascunho — [`docs/PRIVACY.md`](docs/PRIVACY.md) e [`docs/TERMS.md`](docs/TERMS.md); falta revisão jurídica e publicação em URL pública |
+| Publicação no Google Play (conta, keystore, AAB) | Pendente — checklist em [`docs/PLAY-RELEASE.md`](docs/PLAY-RELEASE.md) |
 
 **Não descreva este projeto como se os recursos planejados já existissem.**
 Consulte [`docs/SPEC.md`](docs/SPEC.md) para a visão completa e honesta.
@@ -165,15 +169,17 @@ cd android && ./gradlew bundleRelease
 ```
 
 > A chave de upload do Play Console e o keystore **nunca** entram no repositório.
-> Ver [`docs/SPEC.md`](docs/SPEC.md#166-distribuição).
+> Ver [`docs/SPEC.md`](docs/SPEC.md#166-distribuição) e o checklist completo em
+> [`docs/PLAY-RELEASE.md`](docs/PLAY-RELEASE.md) (conta, keystore, versionCode,
+> *Data Safety* e URL web de exclusão).
 
 ### 4. Testes
 
 ```bash
-# backend — 181 testes
+# backend — 191 testes
 cd backend && mvn test
 
-# mobile — typecheck + 106 casos (mais 17 de contrato contra a API real, opt-in)
+# mobile — typecheck + 111 casos (mais 17 de contrato contra a API real, opt-in)
 cd mobile && npx tsc --noEmit && npx jest
 ```
 
@@ -252,6 +258,9 @@ ironmind-ai/
 | [`docs/API.md`](docs/API.md) | Contrato da API, convenções, códigos de erro |
 | [`docs/DATA-MODEL.md`](docs/DATA-MODEL.md) | Modelo relacional e regras de integridade |
 | [`docs/SECURITY.md`](docs/SECURITY.md) | Threat model, controles implementados e pendências |
+| [`docs/PRIVACY.md`](docs/PRIVACY.md) | Rascunho da política de privacidade — não publicado |
+| [`docs/TERMS.md`](docs/TERMS.md) | Rascunho dos termos de uso — não publicado |
+| [`docs/PLAY-RELEASE.md`](docs/PLAY-RELEASE.md) | Checklist de publicação no Google Play (conta, keystore, AAB, Data Safety) |
 
 ---
 

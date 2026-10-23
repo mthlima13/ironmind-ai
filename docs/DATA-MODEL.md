@@ -95,8 +95,9 @@ detectar reuso: apresentar um token já revogado revoga a família inteira.
 | `session_exercises.session_id` | `CASCADE` | Excluir sessão remove exercícios |
 | `exercise_sets.session_exercise_id` | `CASCADE` | Excluir exercício remove séries |
 | `restriction_exercises.*` | `CASCADE` | Tabela associativa |
-| `exercises.created_by_user_id` | `SET NULL` | Exercício global sobrevive ao usuário |
+| `exercises.created_by_user_id` | `CASCADE` | Exercício personalizado é apagado com a conta; os globais têm `created_by_user_id = NULL` e permanecem |
 | `workout_sessions.program_id` | `SET NULL` | Sessão histórica sobrevive ao programa |
+| `*.user_id` (preferências, programas, dias, sessões, séries, recordes, restrições, recomendações, tokens) | `CASCADE` | Excluir a conta (`DELETE /users/me`) apaga todos os dados do titular |
 
 > **Preservação de histórico:** alterar ou excluir um programa **nunca** altera
 > sessões já realizadas. Sessões gravam snapshot dos valores no momento do

@@ -1,6 +1,7 @@
 package com.ironmind.user;
 
 import com.ironmind.common.security.SecurityUtils;
+import com.ironmind.user.dto.DeleteAccountRequest;
 import com.ironmind.user.dto.UpdateProfileRequest;
 import com.ironmind.user.dto.UserProfileResponse;
 import com.ironmind.user.service.UserService;
@@ -10,6 +11,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -56,5 +59,21 @@ public class UserController {
     })
     public UserProfileResponse updateProfile(@Valid @RequestBody UpdateProfileRequest request) {
         return userService.updateProfile(SecurityUtils.requireCurrentUserId(), request);
+    }
+
+    @DeleteMapping("/me")
+    @Operation(summary = "Exclui a conta do usuário autenticado",
+            description = "Exclusão definitiva: apaga a conta e, em cascata, preferências, tokens, programas, "
+                    + "sessões, séries, recordes, restrições e recomendações de IA. Exige a senha atual como "
+                    + "segunda prova de titularidade e responde 204 sem corpo.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Conta excluída"),
+            @ApiResponse(responseCode = "401", description = "Token ausente ou inválido", content = @Content),
+            @ApiResponse(responseCode = "404", description = "Conta inexistente", content = @Content),
+            @ApiResponse(responseCode = "422", description = "Senha incorreta ou dados inválidos", content = @Content)
+    })
+    public ResponseEntity<Void> deleteAccount(@Valid @RequestBody DeleteAccountRequest request) {
+        userService.deleteAccount(SecurityUtils.requireCurrentUserId(), request);
+        return ResponseEntity.noContent().build();
     }
 }

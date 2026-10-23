@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { StyleSheet, Switch, Text, View } from 'react-native';
+import { Linking, StyleSheet, Switch, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Button } from '../../src/components/Button';
@@ -7,7 +7,8 @@ import { Card } from '../../src/components/Card';
 import { ErrorState } from '../../src/components/ErrorState';
 import { LoadingState } from '../../src/components/LoadingState';
 import { Screen } from '../../src/components/Screen';
-import { useLogout } from '../../src/features/auth/useAuth';
+import { TextField } from '../../src/components/TextField';
+import { useDeleteAccount, useLogout } from '../../src/features/auth/useAuth';
 import { useProfile, useUpdateProfile } from '../../src/features/auth/useProfile';
 import { useRestrictions } from '../../src/features/profile/useRestrictions';
 import { mapApiError } from '../../src/services/api';
@@ -36,6 +37,15 @@ const GOAL_LABELS: Record<TrainingGoal, string> = {
   ENDURANCE: 'Resistência',
   GENERAL: 'Geral',
 };
+
+/**
+ * Public addresses of the legal documents (SPEC 14.4).
+ *
+ * They are empty until the documents are published: the buttons only appear
+ * when the build receives the URL, so the app never opens a placeholder page.
+ */
+const PRIVACY_POLICY_URL = process.env.EXPO_PUBLIC_PRIVACY_URL?.trim() ?? '';
+const TERMS_OF_USE_URL = process.env.EXPO_PUBLIC_TERMS_URL?.trim() ?? '';
 
 function OptionRow<T extends string>({
   label,
@@ -78,8 +88,33 @@ export default function ProfileScreen() {
   const updateProfile = useUpdateProfile();
   const { data: restrictions } = useRestrictions();
   const [permission, setPermission] = useState<PermissionOutcome | null>(null);
+  const {
+    deleteAccount,
+    isSubmitting: isDeletingAccount,
+    error: deleteError,
+    clearError: clearDeleteError,
+  } = useDeleteAccount();
+  const [isConfirmingDeletion, setIsConfirmingDeletion] = useState(false);
+  const [password, setPassword] = useState('');
 
   const preferences = profile?.preferences;
+  const passwordError = deleteError?.fieldErrors.find(
+    (fieldError) => fieldError.field === 'password'
+  )?.message;
+
+  const closeDeletion = () => {
+    setIsConfirmingDeletion(false);
+    setPassword('');
+    clearDeleteError();
+  };
+
+  const confirmDeletion = async () => {
+    const trimmed = password.trim();
+    if (trimmed.length === 0) {
+      return;
+    }
+    await deleteAccount(trimmed);
+  };
 
   const savePreferences = (
     patch: Partial<NonNullable<typeof preferences>>
@@ -229,6 +264,26 @@ export default function ProfileScreen() {
               testID="profile-privacy-sharing"
             />
           </View>
+          {PRIVACY_POLICY_URL ? (
+            <Button
+              label="Política de privacidade"
+              variant="ghost"
+              onPress={() => {
+                void Linking.openURL(PRIVACY_POLICY_URL);
+              }}
+              testID="profile-privacy-policy"
+            />
+          ) : null}
+          {TERMS_OF_USE_URL ? (
+            <Button
+              label="Termos de uso"
+              variant="ghost"
+              onPress={() => {
+                void Linking.openURL(TERMS_OF_USE_URL);
+              }}
+              testID="profile-terms-of-use"
+            />
+          ) : null}
         </Card>
       ) : null}
 
@@ -260,6 +315,76 @@ export default function ProfileScreen() {
         }}
         testID="profile-logout"
       />
+
+      <Card
+        title="Excluir conta"
+        subtitle="Exclusão definitiva — exigida pela política do Google Play para apps com conta."
+      >
+        {!isConfirmingDeletion ? (
+          <>
+            <Text style={styles.dangerText}>
+              Apaga permanentemente sua conta e todo o histórico: programas,
+              sessões, séries, recordes, restrições e recomendações de IA. Não é
+              possível desfazer.
+            </Text>
+            <Button
+              label="Quero excluir minha conta"
+              variant="secondary"
+              onPress={() => {
+                clearDeleteError();
+                setIsConfirmingDeletion(true);
+              }}
+              testID="profile-delete-account"
+            />
+          </>
+        ) : (
+          <>
+            <Text style={styles.dangerText}>
+              Digite sua senha para confirmar. Esta ação não pode ser desfeita.
+            </Text>
+            <TextField
+              label="Senha atual"
+              value={password}
+              onChangeText={(value) => {
+                setPassword(value);
+                clearDeleteError();
+              }}
+              placeholder="Sua senha"
+              secureTextEntry
+              autoComplete="password"
+              error={passwordError}
+              editable={!isDeletingAccount}
+              testID="profile-delete-password"
+            />
+            {deleteError && !passwordError ? (
+              <Text
+                style={styles.errorText}
+                accessibilityLiveRegion="polite"
+                testID="profile-delete-error"
+              >
+                {deleteError.message}
+              </Text>
+            ) : null}
+            <Button
+              label="Excluir definitivamente"
+              variant="danger"
+              loading={isDeletingAccount}
+              disabled={password.trim().length === 0}
+              onPress={() => {
+                void confirmDeletion();
+              }}
+              testID="profile-delete-confirm"
+            />
+            <Button
+              label="Cancelar"
+              variant="secondary"
+              disabled={isDeletingAccount}
+              onPress={closeDeletion}
+              testID="profile-delete-cancel"
+            />
+          </>
+        )}
+      </Card>
     </Screen>
   );
 }
@@ -333,5 +458,13 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.text,
     flex: 1,
+  },
+  dangerText: {
+    ...typography.body,
+    color: colors.textSecondary,
+  },
+  errorText: {
+    ...typography.caption,
+    color: colors.danger,
   },
 });

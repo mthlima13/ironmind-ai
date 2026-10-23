@@ -33,6 +33,11 @@ type AuthState = {
   login: (email: string, password: string) => Promise<boolean>;
   register: (input: RegisterInput) => Promise<boolean>;
   logout: () => Promise<void>;
+  /**
+   * Erases the account after confirming the password (SPEC 14.3, Google Play).
+   * On success the local session is ended; on failure the session is kept.
+   */
+  deleteAccount: (password: string) => Promise<boolean>;
   /** Ends the session when the API refuses the stored credentials. */
   expireSession: () => void;
   clearError: () => void;
@@ -170,6 +175,29 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
         error: null,
         isSubmitting: false,
       });
+    }
+  },
+
+  deleteAccount: async (password) => {
+    set({ isSubmitting: true, error: null });
+    try {
+      await api.delete(ENDPOINTS.users.deleteMe, {
+        data: { password },
+      });
+      await clearTokens();
+      await clearOfflineQueue();
+      pendingRegistration = null;
+      set({
+        status: 'unauthenticated',
+        user: null,
+        error: null,
+        isSubmitting: false,
+      });
+      return true;
+    } catch (error) {
+      // A wrong password or a network failure keeps the session and the data.
+      set({ error: mapApiError(error), isSubmitting: false });
+      return false;
     }
   },
 

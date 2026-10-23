@@ -554,6 +554,50 @@ function buildRoutes(state: MockState): MockRoute[] {
       return state.profile;
     }),
 
+    buildRoute('DELETE', '/users/me', true, ({ body, path }) => {
+      const password = typeof body.password === 'string' ? body.password : '';
+      const ownerId = state.profile.user.id;
+      const user = Array.from(state.users.values()).find(
+        (item) => item.id === ownerId
+      );
+
+      if (!user) {
+        fail(404, API_ERROR_CODES.NOT_FOUND, 'Conta não encontrada.', path);
+      }
+
+      if (mockHash(password) !== user.password) {
+        fail(
+          422,
+          API_ERROR_CODES.VALIDATION_ERROR,
+          'Não foi possível excluir a conta.',
+          path,
+          [{ field: 'password', message: 'Senha incorreta.' }]
+        );
+      }
+
+      // Same hard delete of the real API: the account and everything it owns.
+      state.users.delete(user.email);
+      state.tokens.clear();
+      state.refreshTokens.forEach((owner, token) => {
+        if (owner.id === user.id) {
+          state.refreshTokens.delete(token);
+          state.revokedRefreshTokens.add(token);
+        }
+      });
+      state.resetTokens.forEach((owner, token) => {
+        if (owner.id === user.id) {
+          state.resetTokens.delete(token);
+        }
+      });
+      state.programs = [];
+      state.sessions = [];
+      state.restrictions = [];
+      state.recommendations.clear();
+      state.idempotency.clear();
+
+      return respond(204, null);
+    }),
+
     buildRoute('GET', '/exercises', true, ({ query }) => {
       const search = (query.get('search') ?? '').trim().toLowerCase();
       const muscleGroup = query.get('muscleGroup');

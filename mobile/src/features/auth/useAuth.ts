@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
 import { useAuthStore } from './auth.store';
 
@@ -40,11 +41,44 @@ export function useLogout() {
   const logout = useAuthStore((state) => state.logout);
   const clearError = useAuthStore((state) => state.clearError);
   const isSubmitting = useAuthStore((state) => state.isSubmitting);
+  const queryClient = useQueryClient();
 
   const execute = useCallback(async () => {
     clearError();
     await logout();
-  }, [logout, clearError]);
+    // Nothing of the previous account may stay in the cache of the screens.
+    queryClient.clear();
+  }, [logout, clearError, queryClient]);
 
   return { logout: execute, isSubmitting };
+}
+
+/**
+ * Erases the account of the signed user.
+ *
+ * <p>The session is kept when the server refuses the deletion (wrong password or
+ * network failure); on success the store ends the session and the app returns
+ * to the login screen. The query cache is cleared so no screen keeps data of
+ * the deleted account.
+ */
+export function useDeleteAccount() {
+  const deleteAccount = useAuthStore((state) => state.deleteAccount);
+  const clearError = useAuthStore((state) => state.clearError);
+  const isSubmitting = useAuthStore((state) => state.isSubmitting);
+  const error = useAuthStore((state) => state.error);
+  const queryClient = useQueryClient();
+
+  const execute = useCallback(
+    async (password: string) => {
+      clearError();
+      const deleted = await deleteAccount(password);
+      if (deleted) {
+        queryClient.clear();
+      }
+      return deleted;
+    },
+    [deleteAccount, clearError, queryClient]
+  );
+
+  return { deleteAccount: execute, isSubmitting, error, clearError };
 }

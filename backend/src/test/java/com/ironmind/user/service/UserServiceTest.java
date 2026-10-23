@@ -3,6 +3,7 @@ package com.ironmind.user.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -10,6 +11,7 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.TextNode;
 import com.ironmind.common.exception.FieldValidationException;
 import com.ironmind.common.exception.ResourceNotFoundException;
+import com.ironmind.user.dto.DeleteAccountRequest;
 import com.ironmind.user.dto.PrivacySettings;
 import com.ironmind.user.dto.UpdatePreferencesRequest;
 import com.ironmind.user.dto.UpdateProfileRequest;
@@ -33,6 +35,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
@@ -45,6 +48,9 @@ class UserServiceTest {
 
     @Mock
     private UserPreferencesRepository userPreferencesRepository;
+
+    @Mock
+    private PasswordEncoder passwordEncoder;
 
     @InjectMocks
     private UserService userService;
@@ -226,6 +232,42 @@ class UserServiceTest {
 
         verify(userRepository).findById(USER_ID);
         verify(userPreferencesRepository).findByUserId(USER_ID);
+    }
+
+    @Test
+    @DisplayName("deletes the account when the password matches")
+    void deletesTheAccountWhenThePasswordMatches() {
+        User user = user();
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
+        when(passwordEncoder.matches("senha1234", PASSWORD_HASH)).thenReturn(true);
+
+        userService.deleteAccount(USER_ID, new DeleteAccountRequest("senha1234"));
+
+        verify(userRepository).delete(user);
+    }
+
+    @Test
+    @DisplayName("keeps the account when the password does not match")
+    void keepsTheAccountWhenThePasswordDoesNotMatch() {
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user()));
+        when(passwordEncoder.matches("senha-errada-1", PASSWORD_HASH)).thenReturn(false);
+
+        assertThatThrownBy(() -> userService.deleteAccount(USER_ID, new DeleteAccountRequest("senha-errada-1")))
+                .isInstanceOf(FieldValidationException.class)
+                .hasMessageContaining("Senha incorreta");
+
+        verify(userRepository, never()).delete(any(User.class));
+    }
+
+    @Test
+    @DisplayName("does not delete an account that does not exist anymore")
+    void doesNotDeleteAnAccountThatDoesNotExistAnymore() {
+        when(userRepository.findById(USER_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> userService.deleteAccount(USER_ID, new DeleteAccountRequest("senha1234")))
+                .isInstanceOf(ResourceNotFoundException.class);
+
+        verify(userRepository, never()).delete(any(User.class));
     }
 
     private void stubUserAndPreferences(UserPreferences preferences) {

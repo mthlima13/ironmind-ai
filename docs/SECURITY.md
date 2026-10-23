@@ -139,6 +139,11 @@ O requisito mais importante do projeto em termos de segurança:
 - Restrições e medidas são acessíveis apenas pelo titular.
 - Recurso de outro usuário responde `404` — a API não confirma nem nega a
   existência de dados alheios.
+- A exclusão da conta é definitiva e exige a senha atual: o `DELETE /users/me`
+  remove a linha de `users` e a cascata apaga preferências, tokens, programas,
+  sessões, séries, recordes, restrições e recomendações de IA. Um access token
+  ainda válido (até 15 min) deixa de autenticar de fato e recebe `404`; o
+  refresh token é apagado e não renova mais a sessão.
 - Admin não tem leitura livre sobre dados de saúde: acesso excepcional,
   justificado e auditado.
 
@@ -154,11 +159,11 @@ O requisito mais importante do projeto em termos de segurança:
 | 4 | Auditoria de ações de administrador | Pendente — ainda não existe painel de administração | 1 |
 | 5 | Testes de penetração manuais nos endpoints de IA | Pendente — depende dos endpoints de IA | 5 |
 | 6 | Certificate pinning no app | Pendente | 6 |
-| 7 | Política de privacidade, termos de uso e encarregado (DPO) | Pendente | 6 |
+| 7 | Política de privacidade, termos de uso e encarregado (DPO) | **Parcial** — rascunhos em [`PRIVACY.md`](PRIVACY.md) e [`TERMS.md`](TERMS.md); falta revisão jurídica, preenchimento dos placeholders, publicação em URL pública e designação do DPO | 6 |
 | 8 | Rotação e teste de backup do banco | Pendente | 6 |
-| 9 | Política de retenção de dados de IA | Pendente | 5 |
-| 10 | Exclusão de conta in-app (exigência do Google Play para apps com login) | Pendente | 6 |
-| 11 | Keystore e chave de upload do Play fora do repositório | Pendente — entra no processo de assinatura | 6 |
+| 9 | Política de retenção de dados de IA | Pendente — depende da decisão 3 (provedor e retenção de prompts) | 5 |
+| 10 | Exclusão de conta in-app (exigência do Google Play para apps com login) | **Feito** — `DELETE /users/me` exige a senha, apaga em cascata todos os dados do titular e libera o e-mail; tela em Perfil com confirmação em duas etapas. Falta apenas a URL web de solicitação exigida pelo formulário *Data Safety* | 6 |
+| 11 | Keystore e chave de upload do Play fora do repositório | Pendente — checklist e comandos em [`PLAY-RELEASE.md`](PLAY-RELEASE.md); a keystore ainda não foi gerada | 6 |
 
 ---
 

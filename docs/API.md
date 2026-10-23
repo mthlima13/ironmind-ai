@@ -20,7 +20,7 @@ em `/swagger-ui.html` com o backend em execução.
 
 | Status | Endpoints |
 |---|---|
-| **Implementado** | `GET /health`; `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/forgot-password`, `/auth/reset-password`; `GET/PATCH /users/me`; `GET/POST /exercises`, `GET/PATCH /exercises/{id}`; `GET/POST /programs`, `GET/PUT/DELETE /programs/{id}`; `GET/POST /workout-sessions`, `GET/PATCH /workout-sessions/{id}`, `POST /workout-sessions/{id}/exercises`, `POST /workout-sessions/{id}/sets`, `POST /workout-sessions/{id}/complete`, `PATCH/DELETE /sets/{id}`; `GET /analytics/overview`, `GET /analytics/exercises/{id}`, `GET /records`, `GET/PUT /restrictions`; `POST /ai/workout-proposals`, `/ai/load-suggestions`, `/ai/coach`, `/ai/voice-interpretation`, `/ai/recommendations/{id}/decision` |
+| **Implementado** | `GET /health`; `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/forgot-password`, `/auth/reset-password`; `GET/PATCH/DELETE /users/me`; `GET/POST /exercises`, `GET/PATCH /exercises/{id}`; `GET/POST /programs`, `GET/PUT/DELETE /programs/{id}`; `GET/POST /workout-sessions`, `GET/PATCH /workout-sessions/{id}`, `POST /workout-sessions/{id}/exercises`, `POST /workout-sessions/{id}/sets`, `POST /workout-sessions/{id}/complete`, `PATCH/DELETE /sets/{id}`; `GET /analytics/overview`, `GET /analytics/exercises/{id}`, `GET /records`, `GET/PUT /restrictions`; `POST /ai/workout-proposals`, `/ai/load-suggestions`, `/ai/coach`, `/ai/voice-interpretation`, `/ai/recommendations/{id}/decision` |
 
 ---
 
@@ -118,6 +118,7 @@ registrados em log.
 | `POST` | `/auth/reset-password` | — | Concluir recuperação de acesso |
 | `GET` | `/users/me` | ✔ | Perfil e preferências |
 | `PATCH` | `/users/me` | ✔ | Atualizar perfil e preferências |
+| `DELETE` | `/users/me` | ✔ | Excluir a conta e todos os dados |
 
 #### Cadastro
 
@@ -279,6 +280,35 @@ Content-Type: application/json
 - O `user_id` **nunca** vem do corpo nem da query: vem do token. Um `userId`
   enviado no corpo é **ignorado**, não rejeitado.
 - Recurso de outro usuário responde **404**, nunca 403.
+
+#### Exclusão da conta
+
+```http
+DELETE /api/v1/users/me
+Authorization: Bearer <accessToken>
+Content-Type: application/json
+
+{
+  "password": "senha-atual"
+}
+```
+
+`204` sem corpo. A senha é exigida como segunda prova de titularidade: um token
+roubado sozinho não apaga a conta. Senha ausente ou incorreta responde `422`
+`VALIDATION_ERROR` com `fieldErrors[0].field = "password"` e **não altera nada**.
+
+| Aspecto | Comportamento |
+|---|---|
+| Tipo de exclusão | **Hard delete** da linha de `users`; a cascata do banco remove preferências, refresh tokens, tokens de recuperação, programas, dias, exercícios de programa, sessões, exercícios de sessão, séries, recordes, restrições e recomendações de IA |
+| Exercícios personalizados | Removidos; o catálogo do sistema (`is_system = true`) permanece |
+| E-mail | Fica livre para um novo cadastro |
+| Access token em circulação | Deixa de autenticar de fato: os endpoints que carregam o usuário respondem `404` até o token expirar (15 min) |
+| Refresh token | Apagado em cascata; `POST /auth/refresh` responde `401` `INVALID_REFRESH_TOKEN` |
+| Login | Responde `401` `INVALID_CREDENTIALS`, como qualquer conta inexistente |
+| Outro usuário | Não é afetado: o titular vem sempre do token, nunca do corpo |
+
+> A operação **não** é reversível e não mantém cópia de arquivo. O app pede
+> confirmação em duas etapas e exige a senha antes de chamar este endpoint.
 
 ### Exercícios
 

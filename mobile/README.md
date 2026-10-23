@@ -66,11 +66,18 @@ Para apontar para o backend real, copie `.env.example` para `.env` e ajuste:
 ```bash
 EXPO_PUBLIC_API_URL=http://localhost:8080/api/v1
 EXPO_PUBLIC_USE_MOCK_API=false
+# Opcionais: só aparecem no Perfil quando publicados (SPEC 14.4).
+EXPO_PUBLIC_PRIVACY_URL=
+EXPO_PUBLIC_TERMS_URL=
 ```
 
 > O `.env.example` vem com `EXPO_PUBLIC_USE_MOCK_API=true`. Com `false`, o app
 > usa a API real para todas as features, incluindo analytics, recordes,
 > restrições e a proposta de treino da IA.
+>
+> `EXPO_PUBLIC_PRIVACY_URL` e `EXPO_PUBLIC_TERMS_URL` ficam **vazias** enquanto
+> os documentos não forem publicados; nesse caso os botões de política e termos
+> simplesmente não são renderizados.
 
 > `.env` nunca é versionado. Somente valores públicos de build ficam no bundle.
 
@@ -326,6 +333,10 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
 - **Logout com revogação:** `POST /auth/logout` revoga a família de refresh
   tokens no servidor (a detecção de reuso depende disso). A sessão local é
   encerrada **mesmo sem rede**.
+- **Exclusão de conta (Google Play):** em **Perfil → Excluir conta**, com
+  confirmação em duas etapas e a senha atual. O app chama `DELETE /users/me`;
+  no sucesso, apaga tokens e fila offline e limpa o cache de consultas. Senha
+  errada devolve `422` e **mantém** a sessão e os dados.
 - **Idempotência no cadastro:** o `register` envia o header `Idempotency-Key`.
   Uma falha de rede seguida de "tentar de novo" reusa a mesma chave e **não
   cria duas contas**.
@@ -379,6 +390,11 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
 **Perfil e privacidade (RF-002, RF-016)**
 - Unidade, experiência, objetivo, limitações informadas e controles de
   privacidade.
+- **Excluir conta:** exclusão definitiva com a senha atual, descrita na seção
+  de autenticação. É a exigência de conta do Google Play.
+- **Política de privacidade e termos de uso:** botões no Perfil, exibidos apenas
+  quando `EXPO_PUBLIC_PRIVACY_URL` e `EXPO_PUBLIC_TERMS_URL` estão definidos.
+  Documentos ainda em rascunho em `docs/PRIVACY.md` e `docs/TERMS.md`.
 
 **Estados obrigatórios (SPEC 15.4)**
 - `LoadingState`, `ErrorState` (com retry), `EmptyState` (com ação de primeiro
@@ -443,8 +459,9 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
 | Comunidade, gamificação e moderação (RF-023 a RF-025) | Fase 3 |
 | Cardio, medidas corporais, device health (RF-026 a RF-029) | Fase 4 |
 | Análise visual assistida por IA (RF-030) | Fase 4 |
-| Exportação e exclusão de dados pelo usuário (RNF-017) | não implementado |
-| Execução da matriz de validação Android | não executada (sem SDK/emulador neste ambiente) |
+| Exportação e exclusão de dados pelo usuário (RNF-017) | exclusão da conta **implementada** (`DELETE /users/me` + tela no Perfil); exportação de dados **não implementada** |
+| Política de privacidade e termos em URL pública | rascunhos no repositório; falta revisão jurídica e publicação (os links no app ficam ocultos sem as variáveis de URL) |
+| Execução da matriz de validação Android | parcial — API 35 em emulador; falta aparelho físico de outra marca, tela compacta, TalkBack, fonte máxima e rede lenta (SPEC 16.5) |
 
 ---
 

@@ -1234,8 +1234,18 @@ O treino deve continuar funcionando quando a conexão cair.
 - Consentimento explícito para dados de saúde, restrições e fotos.
 - Permitir que o usuário compreenda, **exporte** e solicite a **exclusão** dos
   seus dados.
+  - **Exclusão:** implementada como hard delete em `DELETE /users/me`, com a
+    senha atual como segunda prova de titularidade e cascata em todos os dados
+    do usuário (ver [API.md](API.md#exclusão-da-conta)). O e-mail fica livre
+    para um novo cadastro.
+  - **Exportação:** ainda não implementada.
 - Definir retenção e exclusão de dados sensíveis e de recomendações de IA.
+  - Os rascunhos de política de privacidade e termos estão em
+    [`PRIVACY.md`](PRIVACY.md) e [`TERMS.md`](TERMS.md); **não foram revisados
+    juridicamente nem publicados**.
 - Proteger dados locais no dispositivo e limpar rascunhos no logout.
+  - O logout e a exclusão de conta limpam tokens e a fila offline; a exclusão
+    também limpa o cache de consultas do app.
 
 ### 14.4 Conformidade
 
@@ -1246,9 +1256,15 @@ O treino deve continuar funcionando quando a conexão cair.
   - Formulário *Data Safety* preenchido e coerente com a coleta real.
   - URL de política de privacidade publicada.
   - Opção de exclusão de conta acessível dentro do app (exigência do Play para
-    apps que criam conta).
+    apps que criam conta). **Implementado** em `DELETE /users/me` e na tela de
+    Perfil; falta a URL web de solicitação exigida pelo formulário *Data
+    Safety*.
   - Classificação de conteúdo e declaração de anúncios.
 - Criar política de privacidade e termos de uso antes do lançamento público.
+  Rascunhos em [`PRIVACY.md`](PRIVACY.md) e [`TERMS.md`](TERMS.md), pendentes de
+  revisão jurídica e publicação.
+- Checklist de conta, keystore, AAB e *Data Safety* em
+  [`PLAY-RELEASE.md`](PLAY-RELEASE.md).
 - Criar política de denúncia, bloqueio e moderação **antes** de liberar recursos
   sociais.
 - A conformidade com a App Store fica como requisito da fase de iOS.
@@ -1476,6 +1492,12 @@ ciclo de vida da sessão com o app em background.
 - [ ] Gerar AAB assinado e publicar no track de teste do Google Play.
 - [ ] Documentar instalação, execução e demonstração.
 
+> **Entregue nesta rodada:** exclusão de conta in-app (API, tela, testes),
+> rascunhos de política de privacidade e termos de uso e checklist de
+> publicação em [`PLAY-RELEASE.md`](PLAY-RELEASE.md). Os itens da lista acima
+> continuam abertos: a matriz Android, o AAB assinado e a publicação no Play
+> dependem de aparelho físico, keystore e conta de desenvolvedor.
+
 > As sprints são uma divisão de trabalho sugerida — **não** são estimativa
 > garantida de prazo.
 >
@@ -1575,10 +1597,10 @@ bloqueantes travam a sprint indicada.
 | 8 | Escopo da Fase 2: qual subset — geração de treino, sugestão de carga, voz, coaching | Esforço de IA | Sprint 5 |
 | 9 | ~~Modalidade de recuperação de acesso~~ | **Decidido:** token de uso único de 30 min, resposta genérica anti-enumeração, entrega por porta de e-mail plugável (ver [seção 14.1](#141-autenticação-e-autorização)) | — |
 | 14 | ~~Algoritmo de hash de senha~~ | **Decidido:** Argon2id com parâmetros OWASP. BCrypt aceitável como alternativa | — |
-| 10 | Política de privacidade, termos de uso e retenção de dados | Publicação | Sprint 6 |
+| 10 | Política de privacidade, termos de uso e retenção de dados | **Parcial** — rascunhos em [`PRIVACY.md`](PRIVACY.md) e [`TERMS.md`](TERMS.md); falta revisão jurídica, publicação em URL pública e designação do DPO | Sprint 6 |
 | 11 | Escopo da social: quem pode ser amigo, visibilidade padrão, moderação | Fase 3 | — |
 | 12 | Nome definitivo e identidade visual | Branding | Sprint 1 |
-| 13 | Conta de desenvolvedor Google Play ativa e pipeline de build: EAS Build (nuvem) ou Gradle local | Distribuição e assinatura | Sprint 6 |
+| 13 | Conta de desenvolvedor Google Play ativa e pipeline de build: EAS Build (nuvem) ou Gradle local | **Pendente** — checklist em [`PLAY-RELEASE.md`](PLAY-RELEASE.md); recomendação provisória: EAS Build. Conta, keystore e AAB ainda não existem | Sprint 6 |
 
 > As decisões 1, 2, 5, 7, 9 e 14 já estão resolvidas. As que mais restringem o
 > que falta são a **3** (provedor de LLM e custo) e a **8** (escopo da Fase 2):
@@ -1602,8 +1624,10 @@ bloqueantes travam a sprint indicada.
    personalizado.
 4. Resolver a decisão 3 (provedor de LLM e orçamento) e a 8 (escopo da Fase 2).
 5. Integrar a primeira funcionalidade de IA.
-6. Fechar as pendências de publicação: política de privacidade, exclusão de
-   conta in-app, conta de desenvolvedor Google Play, keystore e assinatura.
+6. Fechar as pendências de publicação: revisar e publicar a política de
+   privacidade e os termos de uso, criar a URL web de solicitação de exclusão,
+   abrir a conta de desenvolvedor Google Play, gerar a keystore fora do
+   repositório e assinar o AAB. A exclusão de conta in-app já está implementada.
 
 ---
 

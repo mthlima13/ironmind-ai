@@ -137,7 +137,7 @@ mvn test          # unitários + integração
 mvn verify        # equivalente, com a verificação do pacote
 ```
 
-A suíte executa **131 testes** em 17 arquivos:
+A suíte executa **191 testes** em 26 classes de teste:
 
 | Suíte | Tipo | Precisa de PostgreSQL |
 |---|---|---|
@@ -149,13 +149,22 @@ A suíte executa **131 testes** em 17 arquivos:
 | `ProgramServiceTest` | unitário (Mockito) | não |
 | `WorkoutSessionServiceTest` | unitário (Mockito) | não |
 | `ExerciseSetServiceTest` | unitário (Mockito) | não |
+| `PersonalRecordServiceTest` | unitário (Mockito) | não |
+| `AnalyticsServiceTest` | unitário (Mockito) | não |
 | `PasswordPolicyTest` | unitário | não |
 | `RefreshTokenServiceTest` | unitário (Mockito) | não |
 | `PasswordResetServiceTest` | unitário (Mockito) | não |
 | `AuthRateLimiterTest` | unitário | não |
+| `AiRateLimiterTest` | unitário | não |
+| `CoachSafetyGuardTest` | unitário | não |
+| `LoadSuggestionServiceTest` | unitário (Mockito) | não |
+| `WorkoutProposalValidatorTest` | unitário | não |
+| `LlmGatewayTest` | unitário | não |
+| `MockLlmProviderTest` | unitário | não |
 | `PersistenceIntegrationTest` | integração (PostgreSQL 16 real) | sim |
 | `AuthFlowIntegrationTest` | integração (PostgreSQL 16 real) | sim |
 | `UserProfileIntegrationTest` | integração (PostgreSQL 16 real) | sim |
+| `AccountDeletionIntegrationTest` | integração (PostgreSQL 16 real) | sim |
 | `ProgramIntegrationTest` | integração (PostgreSQL 16 real) | sim |
 | `WorkoutSessionIntegrationTest` | integração (PostgreSQL 16 real) | sim |
 
@@ -316,6 +325,29 @@ curl -X PATCH http://localhost:8080/api/v1/users/me \
 | `trainingDays` | Inteiro de 1 a 7 (a API valida antes do `CHECK` do banco). |
 | `name` | De 2 a 120 caracteres. |
 | `timezone` | Identificador IANA válido, como `America/Sao_Paulo`. |
+
+### Exclusão da conta
+
+```bash
+curl -X DELETE http://localhost:8080/api/v1/users/me \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"password":"senha-atual"}'
+```
+
+Responde `204` sem corpo. A senha é exigida como segunda prova de titularidade;
+senha ausente ou incorreta devolve `422` com `fieldErrors[0].field = "password"`
+e não altera nada.
+
+A exclusão é **definitiva** (`hard delete`): a linha de `users` é apagada e a
+cascata remove preferências, refresh tokens, tokens de recuperação, programas,
+dias, exercícios de programa, sessões, exercícios de sessão, séries, recordes,
+restrições, recomendações de IA e exercícios personalizados. O catálogo global
+(`is_system = true`) permanece e o e-mail fica livre para um novo cadastro.
+
+Um access token ainda válido de uma conta apagada deixa de autenticar de fato
+(os endpoints que carregam o usuário respondem `404`) e o refresh token em
+cascata não renova mais a sessão (`401 INVALID_REFRESH_TOKEN`).
 
 ### Paginação
 
@@ -521,6 +553,7 @@ diferente devolve **409 `IDEMPOTENCY_KEY_REUSED`**.
 | `POST /api/v1/auth/reset-password` (token de uso único) | Implementado |
 | `GET /api/v1/users/me` (perfil e preferências aninhados) | Implementado |
 | `PATCH /api/v1/users/me` (atualização parcial e mesclada) | Implementado |
+| `DELETE /api/v1/users/me` (exclusão definitiva da conta, com a senha atual) | Implementado |
 | `GET /api/v1/programs` (listagem paginada, sem os arquivados) | Implementado |
 | `GET /api/v1/programs/{id}` (programa com dias e exercícios) | Implementado |
 | `POST /api/v1/programs` (cria o programa, com `Idempotency-Key`) | Implementado |
@@ -593,6 +626,7 @@ a senha com um hash falso, para não responder mais rápido do que quando a cont
 | `POST` | `/api/v1/auth/reset-password` | público |
 | `GET` | `/api/v1/users/me` | exige token |
 | `PATCH` | `/api/v1/users/me` | exige token |
+| `DELETE` | `/api/v1/users/me` | exige token e a senha atual no corpo |
 | `GET` | `/api/v1/programs` | exige token |
 | `GET` | `/api/v1/programs/{id}` | exige token |
 | `POST` | `/api/v1/programs` | exige token |
