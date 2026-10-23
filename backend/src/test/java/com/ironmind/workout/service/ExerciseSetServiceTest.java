@@ -17,6 +17,7 @@ import com.ironmind.common.exception.IdempotencyKeyReusedException;
 import com.ironmind.common.exception.ResourceNotFoundException;
 import com.ironmind.exercise.entity.Exercise;
 import com.ironmind.exercise.entity.MovementType;
+import com.ironmind.record.service.PersonalRecordService;
 import com.ironmind.user.entity.User;
 import com.ironmind.user.entity.UserRole;
 import com.ironmind.workout.dto.RegisterSetRequest;
@@ -59,6 +60,9 @@ class ExerciseSetServiceTest {
     @Mock
     private WorkoutSessionService workoutSessionService;
 
+    @Mock
+    private PersonalRecordService personalRecordService;
+
     @InjectMocks
     private ExerciseSetService exerciseSetService;
 
@@ -82,6 +86,7 @@ class ExerciseSetServiceTest {
         assertThat(captor.getValue().getSetNumber()).isEqualTo(2);
         assertThat(result.created()).isTrue();
         assertThat(result.set().setNumber()).isEqualTo(2);
+        verify(personalRecordService).recalculate(OWNER_ID, EXERCISE_ID);
     }
 
     @Test
@@ -166,6 +171,7 @@ class ExerciseSetServiceTest {
         assertThat(response.setNumber()).isEqualTo(set.getSetNumber());
         assertThat(response.weightKg()).isEqualByComparingTo("82.50");
         assertThat(response.repetitions()).isEqualTo(8);
+        verify(personalRecordService).recalculate(OWNER_ID, EXERCISE_ID);
     }
 
     @Test
@@ -180,6 +186,7 @@ class ExerciseSetServiceTest {
 
         assertThat(response.weightKg()).isNull();
         assertThat(response.repetitions()).isEqualTo(10);
+        verify(personalRecordService).recalculate(OWNER_ID, EXERCISE_ID);
     }
 
     @Test

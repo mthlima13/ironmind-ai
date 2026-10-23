@@ -1,6 +1,9 @@
 package com.ironmind.workout.repository;
 
+import com.ironmind.workout.entity.SessionStatus;
 import com.ironmind.workout.entity.WorkoutSession;
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -36,4 +39,22 @@ public interface WorkoutSessionRepository extends JpaRepository<WorkoutSession, 
      */
     @Query("select s from WorkoutSession s join fetch s.user where s.id = :id and s.user.id = :userId")
     Optional<WorkoutSession> findOwnedById(@Param("id") UUID id, @Param("userId") UUID userId);
+
+    /**
+     * Lists the completed sessions of the user whose completion falls inside the period.
+     *
+     * <p>The period is always resolved from the timezone of the user, so the boundaries reach the
+     * query as instants.
+     */
+    @Query("select s from WorkoutSession s where s.user.id = :userId and s.status = :status "
+            + "and s.completedAt >= :from and s.completedAt < :to order by s.completedAt desc")
+    List<WorkoutSession> findCompletedBetween(@Param("userId") UUID userId,
+            @Param("status") SessionStatus status, @Param("from") Instant from,
+            @Param("to") Instant to);
+
+    /**
+     * Finds the last completed session of the user.
+     */
+    Optional<WorkoutSession> findFirstByUserIdAndStatusAndCompletedAtIsNotNullOrderByCompletedAtDesc(
+            UUID userId, SessionStatus status);
 }

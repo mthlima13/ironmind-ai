@@ -90,7 +90,7 @@ public class SetController {
 
     @DeleteMapping("/sets/{id}")
     @Operation(summary = "Exclui uma série",
-            description = "Exclui uma série registrada. A reavaliação dos recordes derivados entra na Sprint 4.")
+            description = "Exclui uma série registrada e reavalia os recordes derivados de forma transacional.")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Série excluída"),
             @ApiResponse(responseCode = "401", description = "Token ausente ou inválido", content = @Content),

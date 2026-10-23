@@ -503,22 +503,19 @@ PATCH /api/v1/sets/{id}
 ```
 
 `200` com a série corrigida. `DELETE /api/v1/sets/{id}` devolve `204`. A
-reavaliação dos recordes derivados entra na Sprint 4; até lá, a exclusão
-apaga o vínculo da série e mantém o valor do recorde.
+exclusão ou correção de uma série reavalia os recordes derivados de forma
+transacional.
 
 
 ### Analytics, recordes e restrições
 
-> **Planejado para a Sprint 4.** Nenhum endpoint desta seção existe no backend
-> hoje; a tabela é o contrato acordado, não uma implementação.
-
 | Método | Endpoint | Auth | Descrição |
 |---|---|---|---|
-| `GET` | `/analytics/overview` | ✔ | Resumo do período |
-| `GET` | `/analytics/exercises/{id}` | ✔ | Evolução por exercício |
-| `GET` | `/records` | ✔ | Listar recordes pessoais |
-| `GET` | `/restrictions` | ✔ | Consultar restrições |
-| `PUT` | `/restrictions` | ✔ | Atualizar restrições |
+| `GET` | `/analytics/overview` | ✔ | Resumo da semana atual (segunda a domingo), com comparação com a semana anterior |
+| `GET` | `/analytics/exercises/{id}` | ✔ | Evolução por exercício, agrupada por dia (melhor carga, melhor 1RM estimado Brzycki e volume) |
+| `GET` | `/records` | ✔ | Listar recordes pessoais (paginado), recalculados pelo servidor |
+| `GET` | `/restrictions` | ✔ | Consultar restrições do usuário |
+| `PUT` | `/restrictions` | ✔ | Atualizar restrições do usuário |
 
 ### IA
 

@@ -5,6 +5,7 @@ import com.ironmind.common.exception.ConflictException;
 import com.ironmind.common.exception.FieldValidationException;
 import com.ironmind.common.exception.IdempotencyKeyReusedException;
 import com.ironmind.common.exception.ResourceNotFoundException;
+import com.ironmind.record.service.PersonalRecordService;
 import com.ironmind.workout.dto.ExerciseSetResponse;
 import com.ironmind.workout.dto.RegisterSetRequest;
 import com.ironmind.workout.dto.UpdateSetRequest;
@@ -45,12 +46,15 @@ public class ExerciseSetService {
     private final ExerciseSetRepository exerciseSetRepository;
     private final SessionExerciseRepository sessionExerciseRepository;
     private final WorkoutSessionService workoutSessionService;
+    private final PersonalRecordService personalRecordService;
 
     public ExerciseSetService(ExerciseSetRepository exerciseSetRepository,
-            SessionExerciseRepository sessionExerciseRepository, WorkoutSessionService workoutSessionService) {
+            SessionExerciseRepository sessionExerciseRepository, WorkoutSessionService workoutSessionService,
+            PersonalRecordService personalRecordService) {
         this.exerciseSetRepository = exerciseSetRepository;
         this.sessionExerciseRepository = sessionExerciseRepository;
         this.workoutSessionService = workoutSessionService;
+        this.personalRecordService = personalRecordService;
     }
 
     /**
@@ -99,7 +103,9 @@ public class ExerciseSetService {
                 request.repetitions(), request.durationSeconds(), request.distanceMeters(),
                 request.perceivedExertion(), request.restAfterSeconds(), key);
 
-        return new RegistrationResult(ExerciseSetResponse.from(exerciseSetRepository.save(set)), true);
+        ExerciseSet saved = exerciseSetRepository.save(set);
+        personalRecordService.recalculate(userId, sessionExercise.getExercise().getId());
+        return new RegistrationResult(ExerciseSetResponse.from(saved), true);
     }
 
     /**
@@ -126,7 +132,9 @@ public class ExerciseSetService {
                 request.perceivedExertion() == null ? set.getPerceivedExertion() : request.perceivedExertion(),
                 request.restAfterSeconds() == null ? set.getRestAfterSeconds() : request.restAfterSeconds());
 
-        return ExerciseSetResponse.from(exerciseSetRepository.save(set));
+        ExerciseSet saved = exerciseSetRepository.save(set);
+        personalRecordService.recalculate(userId, set.getSessionExercise().getExercise().getId());
+        return ExerciseSetResponse.from(saved);
     }
 
     /**
@@ -171,7 +179,12 @@ public class ExerciseSetService {
         if (set.getSessionExercise().getSession().isFinalized()) {
             throw new ConflictException("A sessão já foi finalizada e não aceita correções das séries.");
         }
+        UUID exerciseId = set.getSessionExercise().getExercise().getId();
         exerciseSetRepository.delete(set);
+        // The recalculation reads the surviving sets, so the deletion has to reach the database
+        // first. Without the flush the query could still see the deleted row.
+        exerciseSetRepository.flush();
+        personalRecordService.recalculate(userId, exerciseId);
     }
 
     /**

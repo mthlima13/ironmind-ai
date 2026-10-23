@@ -104,4 +104,22 @@ public class PersonalRecord {
     public Instant getAchievedAt() {
         return achievedAt;
     }
+
+    /**
+     * Replaces the value of the record after a recalculation of the performed sets.
+     *
+     * <p>The recalculation happens inside the transaction of the change of the set, so a record
+     * that no longer holds is deleted instead of being left stale (SPEC.md section 7.4).
+     *
+     * @param value      value in the canonical unit of the record type
+     * @param unit       unit of the value
+     * @param sourceSet  set that achieved the record, when it still exists
+     * @param achievedAt moment the value was first achieved
+     */
+    public void update(BigDecimal value, String unit, ExerciseSet sourceSet, Instant achievedAt) {
+        this.value = value;
+        this.unit = unit;
+        this.sourceSet = sourceSet;
+        this.achievedAt = achievedAt;
+    }
 }

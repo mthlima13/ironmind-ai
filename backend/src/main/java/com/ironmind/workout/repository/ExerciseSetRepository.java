@@ -56,6 +56,28 @@ public interface ExerciseSetRepository extends JpaRepository<ExerciseSet, UUID> 
     Optional<ExerciseSet> findOwnedById(@Param("id") UUID id, @Param("userId") UUID userId);
 
     /**
+     * Lists every set of the user for an exercise, in chronological order.
+     *
+     * <p>The query feeds the recalculation of the records: it brings the session that owns the
+     * set, because the owner of the data is the owner of the session (SPEC.md section 7.4).
+     */
+    @Query("select s from ExerciseSet s join fetch s.sessionExercise se join fetch se.exercise e "
+            + "join fetch se.session sess where sess.user.id = :userId and e.id = :exerciseId "
+            + "order by s.completedAt, s.id")
+    List<ExerciseSet> findByUserIdAndExerciseId(@Param("userId") UUID userId,
+            @Param("exerciseId") UUID exerciseId);
+
+    /**
+     * Lists the sets of many sessions in a single round trip.
+     *
+     * <p>Used by the analytics aggregation of a period, so the answer never triggers a lazy load
+     * per set.
+     */
+    @Query("select s from ExerciseSet s join fetch s.sessionExercise se join fetch se.exercise e "
+            + "join fetch se.session sess where sess.id in :sessionIds")
+    List<ExerciseSet> findBySessionIds(@Param("sessionIds") Collection<UUID> sessionIds);
+
+    /**
      * Returns the biggest number of the set used by the exercise of the session.
      *
      * <p>The number of the set is the position of the series inside the exercise, so it is

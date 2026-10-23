@@ -81,6 +81,8 @@ detectar reuso: apresentar um token já revogado revoga a família inteira.
 | `user_id` unique | `user_preferences` |
 | `(user_id, exercise_id, record_type)` unique | `personal_records` |
 | `idempotency_key` unique (parcial, quando não nulo) | `exercise_sets` |
+
+> Os recordes são derivados das séries e recalculados transacionalmente pelo backend. A unicidade `(user_id, exercise_id, record_type)` cobre `MAX_WEIGHT`, `MAX_REPS_AT_WEIGHT` e `BEST_ESTIMATED_1RM` para este produto. |
 | `(restriction_id, exercise_id)` PK composta | `restriction_exercises` |
 | `token_hash` unique | `refresh_tokens`, `password_reset_tokens` |
 

@@ -1416,11 +1416,11 @@ ciclo de vida da sessão com o app em background.
 
 ### Sprint 4 — Estatísticas e recordes
 
-- [ ] Calcular volume com a regra documentada.
-- [ ] Implementar estimativa de 1RM.
-- [ ] Implementar detecção transacional de recordes.
-- [ ] Exibir dashboard e gráficos por exercício.
-- [ ] Validar resultados com dados de teste conhecidos.
+- [x] Calcular volume com a regra documentada.
+- [x] Implementar estimativa de 1RM.
+- [x] Implementar detecção transacional de recordes.
+- [x] Exibir dashboard e gráficos por exercício.
+- [x] Validar resultados com dados de teste conhecidos.
 
 ### Sprint 5 — IA inicial
 
