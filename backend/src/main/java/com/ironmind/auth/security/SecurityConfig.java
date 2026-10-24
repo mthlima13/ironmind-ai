@@ -2,7 +2,9 @@ package com.ironmind.auth.security;
 
 import com.ironmind.common.ErrorCode;
 import com.ironmind.common.config.CorsProperties;
+import com.ironmind.common.config.JwtProperties;
 import com.ironmind.common.web.ApiErrorWriter;
+import jakarta.annotation.PostConstruct;
 import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,20 +15,11 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-/**
- * Security configuration of the API.
- *
- * <p>The API is stateless and expects a bearer token on every private endpoint. Public
- * endpoints are the ones listed in {@link #PUBLIC_ENDPOINTS}: health, the authentication
- * endpoints (Sprint 2), the read only exercise catalog and the API documentation.
- *
- * <p><strong>Pending decision:</strong> SPEC.md section 20, decision 2, still has to confirm the
- * final token strategy. The configuration below implements the stateless baseline.
- */
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
@@ -47,12 +40,29 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final ApiErrorWriter apiErrorWriter;
     private final CorsProperties corsProperties;
+    private final JwtProperties jwtProperties;
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter, ApiErrorWriter apiErrorWriter,
-            CorsProperties corsProperties) {
+            CorsProperties corsProperties, JwtProperties jwtProperties) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.apiErrorWriter = apiErrorWriter;
         this.corsProperties = corsProperties;
+        this.jwtProperties = jwtProperties;
+    }
+
+    @PostConstruct
+    public void validateProductionSecrets() {
+        String activeProfile = System.getenv("SPRING_PROFILES_ACTIVE");
+        if (activeProfile == null || !activeProfile.contains("production")) {
+            return;
+        }
+        if (JwtProperties.DEFAULT_SECRET.equals(jwtProperties.secret())) {
+            throw new IllegalStateException("JWT_SECRET must be configured in production");
+        }
+        if (corsProperties.allowedOrigins() == null || corsProperties.allowedOrigins().isEmpty()
+                || corsProperties.allowedOrigins().stream().anyMatch(o -> o.contains("localhost"))) {
+            throw new IllegalStateException("CORS_ALLOWED_ORIGINS must be configured for production");
+        }
     }
 
     @Bean
@@ -61,6 +71,16 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .headers(headers -> headers
+                        .contentTypeOptions(org.springframework.security.config.Customizer.withDefaults())
+                        .frameOptions(frame -> frame.deny())
+                        .referrerPolicy(referrer -> referrer
+                                .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(true)
+                                .maxAgeInSeconds(31536000))
+                        .permissionsPolicy(permissions -> permissions
+                                .policy("camera=(), microphone=(), geolocation=()")))
                 .authorizeHttpRequests(requests -> requests
                         .requestMatchers(HttpMethod.GET, "/api/v1/exercises", "/api/v1/exercises/**").permitAll()
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()

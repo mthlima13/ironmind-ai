@@ -30,7 +30,8 @@ import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Rules of the authentication flow.
@@ -44,6 +45,8 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class AuthService {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
     /**
      * Scope of the idempotency keys of the registration.
@@ -214,7 +217,11 @@ public class AuthService {
         String normalized = normalizeEmail(email);
         userRepository.findByEmailIgnoreCase(normalized).ifPresent(user -> {
             PasswordResetService.IssuedResetToken issued = passwordResetService.issue(user.getId());
-            recoveryMailSender.sendPasswordReset(normalized, issued.plainToken());
+            try {
+                recoveryMailSender.sendPasswordReset(normalized, issued.plainToken());
+            } catch (RuntimeException ex) {
+                log.debug("Password reset delivery failed for an account", ex);
+            }
         });
     }
 

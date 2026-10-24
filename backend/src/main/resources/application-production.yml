@@ -1,0 +1,31 @@
+# ==============================================================================
+# IronMind AI - production profile
+# ==============================================================================
+spring:
+  config:
+    activate:
+      on-profile: production
+
+app:
+  mail:
+    provider: ${MAIL_PROVIDER}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS}
+
+server:
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
+    include-exception: false
+
+springdoc:
+  api-docs:
+    enabled: ${SPRINGDOC_API_DOCS_ENABLED:false}
+  swagger-ui:
+    enabled: ${SPRINGDOC_SWAGGER_UI_ENABLED:false}
+
+logging:
+  level:
+    root: ${LOG_LEVEL:INFO}
+    com.ironmind: ${LOG_LEVEL:INFO}

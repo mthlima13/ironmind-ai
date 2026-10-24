@@ -18,16 +18,16 @@ export const colors = {
   /** Surface pressed state. */
   surfacePressed: '#263137',
   /** Hairline borders. */
-  border: '#28323A',
+  border: '#5F6F78',
   /** Emphasised borders. */
-  borderStrong: '#3B4A53',
+  borderStrong: '#6F7C78',
 
   /** Primary text. */
   text: '#F4F7F5',
   /** Secondary text. */
   textSecondary: '#AAB5B0',
   /** Muted text, used for hints and metadata. */
-  textMuted: '#6F7C78',
+  textMuted: '#87948F',
 
   /** Lime accent. */
   accent: '#C8F751',

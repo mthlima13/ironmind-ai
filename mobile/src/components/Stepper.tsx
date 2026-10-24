@@ -11,6 +11,7 @@ export type StepperProps = {
   max?: number;
   step?: number;
   testID: string;
+  context?: string;
 };
 
 /**
@@ -27,12 +28,18 @@ export function Stepper({
   max,
   step = 1,
   testID,
+  context,
 }: StepperProps) {
   const decrease = () => onChange(Math.max(min, value - step));
   const increase = () => {
     const next = value + step;
     onChange(max === undefined ? next : Math.min(max, next));
   };
+  const decreaseDisabled = value <= min;
+  const increaseDisabled = max !== undefined && value >= max;
+  const contextSuffix = context ? ` ${context}` : '';
+  const decreaseLabel = `Diminuir ${label.toLowerCase()}${contextSuffix}`;
+  const increaseLabel = `Aumentar ${label.toLowerCase()}${contextSuffix}`;
 
   return (
     <View style={styles.stepper}>
@@ -40,24 +47,31 @@ export function Stepper({
       <View style={styles.stepperControls}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Diminuir ${label}`}
-          accessibilityState={{ disabled: value <= min }}
+          accessibilityLabel={decreaseLabel}
+          accessibilityState={{ disabled: decreaseDisabled }}
+          disabled={decreaseDisabled}
           testID={`${testID}-decrease`}
           onPress={decrease}
-          style={styles.stepperButton}
+          style={[styles.stepperButton, decreaseDisabled ? styles.stepperButtonDisabled : null]}
         >
           <Ionicons name="remove" size={16} color={colors.text} />
         </Pressable>
-        <Text style={styles.stepperValue} testID={testID}>
+        <Text
+          style={styles.stepperValue}
+          testID={testID}
+          accessibilityLabel={`${label}${contextSuffix}: ${value}`}
+          accessibilityLiveRegion="polite"
+          accessibilityValue={{ min, max, now: value }}>
           {value}
         </Text>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Aumentar ${label}`}
-          accessibilityState={{ disabled: max !== undefined && value >= max }}
+          accessibilityLabel={increaseLabel}
+          accessibilityState={{ disabled: increaseDisabled }}
+          disabled={increaseDisabled}
           testID={`${testID}-increase`}
           onPress={increase}
-          style={styles.stepperButton}
+          style={[styles.stepperButton, increaseDisabled ? styles.stepperButtonDisabled : null]}
         >
           <Ionicons name="add" size={16} color={colors.text} />
         </Pressable>
@@ -89,7 +103,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     height: layout.minTouchTarget,
     justifyContent: 'center',
-    width: 36,
+    width: layout.minTouchTarget,
+  },
+  stepperButtonDisabled: {
+    opacity: 0.4,
   },
   stepperValue: {
     ...typography.bodyStrong,

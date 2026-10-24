@@ -18,7 +18,10 @@ class AuthRateLimiterTest {
         rateLimiter = new AuthRateLimiter(new RateLimitProperties(
                 new RateLimitProperties.Window(2, 60),
                 new RateLimitProperties.Window(1, 60),
-                new RateLimitProperties.Window(1, 60)));
+                new RateLimitProperties.Window(1, 60),
+                new RateLimitProperties.Window(30, 60),
+                new RateLimitProperties.Window(10, 60),
+                4));
     }
 
     @Test
@@ -38,18 +41,18 @@ class AuthRateLimiterTest {
         rateLimiter.check(RateLimitScope.LOGIN, "10.0.0.1", "ana@example.com");
         rateLimiter.check(RateLimitScope.LOGIN, "10.0.0.1", "ana@example.com");
 
-        assertThatCode(() -> rateLimiter.check(RateLimitScope.LOGIN, "10.0.0.1", "bruno@example.com"))
+        assertThatCode(() -> rateLimiter.check(RateLimitScope.LOGIN, "10.0.0.2", "bruno@example.com"))
                 .doesNotThrowAnyException();
     }
 
     @Test
-    @DisplayName("isolates the budget of an address from the budget of another one")
-    void isolatesTheBudgetOfEachAddress() {
+    @DisplayName("applies the account limit across different addresses")
+    void appliesTheAccountLimitAcrossDifferentAddresses() {
         rateLimiter.check(RateLimitScope.LOGIN, "10.0.0.1", "ana@example.com");
         rateLimiter.check(RateLimitScope.LOGIN, "10.0.0.1", "ana@example.com");
 
-        assertThatCode(() -> rateLimiter.check(RateLimitScope.LOGIN, "10.0.0.2", "ana@example.com"))
-                .doesNotThrowAnyException();
+        assertThatThrownBy(() -> rateLimiter.check(RateLimitScope.LOGIN, "10.0.0.2", "ana@example.com"))
+                .isInstanceOf(RateLimitExceededException.class);
     }
 
     @Test

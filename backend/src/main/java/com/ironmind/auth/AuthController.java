@@ -51,10 +51,12 @@ public class AuthController {
 
     private final AuthService authService;
     private final AuthRateLimiter rateLimiter;
+    private final ClientIpResolver clientIpResolver;
 
-    public AuthController(AuthService authService, AuthRateLimiter rateLimiter) {
+    public AuthController(AuthService authService, AuthRateLimiter rateLimiter, ClientIpResolver clientIpResolver) {
         this.authService = authService;
         this.rateLimiter = rateLimiter;
+        this.clientIpResolver = clientIpResolver;
     }
 
     @PostMapping("/register")
@@ -74,7 +76,7 @@ public class AuthController {
                     description = "Chave de idempotência da operação.")
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             HttpServletRequest httpRequest) {
-        rateLimiter.check(RateLimitScope.REGISTER, ClientIpResolver.resolve(httpRequest), request.email());
+        rateLimiter.check(RateLimitScope.REGISTER, clientIpResolver.resolve(httpRequest), request.email());
         AuthService.RegistrationResult result = authService.register(request, idempotencyKey);
         if (!result.created()) {
             return ResponseEntity.ok(result.response());
@@ -93,7 +95,7 @@ public class AuthController {
             @ApiResponse(responseCode = "429", description = "Limite de requisições excedido", content = @Content)
     })
     public AuthResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
-        rateLimiter.check(RateLimitScope.LOGIN, ClientIpResolver.resolve(httpRequest), request.email());
+        rateLimiter.check(RateLimitScope.LOGIN, clientIpResolver.resolve(httpRequest), request.email());
         return authService.login(request);
     }
 
@@ -104,9 +106,11 @@ public class AuthController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Tokens emitidos"),
             @ApiResponse(responseCode = "401", description = "Token inválido, expirado ou já revogado", content = @Content),
-            @ApiResponse(responseCode = "422", description = "Dados inválidos", content = @Content)
+            @ApiResponse(responseCode = "422", description = "Dados inválidos", content = @Content),
+            @ApiResponse(responseCode = "429", description = "Limite de requisições excedido", content = @Content)
     })
-    public AuthResponse refresh(@Valid @RequestBody RefreshRequest request) {
+    public AuthResponse refresh(@Valid @RequestBody RefreshRequest request, HttpServletRequest httpRequest) {
+        rateLimiter.check(RateLimitScope.REFRESH, clientIpResolver.resolve(httpRequest), null);
         return authService.refresh(request);
     }
 
@@ -133,7 +137,7 @@ public class AuthController {
     })
     public ResponseEntity<MessageResponse> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request,
             HttpServletRequest httpRequest) {
-        rateLimiter.check(RateLimitScope.FORGOT_PASSWORD, ClientIpResolver.resolve(httpRequest), request.email());
+        rateLimiter.check(RateLimitScope.FORGOT_PASSWORD, clientIpResolver.resolve(httpRequest), request.email());
         authService.requestPasswordReset(request.email());
         return ResponseEntity.accepted().body(new MessageResponse(RECOVERY_ANSWER));
     }
@@ -144,9 +148,12 @@ public class AuthController {
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Senha trocada"),
             @ApiResponse(responseCode = "401", description = "Token inválido, expirado ou já usado", content = @Content),
-            @ApiResponse(responseCode = "422", description = "Dados inválidos", content = @Content)
+            @ApiResponse(responseCode = "422", description = "Dados inválidos", content = @Content),
+            @ApiResponse(responseCode = "429", description = "Limite de requisições excedido", content = @Content)
     })
-    public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+    public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request,
+            HttpServletRequest httpRequest) {
+        rateLimiter.check(RateLimitScope.RESET_PASSWORD, clientIpResolver.resolve(httpRequest), request.token());
         authService.resetPassword(request);
         return ResponseEntity.noContent().build();
     }

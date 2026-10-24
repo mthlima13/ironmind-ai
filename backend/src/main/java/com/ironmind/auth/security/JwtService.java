@@ -18,6 +18,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 /**
@@ -47,11 +48,20 @@ public class JwtService {
     private final SecretKey signingKey;
 
     public JwtService(JwtProperties properties) {
+        this(properties, null);
+    }
+
+    public JwtService(JwtProperties properties, Environment environment) {
         this.properties = properties;
         this.signingKey = new SecretKeySpec(deriveKey(properties.secret()), ALGORITHM);
+        if (properties.usesDefaultSecret() && isProduction(environment)) {
+            throw new IllegalStateException(
+                    "JWT_SECRET must be set to a secure value in production. "
+                            + "Set the JWT_SECRET environment variable to a random value of 32 bytes or more.");
+        }
         if (properties.usesDefaultSecret()) {
             log.warn("""
-
+ 
                     ==================================================================================
                     SECURITY WARNING: JWT_SECRET is using the default development value.
                     Every token issued by this instance is signed with a public secret, so anyone
@@ -61,6 +71,18 @@ public class JwtService {
                     ==================================================================================
                     """);
         }
+    }
+
+    private static boolean isProduction(Environment environment) {
+        if (environment == null) {
+            return false;
+        }
+        for (String profile : environment.getActiveProfiles()) {
+            if ("prod".equalsIgnoreCase(profile) || "production".equalsIgnoreCase(profile)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

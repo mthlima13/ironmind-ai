@@ -45,7 +45,7 @@ public class TraceIdFilter extends OncePerRequestFilter {
         String header = request.getHeader(TRACE_ID_HEADER);
         if (header != null && !header.isBlank()) {
             String sanitized = header.trim();
-            if (sanitized.length() <= 64) {
+            if (sanitized.length() <= 64 && sanitized.matches("^[A-Za-z0-9._-]+$")) {
                 return sanitized;
             }
         }

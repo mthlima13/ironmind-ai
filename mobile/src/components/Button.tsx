@@ -26,6 +26,8 @@ export type ButtonProps = {
   icon?: ReactNode;
   testID?: string;
   accessibilityLabel?: string;
+  accessibilityHint?: string;
+  accessibilityState?: import('react-native').AccessibilityState;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -54,6 +56,8 @@ export function Button({
   icon,
   testID,
   accessibilityLabel,
+  accessibilityHint,
+  accessibilityState,
   style,
 }: ButtonProps) {
   const isDisabled = disabled || loading;
@@ -62,7 +66,8 @@ export function Button({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ disabled: isDisabled, busy: loading }}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled: isDisabled, busy: loading, ...(accessibilityState ?? {}) }}
       testID={testID}
       disabled={isDisabled}
       onPress={onPress}
@@ -94,7 +99,13 @@ export function Button({
       ) : (
         <View style={styles.content}>
           {icon ? <View style={styles.icon}>{icon}</View> : null}
-          <Text style={[styles.label, { color: VARIANT_TEXT[variant] }]}>{label}</Text>
+          <Text
+            style={[styles.label, { color: VARIANT_TEXT[variant] }]}
+            numberOfLines={2}
+            ellipsizeMode="tail"
+            maxFontSizeMultiplier={1.6}>
+            {label}
+          </Text>
         </View>
       )}
     </Pressable>
@@ -131,7 +142,7 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   disabled: {
-    opacity: 0.45,
+    opacity: 0.6,
   },
   content: {
     alignItems: 'center',
@@ -145,5 +156,6 @@ const styles = StyleSheet.create({
   label: {
     ...typography.bodyStrong,
     textAlign: 'center',
+    flexShrink: 1,
   },
 });

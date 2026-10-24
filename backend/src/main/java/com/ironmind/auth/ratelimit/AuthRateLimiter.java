@@ -12,12 +12,14 @@ import org.springframework.stereotype.Component;
  * Rate limiter of the authentication endpoints.
  *
  * <p>The implementation uses a fixed window kept in memory: the counter of a key is reset as
- * soon as the window ends. The key joins the address of the caller and the normalized e-mail,
- * so the limit applies to a brute force against a single account from a single origin.
+ * soon as the window ends. Every attempt increments two independent counters, one for the caller
+ * address and one for the account (or the credential being presented), and the attempt is
+ * rejected when either of them exceeds its ceiling. An attacker therefore cannot rotate e-mails
+ * to escape the address limit nor rotate addresses to escape the account limit.
  *
  * <p><strong>Known limitation:</strong> the counters live in the heap of a single instance, so
- * they are not shared between instances and they are lost on restart. The production version
- * keeps the counters in Redis, where the window is shared by every instance of the API.
+ * they are not shared between instances and they are lost on restart. A multi-instance
+ * deployment needs a shared store such as Redis.
  */
 @Component
 public class AuthRateLimiter {
@@ -38,44 +40,67 @@ public class AuthRateLimiter {
     /**
      * Registers an attempt and rejects it when the limit of the scope was exceeded.
      *
-     * @param scope   endpoint being protected
+     * @param scope    endpoint being protected
      * @param clientIp address of the caller
-     * @param email   e-mail informed by the caller, used to isolate the attempts of an account
+     * @param account  e-mail or credential that identifies the target of the attempt; when it is
+     *                 blank, only the address counter is applied
      * @throws RateLimitExceededException when the caller exceeded the limit of the scope
      */
-    public void check(RateLimitScope scope, String clientIp, String email) {
+    public void check(RateLimitScope scope, String clientIp, String account) {
         RateLimitProperties.Window window = properties.windowFor(scope);
-        String key = scope.name() + "|" + normalizeAddress(clientIp) + ":" + normalizeEmail(email);
         Instant now = Instant.now();
 
-        Counter counter = counters.compute(key, (ignored, existing) -> {
-            if (existing == null || windowEnded(existing, now, window)) {
-                return new Counter(now, 1);
-            }
-            return new Counter(existing.startedAt(), existing.count() + 1);
-        });
+        Counter addressCounter = register(scope, addressKey(scope, clientIp), now, window);
+        Counter accountCounter = account == null || account.isBlank()
+                ? null
+                : register(scope, accountKey(scope, account), now, window);
 
         purgeExpired(now, window.windowSeconds());
 
-        if (counter.count() > window.maxRequests()) {
-            long retryAfter = Math.max(1L, Duration.between(now, counter.startedAt().plusSeconds(
-                    window.windowSeconds())).toSeconds());
-            throw new RateLimitExceededException(
-                    "Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.", retryAfter);
+        if (addressCounter.count() > addressLimit(window)) {
+            throw rejected(now, addressCounter, window);
+        }
+        if (accountCounter != null && accountCounter.count() > window.maxRequests()) {
+            throw rejected(now, accountCounter, window);
         }
     }
 
     /**
      * Tells whether the caller can still make an attempt, without consuming the budget.
      */
-    public boolean isAllowed(RateLimitScope scope, String clientIp, String email) {
+    public boolean isAllowed(RateLimitScope scope, String clientIp, String account) {
         RateLimitProperties.Window window = properties.windowFor(scope);
-        String key = scope.name() + "|" + normalizeAddress(clientIp) + ":" + normalizeEmail(email);
-        Counter counter = counters.get(key);
-        if (counter == null || windowEnded(counter, Instant.now(), window)) {
-            return true;
+        Instant now = Instant.now();
+        if (isExhausted(counters.get(addressKey(scope, clientIp)), now, window, addressLimit(window))) {
+            return false;
         }
-        return counter.count() < window.maxRequests();
+        return account == null || account.isBlank()
+                || !isExhausted(counters.get(accountKey(scope, account)), now, window, window.maxRequests());
+    }
+
+    private Counter register(RateLimitScope scope, String key, Instant now, RateLimitProperties.Window window) {
+        return counters.compute(key, (ignored, existing) -> {
+            if (existing == null || windowEnded(existing, now, window)) {
+                return new Counter(now, 1);
+            }
+            return new Counter(existing.startedAt(), existing.count() + 1);
+        });
+    }
+
+    private int addressLimit(RateLimitProperties.Window window) {
+        return Math.max(window.maxRequests(), window.maxRequests() * properties.ipMultiplier());
+    }
+
+    private static boolean isExhausted(Counter counter, Instant now, RateLimitProperties.Window window, int limit) {
+        return counter != null && !windowEnded(counter, now, window) && counter.count() >= limit;
+    }
+
+    private static RateLimitExceededException rejected(Instant now, Counter counter,
+            RateLimitProperties.Window window) {
+        long retryAfter = Math.max(1L, Duration.between(now,
+                counter.startedAt().plusSeconds(window.windowSeconds())).toSeconds());
+        return new RateLimitExceededException(
+                "Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.", retryAfter);
     }
 
     private static boolean windowEnded(Counter counter, Instant now, RateLimitProperties.Window window) {
@@ -90,18 +115,19 @@ public class AuthRateLimiter {
                 new RateLimitProperties.Window(1, windowSeconds)));
     }
 
-    private static String normalizeAddress(String clientIp) {
-        if (clientIp == null || clientIp.isBlank()) {
-            return "unknown";
-        }
-        return clientIp.trim().toLowerCase(Locale.ROOT);
+    private static String addressKey(RateLimitScope scope, String clientIp) {
+        return scope.name() + "|ip|" + normalize(clientIp);
     }
 
-    private static String normalizeEmail(String email) {
-        if (email == null || email.isBlank()) {
+    private static String accountKey(RateLimitScope scope, String account) {
+        return scope.name() + "|account|" + normalize(account);
+    }
+
+    private static String normalize(String value) {
+        if (value == null || value.isBlank()) {
             return "unknown";
         }
-        return email.trim().toLowerCase(Locale.ROOT);
+        return value.trim().toLowerCase(Locale.ROOT);
     }
 
     /**

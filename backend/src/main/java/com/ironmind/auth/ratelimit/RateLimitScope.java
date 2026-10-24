@@ -18,5 +18,15 @@ public enum RateLimitScope {
     /**
      * Password recovery requests.
      */
-    FORGOT_PASSWORD
+    FORGOT_PASSWORD,
+
+    /**
+     * Session refresh attempts.
+     */
+    REFRESH,
+
+    /**
+     * Password reset attempts, protected by the token informed by the client.
+     */
+    RESET_PASSWORD
 }

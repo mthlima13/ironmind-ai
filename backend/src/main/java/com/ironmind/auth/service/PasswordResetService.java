@@ -54,6 +54,7 @@ public class PasswordResetService {
     @Transactional
     public IssuedResetToken issue(UUID userId) {
         Instant now = Instant.now();
+        passwordResetTokenRepository.revokeAllUnusedForUser(userId, now);
         String plainToken = opaqueTokenService.generate();
         PasswordResetToken token = new PasswordResetToken(
                 UUID.randomUUID(),

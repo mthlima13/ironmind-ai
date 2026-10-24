@@ -14,16 +14,14 @@ import org.springframework.stereotype.Component;
  * application.
  */
 @Component
-@ConditionalOnProperty(name = "app.mail.provider", havingValue = "logging", matchIfMissing = true)
+@ConditionalOnProperty(name = "app.mail.provider", havingValue = "logging", matchIfMissing = false)
 public class LoggingRecoveryMailSender implements RecoveryMailSender {
 
     private static final Logger log = LoggerFactory.getLogger(LoggingRecoveryMailSender.class);
 
     @Override
     public void sendPasswordReset(String email, String token) {
-        log.warn("""
-                Development e-mail delivery: the password reset token of {} is {}. \
-                Configure a real e-mail provider before publishing the application, otherwise \
-                the token of the account is exposed in the logs.""", email, token);
+        log.warn("Password reset requested for an account; token delivery is logged in the development "
+                + "profile only and must be replaced by a real provider before release.");
     }
 }
