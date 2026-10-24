@@ -1,0 +1,6 @@
+-- Expand split_type enum with additional divisions/methods
+ALTER TYPE split_type ADD VALUE IF NOT EXISTS 'ABCDE';
+ALTER TYPE split_type ADD VALUE IF NOT EXISTS 'ABC';
+ALTER TYPE split_type ADD VALUE IF NOT EXISTS 'ARNOLD_SPLIT';
+ALTER TYPE split_type ADD VALUE IF NOT EXISTS 'PHUL';
+ALTER TYPE split_type ADD VALUE IF NOT EXISTS 'HYBRID_PPL_UPPER_LOWER';

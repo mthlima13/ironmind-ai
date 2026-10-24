@@ -13,7 +13,7 @@ import { CustomExerciseForm } from '../../src/features/exercises/CustomExerciseF
 import { ExerciseList } from '../../src/features/exercises/ExerciseList';
 import { ProgramDayEditor } from '../../src/features/programs/ProgramDayEditor';
 import { usePrograms, useUpdateProgram } from '../../src/features/programs/usePrograms';
-import type { CreateProgramInput, ProgramDay, WorkoutProgram } from '../../src/types/program';
+import { SPLIT_TYPE_LABELS, type CreateProgramInput, type ProgramDay, type WorkoutProgram } from '../../src/types/program';
 import type { ExerciseFilters } from '../../src/types/exercise';
 import { ROUTES } from '../../src/navigation/linking';
 import { mapApiError } from '../../src/services/api';
@@ -180,7 +180,7 @@ export default function WorkoutsScreen() {
             <Card
               key={program.id}
               title={program.name}
-              subtitle={program.description}
+              subtitle={`${SPLIT_TYPE_LABELS[program.splitType]}${program.description ? ` • ${program.description}` : ''}`}
               testID={`program-${program.id}`}
             >
               {program.days.map((day) => {

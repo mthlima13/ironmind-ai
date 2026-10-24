@@ -25,5 +25,30 @@ public enum SplitType {
     /**
      * Free split, defined by the user.
      */
-    CUSTOM
+    CUSTOM,
+
+    /**
+     * Division by muscle group (ABCDE / Bro Split): one or two muscle groups per day.
+     */
+    ABCDE,
+
+    /**
+     * Classic three-day split grouping antagonists/synergists.
+     */
+    ABC,
+
+    /**
+     * Arnold Split: chest and back together, shoulders and arms, legs and abs.
+     */
+    ARNOLD_SPLIT,
+
+    /**
+     * PHUL (Power Hypertrophy Upper Lower): combines strength and hypertrophy focused days.
+     */
+    PHUL,
+
+    /**
+     * Hybrid split combining PPL and Upper/Lower (5 days).
+     */
+    HYBRID_PPL_UPPER_LOWER
 }

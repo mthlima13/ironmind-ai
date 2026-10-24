@@ -6,6 +6,11 @@ export const SPLIT_TYPES = {
   UPPER_LOWER: 'UPPER_LOWER',
   FULL_BODY: 'FULL_BODY',
   CUSTOM: 'CUSTOM',
+  ABCDE: 'ABCDE',
+  ABC: 'ABC',
+  ARNOLD_SPLIT: 'ARNOLD_SPLIT',
+  PHUL: 'PHUL',
+  HYBRID_PPL_UPPER_LOWER: 'HYBRID_PPL_UPPER_LOWER',
 } as const;
 
 export type SplitType = (typeof SPLIT_TYPES)[keyof typeof SPLIT_TYPES];
@@ -15,6 +20,11 @@ export const SPLIT_TYPE_LABELS: Record<SplitType, string> = {
   UPPER_LOWER: 'Upper / Lower',
   FULL_BODY: 'Full Body',
   CUSTOM: 'Personalizado',
+  ABCDE: 'Divisão por Músculo (ABCDE)',
+  ABC: 'Divisão Antagonista / Sinergista (ABC)',
+  ARNOLD_SPLIT: 'Arnold Split',
+  PHUL: 'PHUL (Força e Hipertrofia)',
+  HYBRID_PPL_UPPER_LOWER: 'Híbrido 5 Dias (PPL + Upper/Lower)',
 };
 
 /** Program exercise entry (SPEC 10.6). */
