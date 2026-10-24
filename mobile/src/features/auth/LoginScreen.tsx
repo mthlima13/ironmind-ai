@@ -17,6 +17,14 @@ import {
 } from './auth.validation';
 import { useLogin } from './useAuth';
 
+function Logo() {
+  return (
+    <View style={styles.logoContainer} accessibilityLabel="IronMind AI">
+      <Ionicons name="barbell" size={80} color={colors.accent} />
+    </View>
+  );
+}
+
 export function LoginScreen() {
   const router = useRouter();
   const { login, isSubmitting } = useLogin();
@@ -38,11 +46,11 @@ export function LoginScreen() {
 
   return (
     <Screen
-      title="IronMind AI"
       subtitle="Treine com inteligência. Evolua com dados."
       avoidKeyboard
       testID="login-screen"
     >
+      <Logo />
       <View style={styles.badge}>
         <Ionicons name="barbell" size={22} color={colors.accent} />
         <Text style={styles.badgeText}>Acesso à sua conta</Text>
@@ -128,6 +136,12 @@ export function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
+  logoContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.xl,
+    marginBottom: spacing.lg,
+  },
   badge: {
     alignItems: 'center',
     alignSelf: 'flex-start',
