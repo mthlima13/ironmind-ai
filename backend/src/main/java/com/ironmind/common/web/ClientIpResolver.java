@@ -3,7 +3,9 @@ package com.ironmind.common.web;
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.HashSet;\nimport java.util.Locale;\nimport java.util.Set;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Set;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
@@ -66,10 +68,14 @@ public class ClientIpResolver {
         Set<String> normalized = new HashSet<>();
         for (String value : values) {
             if (value != null && !value.isBlank()) {
-                normalized.add(value.trim().toLowerCase(Locale.ROOT));
+                normalized.add(normalize(value));
             }
         }
         return normalized;
+    }
+
+    private static String normalize(String value) {
+        return value.trim().toLowerCase(Locale.ROOT);
     }
 
     private static boolean isIpAddress(String value) {
