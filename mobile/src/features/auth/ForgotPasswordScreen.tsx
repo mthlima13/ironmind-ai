@@ -9,7 +9,7 @@ import { Screen } from '../../components/Screen';
 import { TextField } from '../../components/TextField';
 import { ROUTES } from '../../navigation/linking';
 import { mapApiError } from '../../services/api';
-import { colors, radii, spacing, typography } from '../../theme';
+import { useTheme, useThemedStyles, radii, spacing, typography, type ThemeColors } from '../../theme';
 import { requestPasswordRecovery } from './auth.service';
 import {
   hasErrors,
@@ -28,6 +28,8 @@ export const RECOVERY_MESSAGE =
 
 export function ForgotPasswordScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
 
   const [email, setEmail] = useState('');
   const [fieldErrors, setFieldErrors] = useState<AuthFieldErrors>({});
@@ -126,7 +128,7 @@ export function ForgotPasswordScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   note: {
     ...typography.caption,
     color: colors.textMuted,

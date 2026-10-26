@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { colors, layout, radii, spacing, typography } from '../theme';
+import { useTheme, useThemedStyles, layout, radii, spacing, typography, type ThemeColors } from '../theme';
 
 export type StepperProps = {
   label: string;
@@ -30,6 +30,8 @@ export function Stepper({
   testID,
   context,
 }: StepperProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const decrease = () => onChange(Math.max(min, value - step));
   const increase = () => {
     const next = value + step;
@@ -80,7 +82,7 @@ export function Stepper({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   stepper: {
     gap: spacing.xs,
     minWidth: 88,

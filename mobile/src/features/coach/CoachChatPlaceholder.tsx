@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { Button } from '../../components/Button';
 import { Screen } from '../../components/Screen';
-import { colors, radii, spacing, typography } from '../../theme';
+import { useTheme, useThemedStyles, radii, spacing, typography, type ThemeColors } from '../../theme';
 
 /**
  * Placeholder of the coaching chat (SPEC RF-020, phase 2).
@@ -13,6 +13,9 @@ import { colors, radii, spacing, typography } from '../../theme';
  * the AI calls go through the backend only (SPEC 12).
  */
 export function CoachChatPlaceholder() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <Screen
       title="Coach IA"
@@ -46,7 +49,7 @@ export function CoachChatPlaceholder() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   card: {
     alignItems: 'center',
     backgroundColor: colors.surface,

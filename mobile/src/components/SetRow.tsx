@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { colors, layout, radii, spacing, typography } from '../theme';
+import { useTheme, useThemedStyles, layout, radii, spacing, typography, type ThemeColors } from '../theme';
 import type { WeightUnit } from '../types/user';
 
 /** Editable draft of a single set, kept as text while the user types. */
@@ -34,6 +34,8 @@ export function SetRow({
   weightUnit,
   disabled = false,
 }: SetRowProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const unitLabel = weightUnit.toLowerCase();
 
   return (
@@ -111,7 +113,7 @@ export function SetRow({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     backgroundColor: colors.surfaceElevated,
     borderColor: colors.border,

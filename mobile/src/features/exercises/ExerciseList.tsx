@@ -6,7 +6,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { ErrorState } from '../../components/ErrorState';
 import { LoadingState } from '../../components/LoadingState';
 import { TextField } from '../../components/TextField';
-import { colors, layout, radii, spacing, typography } from '../../theme';
+import { useTheme, useThemedStyles, layout, radii, spacing, typography, type ThemeColors } from '../../theme';
 import { mapApiError } from '../../services/api';
 import {
   MUSCLE_GROUP_LABELS,
@@ -37,6 +37,8 @@ export function ExerciseList({
   onChangeFilters,
   onSelect,
 }: ExerciseListProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [search, setSearch] = useState(filters.search ?? '');
   const { data, isLoading, isError, error, refetch } = useExercises(filters);
 
@@ -135,7 +137,7 @@ export function ExerciseList({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     gap: spacing.md,
   },

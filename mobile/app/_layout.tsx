@@ -12,7 +12,13 @@ import { useOfflineSyncGate } from '../src/hooks/useOfflineSyncGate';
 import { useSessionPersistence } from '../src/hooks/useSessionPersistence';
 import { BackHandlerProvider } from '../src/navigation/BackHandlerProvider';
 import { useDeepLinks } from '../src/navigation/useDeepLinks';
-import { colors } from '../src/theme';
+import {
+  ThemeProvider,
+  useTheme,
+  useThemedStyles,
+  useThemeStore,
+  type ThemeColors,
+} from '../src/theme';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -29,74 +35,98 @@ function OfflineSyncGate() {
   return null;
 }
 
+/** First frame, before the fonts, the session and the theme are ready. */
+function Splash() {
+  const styles = useThemedStyles(createStyles);
+  return <View style={styles.splash} testID="root-splash" />;
+}
+
+/** Navigation tree; reads the active palette to paint bars and headers. */
+function AppNavigator({ isAuthenticated }: { isAuthenticated: boolean }) {
+  const { colors, isDark } = useTheme();
+
+  return (
+    <>
+      <OfflineSyncGate />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <BackHandlerProvider>
+        <Stack
+          screenOptions={{
+            headerStyle: { backgroundColor: colors.background },
+            headerTintColor: colors.accent,
+            headerTitleStyle: { color: colors.text },
+            headerShadowVisible: false,
+            contentStyle: { backgroundColor: colors.background },
+          }}
+        >
+          <Stack.Protected guard={isAuthenticated}>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          </Stack.Protected>
+          <Stack.Protected guard={!isAuthenticated}>
+            <Stack.Screen name="auth" options={{ headerShown: false }} />
+          </Stack.Protected>
+          <Stack.Screen
+            name="coach"
+            options={{
+              presentation: 'modal',
+              title: 'Coach IA',
+            }}
+          />
+          <Stack.Screen
+            name="propostas"
+            options={{
+              presentation: 'modal',
+              title: 'Proposta de IA',
+            }}
+          />
+          <Stack.Screen
+            name="reset-password"
+            options={{
+              title: 'Definir nova senha',
+            }}
+          />
+        </Stack>
+      </BackHandlerProvider>
+    </>
+  );
+}
+
 export default function RootLayout() {
   const { loaded } = useAppFonts();
   const status = useAuthStore((state) => state.status);
-  const hydrate = useAuthStore((state) => state.hydrate);
+  const hydrateAuth = useAuthStore((state) => state.hydrate);
+  const hydrateTheme = useThemeStore((state) => state.hydrate);
+  const themeHydrated = useThemeStore((state) => state.hydrated);
 
   useEffect(() => {
-    void hydrate();
-  }, [hydrate]);
+    void hydrateAuth();
+  }, [hydrateAuth]);
+
+  useEffect(() => {
+    // Reads the saved choice before the first screen, so no screen is drawn
+    // with the default palette and then repainted in the chosen one.
+    void hydrateTheme();
+  }, [hydrateTheme]);
 
   useSessionPersistence();
   useConnectionSync();
   useDeepLinks();
 
   const isAuthenticated = status === 'authenticated';
-
-  if (!loaded || status === 'booting') {
-    return <View style={styles.splash} testID="root-splash" />;
-  }
+  const isReady = loaded && status !== 'booting' && themeHydrated;
 
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
-        <OfflineSyncGate />
-        <StatusBar style="light" />
-        <BackHandlerProvider>
-          <Stack
-            screenOptions={{
-              headerStyle: { backgroundColor: colors.background },
-              headerTintColor: colors.accent,
-              headerTitleStyle: { color: colors.text },
-              headerShadowVisible: false,
-              contentStyle: { backgroundColor: colors.background },
-            }}
-          >
-            <Stack.Protected guard={isAuthenticated}>
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            </Stack.Protected>
-            <Stack.Protected guard={!isAuthenticated}>
-              <Stack.Screen name="auth" options={{ headerShown: false }} />
-            </Stack.Protected>
-            <Stack.Screen
-              name="coach"
-              options={{
-                presentation: 'modal',
-                title: 'Coach IA',
-              }}
-            />
-            <Stack.Screen
-              name="propostas"
-              options={{
-                presentation: 'modal',
-                title: 'Proposta de IA',
-              }}
-            />
-            <Stack.Screen
-              name="reset-password"
-              options={{
-                title: 'Definir nova senha',
-              }}
-            />
-          </Stack>
-        </BackHandlerProvider>
+        <ThemeProvider>
+          {isReady ? <AppNavigator isAuthenticated={isAuthenticated} /> : <Splash />}
+        </ThemeProvider>
       </QueryClientProvider>
     </SafeAreaProvider>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   splash: {
     backgroundColor: colors.background,
     flex: 1,

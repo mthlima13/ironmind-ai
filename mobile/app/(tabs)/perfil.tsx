@@ -17,7 +17,15 @@ import {
   requestNotificationPermission,
   type PermissionOutcome,
 } from '../../src/services/permissions';
-import { colors, radii, spacing, typography } from '../../src/theme';
+import {
+  useTheme,
+  useThemedStyles,
+  radii,
+  spacing,
+  typography,
+  type ThemeColors,
+  type ThemeMode,
+} from '../../src/theme';
 import {
   WEIGHT_UNITS,
   type TrainingExperience,
@@ -37,6 +45,13 @@ const GOAL_LABELS: Record<TrainingGoal, string> = {
   ENDURANCE: 'Resistência',
   GENERAL: 'Geral',
 };
+
+/** Theme choices offered in Perfil (SPEC 15.2). */
+const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
+  { value: 'light', label: 'Claro' },
+  { value: 'dark', label: 'Escuro' },
+  { value: 'system', label: 'Sistema' },
+];
 
 /**
  * Public addresses of the legal documents (SPEC 14.4).
@@ -60,6 +75,8 @@ function OptionRow<T extends string>({
   onChange: (value: T) => void;
   testID: string;
 }) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.optionGroup} testID={testID}>
       <Text style={styles.optionLabel}>{label}</Text>
@@ -83,6 +100,8 @@ function OptionRow<T extends string>({
 }
 
 export default function ProfileScreen() {
+  const { colors, mode, setMode } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { logout, isSubmitting: isLoggingOut } = useLogout();
   const { data: profile, isLoading, isError, error, refetch } = useProfile();
   const updateProfile = useUpdateProfile();
@@ -146,6 +165,19 @@ export default function ProfileScreen() {
           <Text style={styles.accountMeta}>Fuso horário: {profile.timezone}</Text>
         </Card>
       ) : null}
+
+      <Card
+        title="Aparência"
+        subtitle="O tema escolhido fica salvo neste aparelho."
+      >
+        <OptionRow<ThemeMode>
+          label="Tema"
+          testID="profile-theme"
+          value={mode}
+          options={THEME_OPTIONS}
+          onChange={setMode}
+        />
+      </Card>
 
       {preferences ? (
         <Card title="Preferências de treino">
@@ -226,7 +258,7 @@ export default function ProfileScreen() {
                 })
               }
               trackColor={{ true: colors.accent, false: colors.border }}
-              thumbColor={colors.text}
+              thumbColor={colors.onAccent}
               testID="profile-privacy-public"
             />
           </View>
@@ -243,7 +275,7 @@ export default function ProfileScreen() {
                 })
               }
               trackColor={{ true: colors.accent, false: colors.border }}
-              thumbColor={colors.text}
+              thumbColor={colors.onAccent}
               testID="profile-privacy-records"
             />
           </View>
@@ -260,7 +292,7 @@ export default function ProfileScreen() {
                 })
               }
               trackColor={{ true: colors.accent, false: colors.border }}
-              thumbColor={colors.text}
+              thumbColor={colors.onAccent}
               testID="profile-privacy-sharing"
             />
           </View>
@@ -389,7 +421,7 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   accountName: {
     ...typography.heading,
     color: colors.text,

@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { colors, radii, spacing, typography } from '../theme';
+import { useTheme, useThemedStyles, radii, spacing, typography, type ThemeColors } from '../theme';
 import { Button } from './Button';
 
 export type PendingSyncBannerProps = {
@@ -28,6 +28,8 @@ export function PendingSyncBanner({
   onSync,
   testID,
 }: PendingSyncBannerProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const hasFailed = failedCount > 0;
   const isOfflineState = isOffline || pendingCount > 0 || hasFailed;
   if (!isOfflineState) {
@@ -77,7 +79,7 @@ export function PendingSyncBanner({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     alignItems: 'center',
     borderRadius: radii.md,

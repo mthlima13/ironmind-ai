@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../components/Button';
 import { Stepper } from '../../components/Stepper';
 import { TextField } from '../../components/TextField';
-import { colors, layout, radii, spacing, typography } from '../../theme';
+import { useTheme, useThemedStyles, layout, radii, spacing, typography, type ThemeColors } from '../../theme';
 import type { ProgramDay, ProgramExercise } from '../../types/program';
 import { useExercises } from '../exercises/useExercises';
 
@@ -20,6 +20,8 @@ export type ProgramDayEditorProps = {
  * (SPEC RF-005).
  */
 export function ProgramDayEditor({ day, onChange }: ProgramDayEditorProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const { data: catalogue } = useExercises({ muscleGroup: 'ALL' });
 
@@ -214,7 +216,7 @@ export function ProgramDayEditor({ day, onChange }: ProgramDayEditorProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     gap: spacing.md,
   },

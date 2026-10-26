@@ -670,7 +670,8 @@ ironmind-ai/
 - **React Native** + **Expo** + **TypeScript**
 - **React Navigation** ou **Expo Router** (Expo Router é o padrão adotado)
 - Gerenciamento de estado: TanStack Query para servidor + Zustand para estado de UI
-- Armazenamento local: SQLite (Expo SQLite) para rascunhos e fila offline
+- Armazenamento local: SQLite (Expo SQLite) para rascunhos, fila offline e
+  preferências do aparelho, como o tema escolhido
 - `expo-secure-store` para token de acesso
 - Testes: Jest + React Native Testing Library
 
@@ -1307,7 +1308,13 @@ O treino deve continuar funcionando quando a conexão cair.
 
 ### 15.2 Direção visual
 
-- Tema escuro com grafite e verde-limão como cor de destaque.
+- Dois temas selecionáveis pelo usuário em **Perfil → Aparência**: **Claro** e
+  **Escuro**, além de **Sistema**, que segue a configuração do Android.
+- Tema **escuro** (padrão): fundo grafite com verde-limão como cor de destaque.
+- Tema **claro**: fundo branco, superfícies claras e o mesmo verde-limão em um
+  tom mais escuro, para manter o contraste do texto e dos botões.
+- A escolha do tema é local do aparelho: não é enviada à API e persiste entre
+  sessões. Trocar o tema não recria a conta nem o histórico.
 - Tipografia legível e hierarquia visual clara.
 - Botões grandes para uso durante o treino (alvo de toque ≥ 44pt).
 - Registro de série em poucos toques.

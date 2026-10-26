@@ -18,7 +18,7 @@ import { useSessionStore } from '../../src/features/workouts/session.store';
 import { useOfflineSync } from '../../src/features/workouts/useOfflineSync';
 import { ROUTES } from '../../src/navigation/linking';
 import { mapApiError } from '../../src/services/api';
-import { colors, spacing, typography } from '../../src/theme';
+import { useTheme, useThemedStyles, spacing, typography, type ThemeColors } from '../../src/theme';
 import { formatWeight } from '../../src/utils/units';
 
 function formatDuration(minutes: number): string {
@@ -32,6 +32,8 @@ function formatDuration(minutes: number): string {
 
 export default function DashboardScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { user } = useAuthState();
   const { data: profile } = useProfile();
   const { data, isLoading, isError, error, refetch } = useDashboardOverview();
@@ -180,7 +182,7 @@ export default function DashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   cards: {
     flexDirection: 'row',
     flexWrap: 'wrap',

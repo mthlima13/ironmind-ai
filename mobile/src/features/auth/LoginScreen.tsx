@@ -8,7 +8,7 @@ import { ErrorState } from '../../components/ErrorState';
 import { Screen } from '../../components/Screen';
 import { TextField } from '../../components/TextField';
 import { ROUTES } from '../../navigation/linking';
-import { colors, radii, spacing, typography } from '../../theme';
+import { useTheme, useThemedStyles, radii, spacing, typography, type ThemeColors } from '../../theme';
 import { useAuthStore } from './auth.store';
 import {
   hasErrors,
@@ -18,6 +18,9 @@ import {
 import { useLogin } from './useAuth';
 
 function Logo() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.logoContainer} accessibilityLabel="IronMind AI">
       <Ionicons name="barbell" size={80} color={colors.accent} />
@@ -27,6 +30,8 @@ function Logo() {
 
 export function LoginScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const { login, isSubmitting } = useLogin();
   const apiError = useAuthStore((state) => state.error);
   const clearError = useAuthStore((state) => state.clearError);
@@ -135,7 +140,7 @@ export function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   logoContainer: {
     alignItems: 'center',
     justifyContent: 'center',

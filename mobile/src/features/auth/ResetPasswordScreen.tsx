@@ -9,7 +9,7 @@ import { TextField } from '../../components/TextField';
 import { ROUTES } from '../../navigation/linking';
 import { DEFAULT_MESSAGES, mapApiError } from '../../services/api';
 import { clearTokens } from '../../storage/secureToken';
-import { colors, typography } from '../../theme';
+import { useThemedStyles, typography, type ThemeColors } from '../../theme';
 import { API_ERROR_CODES } from '../../types/api';
 import { resetPassword } from './auth.service';
 import { useAuthStore } from './auth.store';
@@ -32,6 +32,7 @@ function readToken(value: string | string[] | undefined): string {
 
 export function ResetPasswordScreen() {
   const router = useRouter();
+  const styles = useThemedStyles(createStyles);
   const params = useLocalSearchParams<{ token?: string | string[] }>();
   const token = readToken(params.token);
 
@@ -167,7 +168,7 @@ export function ResetPasswordScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   hint: {
     ...typography.caption,
     color: colors.textMuted,

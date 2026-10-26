@@ -5,7 +5,7 @@
     "scheme": "ironmind",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
     "platforms": ["android"],
     "newArchEnabled": true,
     "assetBundlePatterns": ["**/*"],
@@ -31,6 +31,7 @@
       "expo-router",
       "expo-secure-store",
       "expo-sqlite",
+      "expo-system-ui",
       [
         "expo-notifications",
         {

@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router/tabs';
 import { Ionicons } from '@expo/vector-icons';
 
-import { colors, typography } from '../../src/theme';
+import { useTheme, typography } from '../../src/theme';
 
 /**
  * Main navigation of the app (SPEC 15.1).
@@ -10,6 +10,8 @@ import { colors, typography } from '../../src/theme';
  * Evolução.
  */
 export default function TabsLayout() {
+  const { colors } = useTheme();
+
   return (
     <Tabs
       screenOptions={{

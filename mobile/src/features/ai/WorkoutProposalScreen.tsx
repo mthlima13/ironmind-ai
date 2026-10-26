@@ -10,7 +10,7 @@ import { Stepper } from '../../components/Stepper';
 import { TextField } from '../../components/TextField';
 import { ROUTES } from '../../navigation/linking';
 import { mapApiError } from '../../services/api';
-import { colors, radii, spacing, typography } from '../../theme';
+import { useTheme, useThemedStyles, radii, spacing, typography, type ThemeColors } from '../../theme';
 import type { ProposedDay, WorkoutProposal } from '../../types/ai';
 import {
   SPLIT_TYPES,
@@ -66,6 +66,8 @@ type SplitChipsProps = {
 };
 
 function SplitChips({ value, onChange, testIDPrefix }: SplitChipsProps) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.chipRow}>
       {SPLIT_OPTIONS.map((option) => {
@@ -116,6 +118,8 @@ type SavedState = {
  */
 export function WorkoutProposalScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [prompt, setPrompt] = useState('');
   const [trainingDays, setTrainingDays] = useState<number | null>(null);
   const [splitChoice, setSplitChoice] = useState<SplitType | null>(null);
@@ -491,7 +495,7 @@ export function WorkoutProposalScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   body: {
     ...typography.body,
     color: colors.textSecondary,

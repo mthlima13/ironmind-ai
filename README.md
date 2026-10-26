@@ -54,12 +54,12 @@ O IronMind AI resolve isso em duas frentes:
 | Contrato de erro da API, trace ID, tratamento global de exceções | Implementado |
 | Calculadoras de volume e 1RM expostas por `/analytics/*` | Implementado |
 | Detecção transacional de recordes pessoais | Implementado |
-| App Android: 5 abas, autenticação, catálogo, programa com edição de dia, sessão com pausa/retomada/abandono, séries com correção e exclusão, exercício personalizado, histórico, perfil | Implementado |
+| App Android: 5 abas, autenticação, catálogo, programa com edição de dia, sessão com pausa/retomada/abandono, séries com correção e exclusão, exercício personalizado, histórico, perfil e tema claro/escuro | Implementado |
 | Dashboard e evolução por exercício no app | Implementado |
 | IA inicial: proposta de treino validada, sugestão de carga por regras, coaching e voz | Implementado no backend — provedor `mock` por padrão; no app, só a proposta de treino tem tela |
 | Tela de revisão e salvamento da proposta de IA | Implementado |
 | Adaptações Android: back do sistema, edge-to-edge, permissões em runtime, safe area | Implementado |
-| Testes | 191 testes no backend + 117 casos no mobile (mais 17 de contrato contra a API real, opcionais) |
+| Testes | 191 testes no backend + 128 casos no mobile (mais 17 de contrato contra a API real, opcionais) |
 | Teste de contrato mobile x API real, no CI | Implementado |
 | App rodando em emulador Android 15 contra API e banco reais | Verificado |
 | Recursos sociais e gamificação | Planejado — Fase 3 |
@@ -180,7 +180,7 @@ cd android && ./gradlew bundleRelease
 # backend — 191 testes
 cd backend && mvn test
 
-# mobile — typecheck + 111 casos (mais 17 de contrato contra a API real, opt-in)
+# mobile — typecheck + 128 casos (mais 17 de contrato contra a API real, opt-in)
 cd mobile && npx tsc --noEmit && npx jest
 ```
 

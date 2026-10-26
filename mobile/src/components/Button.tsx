@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import { colors, layout, radii, spacing, typography } from '../theme';
+import { useTheme, useThemedStyles, layout, radii, spacing, typography, type ThemeColors } from '../theme';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
@@ -31,20 +31,6 @@ export type ButtonProps = {
   style?: StyleProp<ViewStyle>;
 };
 
-const VARIANT_BACKGROUND: Record<ButtonVariant, string> = {
-  primary: colors.accent,
-  secondary: colors.surfaceElevated,
-  ghost: 'transparent',
-  danger: colors.danger,
-};
-
-const VARIANT_TEXT: Record<ButtonVariant, string> = {
-  primary: colors.onAccent,
-  secondary: colors.text,
-  ghost: colors.accent,
-  danger: colors.onAccent,
-};
-
 export function Button({
   label,
   onPress,
@@ -60,7 +46,22 @@ export function Button({
   accessibilityState,
   style,
 }: ButtonProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const isDisabled = disabled || loading;
+
+  const variantBackground: Record<ButtonVariant, string> = {
+    primary: colors.accent,
+    secondary: colors.surfaceElevated,
+    ghost: 'transparent',
+    danger: colors.danger,
+  };
+  const variantText: Record<ButtonVariant, string> = {
+    primary: colors.onAccent,
+    secondary: colors.text,
+    ghost: colors.accent,
+    danger: colors.onAccent,
+  };
 
   return (
     <Pressable
@@ -76,7 +77,7 @@ export function Button({
         size === 'lg' ? styles.large : styles.medium,
         variant === 'primary'
           ? styles.primary
-          : { backgroundColor: VARIANT_BACKGROUND[variant] },
+          : { backgroundColor: variantBackground[variant] },
         variant === 'ghost' && styles.ghost,
         fullWidth && styles.fullWidth,
         pressed && !isDisabled ? styles.pressed : null,
@@ -95,12 +96,12 @@ export function Button({
       ) : null}
 
       {loading ? (
-        <ActivityIndicator color={VARIANT_TEXT[variant]} size="small" />
+        <ActivityIndicator color={variantText[variant]} size="small" />
       ) : (
         <View style={styles.content}>
           {icon ? <View style={styles.icon}>{icon}</View> : null}
           <Text
-            style={[styles.label, { color: VARIANT_TEXT[variant] }]}
+            style={[styles.label, { color: variantText[variant] }]}
             numberOfLines={2}
             ellipsizeMode="tail"
             maxFontSizeMultiplier={1.6}>
@@ -112,7 +113,7 @@ export function Button({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   base: {
     alignItems: 'center',
     borderRadius: radii.md,

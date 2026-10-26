@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { colors, radii, spacing, typography } from '../theme';
+import { useTheme, useThemedStyles, radii, spacing, typography, type ThemeColors } from '../theme';
 import { Button } from './Button';
 
 export type ErrorStateProps = {
@@ -20,6 +20,9 @@ export function ErrorState({
   retryLabel = 'Tentar novamente',
   testID,
 }: ErrorStateProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.container} testID={testID}>
       <View style={styles.iconWrapper}>
@@ -40,7 +43,7 @@ export function ErrorState({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     alignItems: 'center',
     backgroundColor: colors.dangerSoft,

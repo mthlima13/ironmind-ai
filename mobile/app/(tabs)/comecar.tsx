@@ -33,13 +33,15 @@ import { useOfflineSync } from '../../src/features/workouts/useOfflineSync';
 import { ROUTES } from '../../src/navigation/linking';
 import { ENDPOINTS } from '../../src/services/endpoints';
 import { mapApiError } from '../../src/services/api';
-import { colors, radii, spacing, typography } from '../../src/theme';
+import { useTheme, useThemedStyles, radii, spacing, typography, type ThemeColors } from '../../src/theme';
 import type { Exercise, ExerciseFilters } from '../../src/types/exercise';
 import { SESSION_STATUSES, type ExerciseSet } from '../../src/types/workout';
 import { createIdempotencyKey } from '../../src/utils/id';
 
 export default function StartWorkoutScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const params = useLocalSearchParams<{
     programId?: string;
     programDayId?: string;
@@ -656,7 +658,7 @@ export default function StartWorkoutScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   dayRow: {
     alignItems: 'center',
     flexDirection: 'row',

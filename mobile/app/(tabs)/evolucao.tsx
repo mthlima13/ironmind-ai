@@ -17,12 +17,14 @@ import { useProfile } from '../../src/features/auth/useProfile';
 import { useSessionHistory } from '../../src/features/workouts/useWorkoutSession';
 import { ROUTES } from '../../src/navigation/linking';
 import { mapApiError } from '../../src/services/api';
-import { colors, spacing, typography } from '../../src/theme';
+import { useTheme, useThemedStyles, spacing, typography, type ThemeColors } from '../../src/theme';
 import { RECORD_TYPE_LABELS } from '../../src/types/records';
 import { formatWeight } from '../../src/utils/units';
 
 export default function EvolutionScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [page, setPage] = useState(0);
 
   const { data: profile } = useProfile();
@@ -199,7 +201,7 @@ export default function EvolutionScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   cards: {
     flexDirection: 'row',
     flexWrap: 'wrap',

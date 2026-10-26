@@ -18,12 +18,14 @@ import type { ExerciseFilters } from '../../src/types/exercise';
 import { ROUTES } from '../../src/navigation/linking';
 import { mapApiError } from '../../src/services/api';
 import { createIdempotencyKey } from '../../src/utils/id';
-import { colors, radii, spacing, typography } from '../../src/theme';
+import { useTheme, useThemedStyles, radii, spacing, typography, type ThemeColors } from '../../src/theme';
 
 type Section = 'programas' | 'exercicios';
 
 export default function WorkoutsScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [section, setSection] = useState<Section>('programas');
   const [filters, setFilters] = useState<ExerciseFilters>({
     search: '',
@@ -275,7 +277,7 @@ export default function WorkoutsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   section: {
     gap: spacing.md,
   },

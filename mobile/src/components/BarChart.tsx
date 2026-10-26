@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors, radii, spacing, typography } from '../theme';
+import { useThemedStyles, radii, spacing, typography, type ThemeColors } from '../theme';
 
 export type BarChartPoint = {
   label: string;
@@ -29,6 +29,7 @@ export function BarChart({
   formatValue,
   testID,
 }: BarChartProps) {
+  const styles = useThemedStyles(createStyles);
   const maxValue = points.reduce((max, point) => Math.max(max, point.value), 0);
 
   return (
@@ -64,7 +65,7 @@ export function BarChart({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     gap: spacing.sm,
   },

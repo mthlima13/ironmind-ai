@@ -7,7 +7,7 @@ import {
   type KeyboardTypeOptions,
 } from 'react-native';
 
-import { colors, layout, radii, spacing, typography } from '../theme';
+import { useTheme, useThemedStyles, layout, radii, spacing, typography, type ThemeColors } from '../theme';
 
 export type TextFieldProps = {
   label: string;
@@ -47,6 +47,8 @@ export function TextField({
   testID,
 }: TextFieldProps) {
   const [isFocused, setIsFocused] = useState(false);
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
 
   return (
     <View style={styles.container}>
@@ -88,7 +90,7 @@ export function TextField({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     gap: spacing.sm,
   },

@@ -6,7 +6,7 @@ import { Button } from '../../components/Button';
 import { ErrorState } from '../../components/ErrorState';
 import { Screen } from '../../components/Screen';
 import { TextField } from '../../components/TextField';
-import { colors, typography } from '../../theme';
+import { useThemedStyles, typography, type ThemeColors } from '../../theme';
 import { useAuthStore } from './auth.store';
 import {
   hasErrors,
@@ -18,6 +18,7 @@ import { useRegister } from './useAuth';
 
 export function RegisterScreen() {
   const router = useRouter();
+  const styles = useThemedStyles(createStyles);
   const { register, isSubmitting } = useRegister();
   const apiError = useAuthStore((state) => state.error);
   const clearError = useAuthStore((state) => state.clearError);
@@ -144,7 +145,7 @@ export function RegisterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   hint: {
     ...typography.caption,
     color: colors.textMuted,

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors, radii, spacing, typography } from '../theme';
+import { useThemedStyles, radii, spacing, typography, type ThemeColors } from '../theme';
 import { Button } from './Button';
 
 export type EmptyStateProps = {
@@ -25,6 +25,8 @@ export function EmptyState({
   icon,
   testID,
 }: EmptyStateProps) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.container} testID={testID}>
       {icon ? <View style={styles.icon}>{icon}</View> : null}
@@ -43,7 +45,7 @@ export function EmptyState({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     alignItems: 'center',
     backgroundColor: colors.surface,

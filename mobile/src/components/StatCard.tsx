@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { colors, radii, spacing, typography } from '../theme';
+import { useTheme, useThemedStyles, radii, spacing, typography, type ThemeColors } from '../theme';
 
 export type StatCardProps = {
   label: string;
@@ -11,11 +11,11 @@ export type StatCardProps = {
   testID?: string;
 };
 
-const TONE_COLOR = {
-  default: colors.text,
-  accent: colors.accent,
-  positive: colors.success,
-  negative: colors.danger,
+const TONE_PALETTE = {
+  default: 'text',
+  accent: 'accent',
+  positive: 'success',
+  negative: 'danger',
 } as const;
 
 export function StatCard({
@@ -25,16 +25,19 @@ export function StatCard({
   tone = 'default',
   testID,
 }: StatCardProps) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.card} testID={testID}>
       <Text style={styles.label}>{label}</Text>
-      <Text style={[styles.value, { color: TONE_COLOR[tone] }]}>{value}</Text>
+      <Text style={[styles.value, { color: colors[TONE_PALETTE[tone]] }]}>{value}</Text>
       {hint ? <Text style={styles.hint}>{hint}</Text> : null}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
     borderColor: colors.border,

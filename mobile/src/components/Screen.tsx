@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { colors, layout, spacing, typography } from '../theme';
+import { useThemedStyles, layout, spacing, typography, type ThemeColors } from '../theme';
 
 export type ScreenProps = {
   children: ReactNode;
@@ -46,6 +46,7 @@ export function Screen({
   testID,
 }: ScreenProps) {
   const insets = useSafeAreaInsets();
+  const styles = useThemedStyles(createStyles);
 
   const content = (
     <View
@@ -107,7 +108,7 @@ export function Screen({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     backgroundColor: colors.background,
     flex: 1,

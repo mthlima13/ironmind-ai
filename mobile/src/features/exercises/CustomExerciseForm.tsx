@@ -4,7 +4,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button } from '../../components/Button';
 import { TextField } from '../../components/TextField';
 import { mapApiError } from '../../services/api';
-import { colors, layout, radii, spacing, typography } from '../../theme';
+import { useThemedStyles, layout, radii, spacing, typography, type ThemeColors } from '../../theme';
 import {
   MOVEMENT_TYPES,
   MUSCLE_GROUP_LABELS,
@@ -32,6 +32,7 @@ const MOVEMENT_TYPE_LABELS: Record<(typeof MOVEMENT_TYPES)[keyof typeof MOVEMENT
  * typed and never invents an exercise identifier.
  */
 export function CustomExerciseForm({ onCreated }: CustomExerciseFormProps) {
+  const styles = useThemedStyles(createStyles);
   const createMutation = useCreateExercise();
   const [name, setName] = useState('');
   const [equipment, setEquipment] = useState('');
@@ -156,7 +157,7 @@ export function CustomExerciseForm({ onCreated }: CustomExerciseFormProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     gap: spacing.md,
   },

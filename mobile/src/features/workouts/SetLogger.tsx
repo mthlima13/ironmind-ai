@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '../../components/Button';
 import { SetRow, type SetDraft } from '../../components/SetRow';
-import { colors, radii, spacing, typography } from '../../theme';
+import { useTheme, useThemedStyles, radii, spacing, typography, type ThemeColors } from '../../theme';
 import type { PreviousSetValues } from '../../types/workout';
 import type { WeightUnit } from '../../types/user';
 import { fromDisplayWeight, roundKg, toDisplayWeight } from '../../utils/units';
@@ -105,6 +105,8 @@ export function SetLogger({
   disabled = false,
 }: SetLoggerProps) {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [drafts, setDrafts] = useState<SetDraft[]>(() => [createDraft()]);
   const [errors, setErrors] = useState<DraftErrors>({});
 
@@ -278,7 +280,7 @@ export function SetLogger({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     gap: spacing.md,
   },

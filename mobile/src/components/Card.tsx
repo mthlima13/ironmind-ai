@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { colors, radii, spacing, typography } from '../theme';
+import { useThemedStyles, radii, spacing, typography, type ThemeColors } from '../theme';
 
 export type CardProps = {
   children: ReactNode;
@@ -14,6 +14,8 @@ export type CardProps = {
 };
 
 export function Card({ children, title, subtitle, action, style, testID }: CardProps) {
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={[styles.card, style]} testID={testID}>
       {title || action ? (
@@ -30,7 +32,7 @@ export function Card({ children, title, subtitle, action, style, testID }: CardP
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
