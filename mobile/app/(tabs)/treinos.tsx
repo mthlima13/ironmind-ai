@@ -170,7 +170,7 @@ export default function WorkoutsScreen() {
               title="Nenhum programa ainda"
               description="Crie seu primeiro programa com dias, exercícios e séries alvo."
               actionLabel="Criar programa"
-              onAction={() => setSection('programas')}
+              onAction={() => router.push(ROUTES.propostas)}
               icon={<Ionicons name="calendar-outline" size={26} color={colors.textMuted} />}
               testID="workouts-empty"
             />

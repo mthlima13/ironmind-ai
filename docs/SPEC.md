@@ -780,7 +780,7 @@ UUID como chave primária em todas as tabelas. Todas as entidades com
 | `name` | varchar | |
 | `description` | text | |
 | `goal` | enum | espelha `user_preferences.goal` |
-| `split_type` | varchar | `PPL`, `UPPER_LOWER`, `FULL_BODY`, `CUSTOM` |
+| `split_type` | varchar | `PPL`, `UPPER_LOWER`, `FULL_BODY`, `ABCDE`, `ABC`, `ARNOLD_SPLIT`, `PHUL`, `HYBRID_PPL_UPPER_LOWER`, `CUSTOM` |
 | `is_archived` | boolean | arquivar ≠ excluir |
 | `created_at` | timestamptz | |
 | `updated_at` | timestamptz | |
@@ -1057,6 +1057,7 @@ O modelo retorna um objeto estruturado validado por esquema definido no backend.
 {
   "name": "Treino de costas",
   "goal": "HYPERTROPHY",
+  "splitType": "PPL",
   "days": [
     {
       "name": "Costa",
@@ -1074,18 +1075,29 @@ O modelo retorna um objeto estruturado validado por esquema definido no backend.
 }
 ```
 
+**Divisão do treino:** o usuário escolhe explicitamente a divisão entre
+`PPL`, `UPPER_LOWER`, `FULL_BODY`, `ABCDE`, `ABC`, `ARNOLD_SPLIT`, `PHUL` e
+`HYBRID_PPL_UPPER_LOWER`. Não existe modo aleatório. A opção "IA escolhe" deixa
+a decisão para o modelo, que deve justificá-la pelo número de dias, objetivo,
+experiência e histórico. A escolha do usuário sempre prevalece sobre a sugestão
+do modelo; sem escolha e sem sugestão válida, a proposta é classificada como
+`CUSTOM`.
+
 **Fluxo obrigatório:**
 
-1. App envia o pedido em linguagem natural.
+1. App envia o pedido em linguagem natural, com a divisão escolhida (opcional).
 2. Backend autentica e resolve o owner a partir da sessão.
 3. Backend monta o contexto: preferências, experiência, equipamentos,
-   restrições ativas, exercício do catálogo e histórico relevante.
+   restrições ativas, exercício do catálogo, histórico relevante e divisão
+   escolhida.
 4. Serviço de IA chama o LLM com o contexto mínimo necessário.
 5. Resposta é desserializada em DTO e validada contra o esquema.
 6. Backend verifica: IDs de exercício existem; belong to catálogo; sets e reps
-   dentro dos limites configurados; respeita restrições ativas.
+   dentro dos limites configurados; respeita restrições ativas; divisão
+   devolvida é uma das divisões suportadas.
 7. Referências inválidas são **descartadas ou substituídas**, nunca aceitas.
-8. Usuário revisa, edita ou rejeita.
+8. Usuário revisa, edita ou rejeita. A divisão também pode ser trocada antes de
+   salvar.
 9. Só então o programa é persistido.
 
 > A IA não inventa IDs de exercício e não grava diretamente no banco.
@@ -1093,9 +1105,12 @@ O modelo retorna um objeto estruturado validado por esquema definido no backend.
 **Implementação atual:**
 
 - O contexto enviado ao modelo é mínimo: preferências, experiência,
-  equipamentos, região das restrições ativas, catálogo já filtrado e um resumo
-  do histórico recente. Texto livre de restrições e dado de saúde não são
-  enviados.
+  equipamentos, região das restrições ativas, catálogo já filtrado, um resumo
+  do histórico recente e a divisão escolhida pelo usuário. Texto livre de
+  restrições e dado de saúde não são enviados.
+- A divisão escolhida no pedido prevalece sobre a divisão sugerida pelo modelo.
+  Quando o usuário deixa "IA escolhe", o provedor simulado deriva a divisão de
+  forma determinística a partir do número de dias; não há sorteio.
 - A proposta validada é gravada como recomendação `PENDING`, junto de um resumo
   não sensível do pedido. O texto do prompt não é armazenado.
 - O programa em si continua sendo criado por `POST /programs`, com o payload

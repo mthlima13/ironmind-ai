@@ -13,6 +13,7 @@ import com.ironmind.ai.provider.LlmGateway;
 import com.ironmind.ai.schema.WorkoutProposalPayload;
 import com.ironmind.common.exception.FieldValidationException;
 import com.ironmind.common.idempotency.IdempotencyService;
+import com.ironmind.program.entity.SplitType;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -79,7 +80,8 @@ public class WorkoutProposalService {
             }
         }
 
-        AiContext context = contextBuilder.build(userId, request.trainingDays(), request.goal());
+        AiContext context = contextBuilder.build(
+                userId, request.trainingDays(), request.goal(), request.splitType());
         if (context.catalog().isEmpty()) {
             throw new FieldValidationException("availableEquipment",
                     "Nenhum exercício do catálogo é compatível com as suas preferências. "
@@ -106,6 +108,7 @@ public class WorkoutProposalService {
                 gateway.modelName(),
                 validated.name(),
                 validated.goal(),
+                validated.splitType(),
                 toResponse(validated.days()),
                 validated.explanation(),
                 List.copyOf(warnings),
@@ -113,6 +116,7 @@ public class WorkoutProposalService {
 
         int exercises = validated.days().stream().mapToInt(day -> day.exercises().size()).sum();
         String summary = "goal=" + validated.goal()
+                + ";splitType=" + validated.splitType()
                 + ";trainingDays=" + validated.days().size()
                 + ";exercises=" + exercises
                 + ";restrictions=" + context.restrictionRegions().size()
@@ -148,6 +152,7 @@ public class WorkoutProposalService {
                 stored.model(),
                 stored.name(),
                 stored.goal(),
+                stored.splitType() == null ? SplitType.CUSTOM : stored.splitType(),
                 stored.days(),
                 stored.explanation(),
                 stored.warnings(),

@@ -26,6 +26,7 @@ export async function proposeWorkout(
       prompt: input.prompt,
       trainingDays: input.trainingDays ?? null,
       goal: input.goal ?? null,
+      splitType: input.splitType ?? null,
     },
     { headers: { [IDEMPOTENCY_HEADER]: idempotencyKey } }
   );

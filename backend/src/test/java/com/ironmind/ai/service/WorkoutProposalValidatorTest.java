@@ -8,6 +8,7 @@ import com.ironmind.ai.provider.AiContext;
 import com.ironmind.ai.schema.WorkoutProposalPayload;
 import com.ironmind.common.exception.AiInvalidResponseException;
 import com.ironmind.exercise.entity.MovementType;
+import com.ironmind.program.entity.SplitType;
 import com.ironmind.user.entity.TrainingExperience;
 import com.ironmind.user.entity.TrainingGoal;
 import java.util.ArrayList;
@@ -194,6 +195,54 @@ class WorkoutProposalValidatorTest {
                 .isInstanceOf(AiInvalidResponseException.class);
     }
 
+    @Test
+    @DisplayName("keeps the split chosen by the user even when the model suggests another one")
+    void keepsTheSplitChosenByTheUser() {
+        WorkoutProposalPayload payload = new WorkoutProposalPayload(
+                "Treino",
+                TrainingGoal.GENERAL,
+                List.of(new WorkoutProposalPayload.Day("Dia 1", List.of(
+                        planned(BENCH_PRESS, 3, 8, 12, 90)))),
+                null,
+                SplitType.PPL);
+
+        ValidatedWorkoutProposal validated = validator.validate(
+                payload, context(SplitType.UPPER_LOWER, BENCH_PRESS));
+
+        assertThat(validated.splitType()).isEqualTo(SplitType.UPPER_LOWER);
+    }
+
+    @Test
+    @DisplayName("uses the split suggested by the model when the user did not choose one")
+    void usesTheSplitSuggestedByTheModel() {
+        WorkoutProposalPayload payload = new WorkoutProposalPayload(
+                "Treino",
+                TrainingGoal.GENERAL,
+                List.of(new WorkoutProposalPayload.Day("Dia 1", List.of(
+                        planned(BENCH_PRESS, 3, 8, 12, 90)))),
+                null,
+                SplitType.PPL);
+
+        ValidatedWorkoutProposal validated = validator.validate(payload, context(BENCH_PRESS));
+
+        assertThat(validated.splitType()).isEqualTo(SplitType.PPL);
+    }
+
+    @Test
+    @DisplayName("classifies the proposal as custom when neither side chooses a split")
+    void classifiesTheProposalAsCustomWhenNeitherSideChoosesASplit() {
+        WorkoutProposalPayload payload = new WorkoutProposalPayload(
+                "Treino",
+                TrainingGoal.GENERAL,
+                List.of(new WorkoutProposalPayload.Day("Dia 1", List.of(
+                        planned(BENCH_PRESS, 3, 8, 12, 90)))),
+                null);
+
+        ValidatedWorkoutProposal validated = validator.validate(payload, context(BENCH_PRESS));
+
+        assertThat(validated.splitType()).isEqualTo(SplitType.CUSTOM);
+    }
+
     private static WorkoutProposalPayload.PlannedExercise planned(UUID exerciseId, int sets, int min, int max,
             int restSeconds) {
         return new WorkoutProposalPayload.PlannedExercise(
@@ -201,13 +250,17 @@ class WorkoutProposalValidatorTest {
     }
 
     private static AiContext context(UUID... exerciseIds) {
+        return context(null, exerciseIds);
+    }
+
+    private static AiContext context(SplitType splitType, UUID... exerciseIds) {
         List<AiContext.CatalogExercise> catalog = new ArrayList<>();
         for (UUID exerciseId : exerciseIds) {
             catalog.add(new AiContext.CatalogExercise(
                     exerciseId, "Exercício " + exerciseId, "PEITO", "Barra", MovementType.COMPOUND));
         }
         return new AiContext(TrainingGoal.STRENGTH, TrainingExperience.INTERMEDIATE, 3,
-                List.of("Barra"), List.of(), catalog);
+                List.of("Barra"), List.of(), catalog, splitType);
     }
 
     private static AiProperties properties() {

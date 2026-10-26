@@ -6,7 +6,7 @@ import type {
   WorkoutProposal,
   WorkoutProposalInput,
 } from '../../types/ai';
-import type { WorkoutProgram } from '../../types/program';
+import type { WorkoutProgram, SplitType } from '../../types/program';
 import { createProgram } from '../programs/program.service';
 import { programQueryKeys } from '../programs/usePrograms';
 import { decideRecommendation, proposeWorkout } from './ai.service';
@@ -25,6 +25,8 @@ export type SaveProposalVariables = {
   name: string;
   /** Days reviewed (and possibly edited) by the user. */
   days: ProposedDay[];
+  /** Split reviewed by the user, defaults to the split of the proposal. */
+  splitType?: SplitType;
 };
 
 export type SaveProposalResult = {
@@ -49,11 +51,14 @@ export function useSaveWorkoutProposal() {
       proposal,
       name,
       days,
+      splitType,
     }: SaveProposalVariables): Promise<SaveProposalResult> => {
-      const decision = isProposalEdited(proposal, name, days)
+      const decision = isProposalEdited(proposal, name, days, splitType)
         ? 'EDITED'
         : 'ACCEPTED';
-      const program = await createProgram(toProgramDraft(proposal, name, days));
+      const program = await createProgram(
+        toProgramDraft(proposal, name, days, splitType)
+      );
 
       let decisionFailed = false;
       try {

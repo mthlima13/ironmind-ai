@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.ironmind.ai.schema.VoiceInterpretationPayload;
 import com.ironmind.ai.schema.WorkoutProposalPayload;
 import com.ironmind.exercise.entity.MovementType;
+import com.ironmind.program.entity.SplitType;
 import com.ironmind.user.entity.TrainingExperience;
 import com.ironmind.user.entity.TrainingGoal;
 import java.math.BigDecimal;
@@ -120,10 +121,50 @@ class MockLlmProviderTest {
         assertThat(provider.modelName()).isEqualTo(MockLlmProvider.MODEL_NAME);
     }
 
+    @Test
+    @DisplayName("keeps the split chosen by the user and names the days after it")
+    void keepsTheSplitChosenByTheUserAndNamesTheDaysAfterIt() {
+        WorkoutProposalPayload payload = provider.proposeWorkout(
+                context(TrainingGoal.HYPERTROPHY, 4, catalog(12), SplitType.PHUL),
+                "Monte um treino PHUL.");
+
+        assertThat(payload.splitType()).isEqualTo(SplitType.PHUL);
+        assertThat(payload.name()).isEqualTo("Treino de hipertrofia - PHUL");
+        assertThat(payload.days())
+                .extracting(WorkoutProposalPayload.Day::name)
+                .containsExactly(
+                        "Superior (força)",
+                        "Inferior (força)",
+                        "Superior (hipertrofia)",
+                        "Inferior (hipertrofia)");
+    }
+
+    @Test
+    @DisplayName("derives the split from the training days when the user leaves it to the AI")
+    void derivesTheSplitFromTheTrainingDaysWhenTheUserLeavesItToTheAi() {
+        assertThat(provider.proposeWorkout(
+                context(TrainingGoal.GENERAL, 3, catalog(12)), "Monte um treino.").splitType())
+                .isEqualTo(SplitType.FULL_BODY);
+        assertThat(provider.proposeWorkout(
+                context(TrainingGoal.GENERAL, 4, catalog(12)), "Monte um treino.").splitType())
+                .isEqualTo(SplitType.UPPER_LOWER);
+        assertThat(provider.proposeWorkout(
+                context(TrainingGoal.GENERAL, 5, catalog(12)), "Monte um treino.").splitType())
+                .isEqualTo(SplitType.HYBRID_PPL_UPPER_LOWER);
+        assertThat(provider.proposeWorkout(
+                context(TrainingGoal.GENERAL, 6, catalog(12)), "Monte um treino.").splitType())
+                .isEqualTo(SplitType.PPL);
+    }
+
     private static AiContext context(TrainingGoal goal, int trainingDays,
             List<AiContext.CatalogExercise> catalog) {
+        return context(goal, trainingDays, catalog, null);
+    }
+
+    private static AiContext context(TrainingGoal goal, int trainingDays,
+            List<AiContext.CatalogExercise> catalog, SplitType splitType) {
         return new AiContext(goal, TrainingExperience.INTERMEDIATE, trainingDays,
-                List.of("Barra"), List.of(), catalog);
+                List.of("Barra"), List.of(), catalog, splitType);
     }
 
     private static List<AiContext.CatalogExercise> catalog(int size) {

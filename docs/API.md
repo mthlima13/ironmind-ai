@@ -577,12 +577,16 @@ Content-Type: application/json
 {
   "prompt": "Treino de hipertrofia para 4 dias",
   "trainingDays": 4,
-  "goal": "HYPERTROPHY"
+  "goal": "HYPERTROPHY",
+  "splitType": "UPPER_LOWER"
 }
 ```
 
-`trainingDays` (1 a 7) e `goal` são opcionais; quando ausentes valem as
-preferências do usuário.
+`trainingDays` (1 a 7), `goal` e `splitType` são opcionais; quando ausentes
+valem as preferências do usuário (dias e objetivo) e a IA escolhe a divisão.
+`splitType` aceita `PPL`, `UPPER_LOWER`, `FULL_BODY`, `ABCDE`, `ABC`,
+`ARNOLD_SPLIT`, `PHUL` e `HYBRID_PPL_UPPER_LOWER`. Não existe modo aleatório: a
+divisão informada prevalece sobre a sugestão do modelo.
 
 `200` com a proposta validada:
 
@@ -593,6 +597,7 @@ preferências do usuário.
   "model": "mock-ironmind-v1",
   "name": "Treino de hipertrofia",
   "goal": "HYPERTROPHY",
+  "splitType": "UPPER_LOWER",
   "days": [
     {
       "name": "Dia 1",
@@ -620,6 +625,7 @@ Regras:
 | Item | Regra |
 |---|---|
 | Catálogo | só exercícios visíveis ao usuário, já filtrados por restrição ativa e equipamento |
+| `splitType` | a divisão do pedido prevalece; sem pedido, vale a sugestão do modelo; sem nenhuma das duas, `CUSTOM` |
 | `exerciseId` fora do catálogo | descartado, com aviso em `warnings` |
 | Limites | dias, exercícios por dia, séries, repetições e descanso são ajustados pelo backend |
 | Dias sem exercício e exercícios repetidos | removidos antes da resposta |

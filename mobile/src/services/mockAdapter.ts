@@ -32,9 +32,34 @@ import {
 } from '../types/api';
 import type { Exercise } from '../types/exercise';
 import type { RecommendationStatus, WorkoutProposal } from '../types/ai';
-import type { ProgramDay, WorkoutProgram } from '../types/program';
+import type { ProgramDay, SplitType, WorkoutProgram } from '../types/program';
 import type { InjuryRestriction, AuthUser, UserProfile } from '../types/user';
 import type { ExerciseSet, SessionExercise, WorkoutSession } from '../types/workout';
+
+/**
+ * Day focus of each split used by the mock proposal, in the order the days
+ * cycle. `CUSTOM` has no plan, so the day names fall back to "Dia N".
+ */
+const MOCK_SPLIT_DAY_NAMES: Record<SplitType, string[]> = {
+  PPL: [
+    'Push (peito, ombros e tríceps)',
+    'Pull (costas e bíceps)',
+    'Legs (pernas e glúteos)',
+  ],
+  UPPER_LOWER: ['Superior', 'Inferior'],
+  FULL_BODY: ['Corpo inteiro'],
+  ABCDE: ['Peito', 'Costas', 'Pernas', 'Ombros', 'Braços'],
+  ABC: ['Peito e tríceps', 'Costas e bíceps', 'Pernas e ombros'],
+  ARNOLD_SPLIT: ['Peito e costas', 'Ombros e braços', 'Pernas'],
+  PHUL: [
+    'Superior (força)',
+    'Inferior (força)',
+    'Superior (hipertrofia)',
+    'Inferior (hipertrofia)',
+  ],
+  HYBRID_PPL_UPPER_LOWER: ['Push', 'Pull', 'Pernas', 'Superior', 'Inferior'],
+  CUSTOM: [],
+};
 
 const STATUS_TEXT: Record<number, string> = {
   200: 'OK',
@@ -1389,11 +1414,16 @@ function buildRoutes(state: MockState): MockRoute[] {
       }
 
       const idempotencyKey = headers['idempotency-key'];
+      const requestedSplit =
+        typeof body.splitType === 'string'
+          ? (body.splitType as SplitType)
+          : null;
       const fingerprint = mockHash(
         JSON.stringify({
           prompt,
           trainingDays: body.trainingDays ?? null,
           goal: body.goal ?? null,
+          splitType: requestedSplit,
         })
       );
 
@@ -1455,8 +1485,23 @@ function buildRoutes(state: MockState): MockRoute[] {
         1,
         Math.min(trainingDays, Math.ceil(catalog.length / 2))
       );
+      // The user choice always wins; without it the split is derived from the
+      // number of days, never drawn at random.
+      const resolvedSplit: SplitType =
+        requestedSplit ??
+        (trainingDays <= 3
+          ? 'FULL_BODY'
+          : trainingDays === 4
+            ? 'UPPER_LOWER'
+            : trainingDays === 5
+              ? 'HYBRID_PPL_UPPER_LOWER'
+              : 'PPL');
+      const splitDayNames = MOCK_SPLIT_DAY_NAMES[resolvedSplit];
       const days = Array.from({ length: dayCount }, (_, dayIndex) => ({
-        name: `Dia ${dayIndex + 1}`,
+        name:
+          splitDayNames.length > 0
+            ? splitDayNames[dayIndex % splitDayNames.length]!
+            : `Dia ${dayIndex + 1}`,
         exercises: compoundFirst
           .filter((_, index) => index % dayCount === dayIndex)
           .slice(0, 4)
@@ -1484,6 +1529,7 @@ function buildRoutes(state: MockState): MockRoute[] {
         model: 'mock-ironmind-v1',
         name: titles[goal],
         goal,
+        splitType: resolvedSplit,
         days,
         explanation: `Proposta gerada a partir do seu pedido: "${prompt}". Ajuste séries, repetições e descanso antes de salvar.`,
         warnings: blockedExerciseIds.size

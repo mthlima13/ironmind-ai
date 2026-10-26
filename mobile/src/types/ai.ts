@@ -1,3 +1,4 @@
+import type { SplitType } from './program';
 import type { TrainingGoal } from './user';
 
 /** Lifecycle of an AI recommendation (SPEC 12.2). */
@@ -51,6 +52,7 @@ export type WorkoutProposal = {
   model: string;
   name: string;
   goal: TrainingGoal;
+  splitType: SplitType;
   days: ProposedDay[];
   explanation: string;
   warnings: string[];
@@ -62,6 +64,8 @@ export type WorkoutProposalInput = {
   prompt: string;
   trainingDays?: number | null;
   goal?: TrainingGoal | null;
+  /** Chosen split, `null` lets the AI choose it. */
+  splitType?: SplitType | null;
 };
 
 /** Decision recorded on a reviewed recommendation. */

@@ -1,6 +1,7 @@
 package com.ironmind.ai.dto;
 
 import com.ironmind.ai.entity.RecommendationStatus;
+import com.ironmind.program.entity.SplitType;
 import com.ironmind.user.entity.TrainingGoal;
 import java.util.List;
 import java.util.UUID;
@@ -17,6 +18,7 @@ import java.util.UUID;
  * @param model            model that produced the proposal
  * @param name             name of the proposed program
  * @param goal             goal of the proposed program
+ * @param splitType        division of the proposed program
  * @param days             validated days of the program
  * @param explanation      explanation shown to the user on review
  * @param warnings         adjustments and removals applied by the backend
@@ -28,6 +30,7 @@ public record WorkoutProposalResponse(
         String model,
         String name,
         TrainingGoal goal,
+        SplitType splitType,
         List<ProposedDayResponse> days,
         String explanation,
         List<String> warnings,

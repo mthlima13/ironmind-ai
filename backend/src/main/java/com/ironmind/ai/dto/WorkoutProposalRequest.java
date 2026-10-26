@@ -1,5 +1,6 @@
 package com.ironmind.ai.dto;
 
+import com.ironmind.program.entity.SplitType;
 import com.ironmind.user.entity.TrainingGoal;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -15,6 +16,7 @@ import jakarta.validation.constraints.Size;
  * @param prompt       what the user wants, in natural language
  * @param trainingDays number of training days asked, {@code null} to use the preferences
  * @param goal         goal asked, {@code null} to use the preferences
+ * @param splitType    division chosen by the user, {@code null} to let the model choose
  */
 public record WorkoutProposalRequest(
         @NotBlank(message = "Descreva o treino que você quer.")
@@ -25,5 +27,7 @@ public record WorkoutProposalRequest(
         @Max(value = 7, message = "Informe no máximo 7 dias de treino.")
         Integer trainingDays,
 
-        TrainingGoal goal) {
+        TrainingGoal goal,
+
+        SplitType splitType) {
 }

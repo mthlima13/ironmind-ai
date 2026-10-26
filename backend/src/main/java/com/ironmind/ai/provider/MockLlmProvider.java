@@ -3,6 +3,7 @@ package com.ironmind.ai.provider;
 import com.ironmind.ai.schema.VoiceInterpretationPayload;
 import com.ironmind.ai.schema.WorkoutProposalPayload;
 import com.ironmind.exercise.entity.MovementType;
+import com.ironmind.program.entity.SplitType;
 import com.ironmind.user.entity.TrainingGoal;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -61,6 +62,8 @@ public class MockLlmProvider implements LlmProvider {
 
         TrainingGoal goal = context.goal() == null ? TrainingGoal.GENERAL : context.goal();
         Prescription prescription = Prescription.forGoal(goal);
+        boolean splitChosenByUser = context.splitType() != null;
+        SplitType split = resolveSplit(context);
 
         List<AiContext.CatalogExercise> pool = new ArrayList<>(context.catalog());
         pool.sort(Comparator
@@ -87,15 +90,17 @@ public class MockLlmProvider implements LlmProvider {
                             new WorkoutProposalPayload.RepRange(prescription.repsMin(), prescription.repsMax()),
                             prescription.restSeconds()))
                     .toList();
-            proposedDays.add(new WorkoutProposalPayload.Day(dayName(dayIndex, dayExercises), planned));
+            proposedDays.add(new WorkoutProposalPayload.Day(
+                    dayName(split, dayIndex, dayExercises), planned));
         }
 
         return new WorkoutProposalPayload(
-                programName(goal),
+                programName(goal, split, splitChosenByUser),
                 goal,
                 proposedDays,
                 "Proposta do provedor simulado, montada a partir do seu objetivo e do catálogo disponível. "
-                        + "Revise os exercícios, as séries e as cargas antes de salvar.");
+                        + "Revise os exercícios, as séries e as cargas antes de salvar.",
+                split);
     }
 
     @Override
@@ -177,7 +182,36 @@ public class MockLlmProvider implements LlmProvider {
         }
     }
 
-    private static String dayName(int dayIndex, List<AiContext.CatalogExercise> exercises) {
+    /**
+     * Resolves the division of the proposal.
+     *
+     * <p>An explicit choice of the user is always respected. When the user leaves the choice to the
+     * model, the division is derived deterministically from the number of training days, never
+     * randomly: fewer days fit a full body program, four days fit an upper/lower split and five or
+     * more days fit a push/pull/legs based split.
+     */
+    private static SplitType resolveSplit(AiContext context) {
+        if (context.splitType() != null) {
+            return context.splitType();
+        }
+        int trainingDays = context.trainingDays();
+        if (trainingDays <= 3) {
+            return SplitType.FULL_BODY;
+        }
+        if (trainingDays == 4) {
+            return SplitType.UPPER_LOWER;
+        }
+        if (trainingDays == 5) {
+            return SplitType.HYBRID_PPL_UPPER_LOWER;
+        }
+        return SplitType.PPL;
+    }
+
+    private static String dayName(SplitType split, int dayIndex, List<AiContext.CatalogExercise> exercises) {
+        String[] plan = dayPlan(split);
+        if (plan.length > 0) {
+            return plan[dayIndex % plan.length];
+        }
         Set<String> groups = new LinkedHashSet<>();
         for (AiContext.CatalogExercise exercise : exercises) {
             if (exercise.primaryMuscleGroup() != null && !exercise.primaryMuscleGroup().isBlank()) {
@@ -191,12 +225,66 @@ public class MockLlmProvider implements LlmProvider {
         return Character.toUpperCase(joined.charAt(0)) + joined.substring(1);
     }
 
-    private static String programName(TrainingGoal goal) {
-        return switch (goal) {
+    /**
+     * Day focus of each division, in the order the days cycle. An empty plan means the day name is
+     * derived from the muscle groups of the exercises, as happens with a custom program.
+     */
+    private static String[] dayPlan(SplitType split) {
+        return switch (split) {
+            case PPL -> new String[] {
+                    "Push (peito, ombros e tríceps)",
+                    "Pull (costas e bíceps)",
+                    "Legs (pernas e glúteos)"};
+            case UPPER_LOWER -> new String[] {"Superior", "Inferior"};
+            case FULL_BODY -> new String[] {"Corpo inteiro"};
+            case ABCDE -> new String[] {"Peito", "Costas", "Pernas", "Ombros", "Braços"};
+            case ABC -> new String[] {
+                    "Peito e tríceps",
+                    "Costas e bíceps",
+                    "Pernas e ombros"};
+            case ARNOLD_SPLIT -> new String[] {
+                    "Peito e costas",
+                    "Ombros e braços",
+                    "Pernas"};
+            case PHUL -> new String[] {
+                    "Superior (força)",
+                    "Inferior (força)",
+                    "Superior (hipertrofia)",
+                    "Inferior (hipertrofia)"};
+            case HYBRID_PPL_UPPER_LOWER -> new String[] {
+                    "Push",
+                    "Pull",
+                    "Pernas",
+                    "Superior",
+                    "Inferior"};
+            case CUSTOM -> new String[0];
+        };
+    }
+
+    private static String programName(TrainingGoal goal, SplitType split, boolean splitChosenByUser) {
+        String base = switch (goal) {
             case HYPERTROPHY -> "Treino de hipertrofia";
             case STRENGTH -> "Treino de força";
             case ENDURANCE -> "Treino de resistência";
             case GENERAL -> "Treino geral";
+        };
+        if (!splitChosenByUser || split == null || split == SplitType.CUSTOM) {
+            return base;
+        }
+        return base + " - " + splitLabel(split);
+    }
+
+    private static String splitLabel(SplitType split) {
+        return switch (split) {
+            case PPL -> "Push / Pull / Legs";
+            case UPPER_LOWER -> "Upper / Lower";
+            case FULL_BODY -> "Full Body";
+            case ABCDE -> "ABCDE";
+            case ABC -> "ABC";
+            case ARNOLD_SPLIT -> "Arnold Split";
+            case PHUL -> "PHUL";
+            case HYBRID_PPL_UPPER_LOWER -> "Híbrido PPL + Upper/Lower";
+            case CUSTOM -> "Personalizado";
         };
     }
 

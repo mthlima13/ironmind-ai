@@ -5,6 +5,7 @@ import com.ironmind.ai.provider.AiContext;
 import com.ironmind.exercise.entity.Exercise;
 import com.ironmind.exercise.entity.MovementType;
 import com.ironmind.exercise.repository.ExerciseRepository;
+import com.ironmind.program.entity.SplitType;
 import com.ironmind.user.entity.InjuryRestriction;
 import com.ironmind.user.entity.TrainingExperience;
 import com.ironmind.user.entity.TrainingGoal;
@@ -57,15 +58,31 @@ public class AiContextBuilder {
     }
 
     /**
+     * Builds the context of the user without a division chosen by the user.
+     *
+     * @param userId                owner of the context
+     * @param requestedTrainingDays number of days asked in the request, {@code null} to use the
+     *                              preferences
+     * @param requestedGoal         goal asked in the request, {@code null} to use the preferences
+     * @return context with the catalog already filtered by restriction and equipment
+     */
+    public AiContext build(UUID userId, Integer requestedTrainingDays, TrainingGoal requestedGoal) {
+        return build(userId, requestedTrainingDays, requestedGoal, null);
+    }
+
+    /**
      * Builds the context of the user.
      *
      * @param userId                 owner of the context
      * @param requestedTrainingDays  number of days asked in the request, {@code null} to use the
      *                               preferences
      * @param requestedGoal          goal asked in the request, {@code null} to use the preferences
+     * @param requestedSplit         division asked in the request, {@code null} to let the model
+     *                               choose
      * @return context with the catalog already filtered by restriction and equipment
      */
-    public AiContext build(UUID userId, Integer requestedTrainingDays, TrainingGoal requestedGoal) {
+    public AiContext build(UUID userId, Integer requestedTrainingDays, TrainingGoal requestedGoal,
+            SplitType requestedSplit) {
         UserPreferences preferences = preferencesRepository.findByUserId(userId).orElse(null);
 
         List<InjuryRestriction> activeRestrictions = restrictionRepository.findByUserId(userId).stream()
@@ -107,7 +124,8 @@ public class AiContextBuilder {
                 trainingDaysOf(preferences, requestedTrainingDays),
                 equipment,
                 restrictionRegions,
-                catalog);
+                catalog,
+                requestedSplit);
     }
 
     /**

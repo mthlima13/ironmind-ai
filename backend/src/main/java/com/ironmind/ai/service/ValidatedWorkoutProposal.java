@@ -1,5 +1,6 @@
 package com.ironmind.ai.service;
 
+import com.ironmind.program.entity.SplitType;
 import com.ironmind.user.entity.TrainingGoal;
 import java.util.List;
 import java.util.UUID;
@@ -16,17 +17,27 @@ import java.util.UUID;
  * @param days        validated days
  * @param explanation explanation shown to the user on review
  * @param warnings    adjustments and removals that the user must know about
+ * @param splitType   division of the program, never {@code null}
  */
 public record ValidatedWorkoutProposal(
         String name,
         TrainingGoal goal,
         List<Day> days,
         String explanation,
-        List<String> warnings) {
+        List<String> warnings,
+        SplitType splitType) {
 
     public ValidatedWorkoutProposal {
         days = days == null ? List.of() : List.copyOf(days);
         warnings = warnings == null ? List.of() : List.copyOf(warnings);
+    }
+
+    /**
+     * Builds a validated proposal without a division, used by the tests.
+     */
+    public ValidatedWorkoutProposal(String name, TrainingGoal goal, List<Day> days,
+            String explanation, List<String> warnings) {
+        this(name, goal, days, explanation, warnings, SplitType.CUSTOM);
     }
 
     /**

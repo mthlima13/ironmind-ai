@@ -1,6 +1,7 @@
 package com.ironmind.ai.provider;
 
 import com.ironmind.exercise.entity.MovementType;
+import com.ironmind.program.entity.SplitType;
 import com.ironmind.user.entity.TrainingExperience;
 import com.ironmind.user.entity.TrainingGoal;
 import java.util.List;
@@ -19,6 +20,7 @@ import java.util.UUID;
  * @param availableEquipment  equipment informed by the user, empty when unspecified
  * @param restrictionRegions  body regions of the active restrictions
  * @param catalog             exercises visible to the user, already filtered and capped
+ * @param splitType           division chosen by the user, {@code null} to let the model choose
  */
 public record AiContext(
         TrainingGoal goal,
@@ -26,12 +28,22 @@ public record AiContext(
         int trainingDays,
         List<String> availableEquipment,
         List<String> restrictionRegions,
-        List<CatalogExercise> catalog) {
+        List<CatalogExercise> catalog,
+        SplitType splitType) {
 
     public AiContext {
         availableEquipment = availableEquipment == null ? List.of() : List.copyOf(availableEquipment);
         restrictionRegions = restrictionRegions == null ? List.of() : List.copyOf(restrictionRegions);
         catalog = catalog == null ? List.of() : List.copyOf(catalog);
+    }
+
+    /**
+     * Builds a context without a division chosen by the user, leaving the choice to the model.
+     */
+    public AiContext(TrainingGoal goal, TrainingExperience experience, int trainingDays,
+            List<String> availableEquipment, List<String> restrictionRegions,
+            List<CatalogExercise> catalog) {
+        this(goal, experience, trainingDays, availableEquipment, restrictionRegions, catalog, null);
     }
 
     /**

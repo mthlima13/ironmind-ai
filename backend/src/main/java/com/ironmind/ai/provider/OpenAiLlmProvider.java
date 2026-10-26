@@ -48,6 +48,7 @@ public class OpenAiLlmProvider implements LlmProvider {
             {
               "name": "string",
               "goal": "HYPERTROPHY | STRENGTH | ENDURANCE | GENERAL",
+              "splitType": "PPL | UPPER_LOWER | FULL_BODY | ABCDE | ABC | ARNOLD_SPLIT | PHUL | HYBRID_PPL_UPPER_LOWER | CUSTOM",
               "days": [
                 {
                   "name": "string",
@@ -63,6 +64,8 @@ public class OpenAiLlmProvider implements LlmProvider {
               ],
               "explanation": "string"
             }
+            When the request carries a chosen splitType, keep it and name the days after it. When it
+            is null, choose the split that best fits the number of training days and report it.
             """;
 
     private static final String VOICE_SCHEMA_HINT = """
@@ -108,14 +111,16 @@ public class OpenAiLlmProvider implements LlmProvider {
 
     @Override
     public WorkoutProposalPayload proposeWorkout(AiContext context, String request) {
-        String userPrompt = toJson(Map.of(
-                "request", safe(request),
-                "goal", context.goal(),
-                "experience", context.experience(),
-                "trainingDays", context.trainingDays(),
-                "availableEquipment", context.availableEquipment(),
-                "restrictionBodyRegions", context.restrictionRegions(),
-                "catalog", context.catalog()));
+        Map<String, Object> prompt = new LinkedHashMap<>();
+        prompt.put("request", safe(request));
+        prompt.put("goal", context.goal());
+        prompt.put("experience", context.experience());
+        prompt.put("trainingDays", context.trainingDays());
+        prompt.put("splitType", context.splitType() == null ? null : context.splitType().name());
+        prompt.put("availableEquipment", context.availableEquipment());
+        prompt.put("restrictionBodyRegions", context.restrictionRegions());
+        prompt.put("catalog", context.catalog());
+        String userPrompt = toJson(prompt);
         String content = complete(SYSTEM_PROMPT + WORKOUT_SCHEMA_HINT, userPrompt);
         return parse(content, WorkoutProposalPayload.class);
     }

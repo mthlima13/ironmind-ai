@@ -1,6 +1,7 @@
 package com.ironmind.ai.schema;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.ironmind.program.entity.SplitType;
 import com.ironmind.user.entity.TrainingGoal;
 import java.util.List;
 import java.util.UUID;
@@ -16,13 +17,22 @@ import java.util.UUID;
  * @param goal        goal of the proposed program
  * @param days        days of the proposed program
  * @param explanation short explanation of the proposal, shown to the user on review
+ * @param splitType   division suggested by the model, {@code null} when it did not suggest one
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record WorkoutProposalPayload(
         String name,
         TrainingGoal goal,
         List<Day> days,
-        String explanation) {
+        String explanation,
+        SplitType splitType) {
+
+    /**
+     * Builds a payload without a division, used by the tests and by providers that do not choose it.
+     */
+    public WorkoutProposalPayload(String name, TrainingGoal goal, List<Day> days, String explanation) {
+        this(name, goal, days, explanation, null);
+    }
 
     /**
      * Day of the proposed program.

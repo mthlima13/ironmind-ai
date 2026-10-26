@@ -4,6 +4,7 @@ import com.ironmind.ai.config.AiProperties;
 import com.ironmind.ai.provider.AiContext;
 import com.ironmind.ai.schema.WorkoutProposalPayload;
 import com.ironmind.common.exception.AiInvalidResponseException;
+import com.ironmind.program.entity.SplitType;
 import com.ironmind.user.entity.TrainingGoal;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -146,7 +147,8 @@ public class WorkoutProposalValidator {
                 days,
                 truncate(text(payload.explanation(), "Proposta gerada para revisão do usuário."),
                         MAX_EXPLANATION_LENGTH),
-                warnings);
+                warnings,
+                splitOf(payload, context));
     }
 
     private static Bounds clamp(WorkoutProposalPayload.PlannedExercise candidate, AiProperties.Limits limits) {
@@ -196,6 +198,23 @@ public class WorkoutProposalValidator {
             return context.goal();
         }
         return TrainingGoal.GENERAL;
+    }
+
+    /**
+     * Resolves the division of the proposal.
+     *
+     * <p>The choice of the user always wins: when the request carries a division, the suggestion of
+     * the model is ignored. Without a choice of the user, the suggestion of the model is accepted;
+     * when neither exists, the program is classified as {@link SplitType#CUSTOM}.
+     */
+    private static SplitType splitOf(WorkoutProposalPayload payload, AiContext context) {
+        if (context.splitType() != null) {
+            return context.splitType();
+        }
+        if (payload.splitType() != null) {
+            return payload.splitType();
+        }
+        return SplitType.CUSTOM;
     }
 
     private static int clampInt(int value, int min, int max) {

@@ -23,6 +23,7 @@ const PROPOSAL: WorkoutProposal = {
   model: 'mock-ironmind-v1',
   name: 'Treino de hipertrofia',
   goal: 'HYPERTROPHY',
+  splitType: 'CUSTOM',
   days: [
     {
       name: 'Dia 1',
@@ -117,6 +118,13 @@ describe('workout proposal review helpers', () => {
       true
     );
 
+    expect(
+      isProposalEdited(PROPOSAL, PROPOSAL.name, cloneDays(PROPOSAL.days), 'CUSTOM')
+    ).toBe(false);
+    expect(
+      isProposalEdited(PROPOSAL, PROPOSAL.name, cloneDays(PROPOSAL.days), 'PPL')
+    ).toBe(true);
+
     const edited = updateExercise(cloneDays(PROPOSAL.days), 0, 0, { sets: 4 });
     expect(isProposalEdited(PROPOSAL, PROPOSAL.name, edited)).toBe(true);
   });
@@ -158,7 +166,7 @@ describe('mock AI proposal flow', () => {
 
     expect(program.id).toEqual(expect.any(String));
     expect(program.name).toBe('Programa da IA');
-    expect(program.splitType).toBe('CUSTOM');
+    expect(program.splitType).toBe(proposal.splitType);
     expect(program.days[0]?.exercises[0]?.exerciseId).toBe(
       proposal.days[0]?.exercises[0]?.exerciseId
     );
@@ -174,6 +182,22 @@ describe('mock AI proposal flow', () => {
       params: { page: 0, size: 100 },
     });
     expect(page.data.content.some((item) => item.id === program.id)).toBe(true);
+  });
+
+  it('respects the split chosen by the user', async () => {
+    const proposal = await proposeWorkout({
+      prompt: 'Treino de hipertrofia para 4 dias',
+      splitType: 'PHUL',
+    });
+
+    expect(proposal.splitType).toBe('PHUL');
+    expect(proposal.days[0]?.name).toBe('Superior (força)');
+
+    const program = await createProgram(
+      toProgramDraft(proposal, 'Programa PHUL', cloneDays(proposal.days))
+    );
+
+    expect(program.splitType).toBe('PHUL');
   });
 
   it('records the rejection without creating a program', async () => {

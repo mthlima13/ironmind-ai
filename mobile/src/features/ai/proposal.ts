@@ -9,9 +9,6 @@ import type { TrainingGoal } from '../../types/user';
  * the program payload can be tested without rendering anything.
  */
 
-/** AI proposals do not carry a split, so they are saved as a custom one. */
-export const PROPOSAL_SPLIT_TYPE: SplitType = 'CUSTOM';
-
 /** Limits of the program endpoint, used to keep the review inside them. */
 export const PROPOSAL_LIMITS = {
   minSets: 1,
@@ -120,9 +117,13 @@ export function updateExercise(
 export function isProposalEdited(
   proposal: WorkoutProposal,
   name: string,
-  days: ProposedDay[]
+  days: ProposedDay[],
+  splitType?: SplitType
 ): boolean {
   if (name.trim() !== proposal.name.trim()) {
+    return true;
+  }
+  if (splitType && splitType !== proposal.splitType) {
     return true;
   }
   if (days.length !== proposal.days.length) {
@@ -159,7 +160,8 @@ export function isProposalEdited(
 export function toProgramDraft(
   proposal: WorkoutProposal,
   name: string,
-  days: ProposedDay[]
+  days: ProposedDay[],
+  splitType?: SplitType
 ): ProgramDraft {
   const description = proposal.explanation
     .trim()
@@ -169,7 +171,7 @@ export function toProgramDraft(
     name: name.trim().slice(0, PROPOSAL_LIMITS.maxNameLength),
     description,
     goal: proposal.goal,
-    splitType: PROPOSAL_SPLIT_TYPE,
+    splitType: splitType ?? proposal.splitType,
     days: days.map((day) => ({
       name: day.name.trim(),
       exercises: day.exercises.map((exercise) => ({

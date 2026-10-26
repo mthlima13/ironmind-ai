@@ -12,6 +12,11 @@ import { ROUTES } from '../../navigation/linking';
 import { mapApiError } from '../../services/api';
 import { colors, radii, spacing, typography } from '../../theme';
 import type { ProposedDay, WorkoutProposal } from '../../types/ai';
+import {
+  SPLIT_TYPES,
+  SPLIT_TYPE_LABELS,
+  type SplitType,
+} from '../../types/program';
 import type { TrainingGoal } from '../../types/user';
 import { cloneDays, updateExercise } from './proposal';
 import {
@@ -42,6 +47,53 @@ const PROMPT_EXAMPLES = [
   'Treino full body para 2 dias, em casa e com halteres.',
 ];
 
+/**
+ * Split options of the form. `null` means the AI chooses, which is the only
+ * automatic path: there is no random mode. `CUSTOM` is not offered because it
+ * is the classification used when no split fits.
+ */
+const SPLIT_OPTIONS: { value: SplitType | null; label: string }[] = [
+  { value: null, label: 'IA escolhe' },
+  ...Object.values(SPLIT_TYPES)
+    .filter((value) => value !== SPLIT_TYPES.CUSTOM)
+    .map((value) => ({ value, label: SPLIT_TYPE_LABELS[value] })),
+];
+
+type SplitChipsProps = {
+  value: SplitType | null;
+  onChange: (value: SplitType | null) => void;
+  testIDPrefix: string;
+};
+
+function SplitChips({ value, onChange, testIDPrefix }: SplitChipsProps) {
+  return (
+    <View style={styles.chipRow}>
+      {SPLIT_OPTIONS.map((option) => {
+        const isActive = value === option.value;
+        return (
+          <Pressable
+            key={option.value ?? 'auto'}
+            accessibilityRole="button"
+            accessibilityState={{ selected: isActive }}
+            onPress={() => onChange(option.value)}
+            style={[styles.chip, isActive ? styles.chipActive : null]}
+            testID={`${testIDPrefix}-${option.value ?? 'auto'}`}
+          >
+            <Text
+              style={[
+                styles.chipText,
+                isActive ? styles.chipTextActive : null,
+              ]}
+            >
+              {option.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 /** Limits used by the review controls, stricter than the API limits. */
 const REVIEW_LIMITS = {
   minSets: 1,
@@ -66,8 +118,10 @@ export function WorkoutProposalScreen() {
   const router = useRouter();
   const [prompt, setPrompt] = useState('');
   const [trainingDays, setTrainingDays] = useState<number | null>(null);
+  const [splitChoice, setSplitChoice] = useState<SplitType | null>(null);
   const [proposal, setProposal] = useState<WorkoutProposal | null>(null);
   const [days, setDays] = useState<ProposedDay[]>([]);
+  const [reviewSplit, setReviewSplit] = useState<SplitType | null>(null);
   const [programName, setProgramName] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -82,6 +136,7 @@ export function WorkoutProposalScreen() {
   const reset = () => {
     setProposal(null);
     setDays([]);
+    setReviewSplit(null);
     setProgramName('');
     setFormError(null);
     setNotice(null);
@@ -98,11 +153,12 @@ export function WorkoutProposalScreen() {
     setNotice(null);
     setSaved(null);
     generate.mutate(
-      { prompt: trimmed, trainingDays },
+      { prompt: trimmed, trainingDays, splitType: splitChoice },
       {
         onSuccess: (result) => {
           setProposal(result);
           setDays(cloneDays(result.days));
+          setReviewSplit(result.splitType);
           setProgramName(result.name);
         },
         onError: (error) => setFormError(mapApiError(error).message),
@@ -130,7 +186,12 @@ export function WorkoutProposalScreen() {
     }
     setFormError(null);
     save.mutate(
-      { proposal, name: programName, days },
+      {
+        proposal,
+        name: programName,
+        days,
+        splitType: reviewSplit ?? proposal.splitType,
+      },
       {
         onSuccess: (result) =>
           setSaved({
@@ -259,6 +320,19 @@ export function WorkoutProposalScreen() {
           </View>
         </View>
 
+        <View style={styles.chips}>
+          <Text style={styles.chipsLabel}>Tipo de treino</Text>
+          <Text style={styles.helper}>
+            Escolha a divisão do treino ou deixe a IA decidir com base nos seus
+            dias, objetivo e histórico.
+          </Text>
+          <SplitChips
+            value={splitChoice}
+            onChange={setSplitChoice}
+            testIDPrefix="proposal-split"
+          />
+        </View>
+
         <Button
           label="Gerar proposta"
           onPress={handleGenerate}
@@ -284,7 +358,7 @@ export function WorkoutProposalScreen() {
         <>
           <Card
             title={proposal.name}
-            subtitle={`${GOAL_LABELS[proposal.goal]} · ${proposal.days.length} dia(s)`}
+            subtitle={`${GOAL_LABELS[proposal.goal]} · ${SPLIT_TYPE_LABELS[reviewSplit ?? proposal.splitType]} · ${proposal.days.length} dia(s)`}
             testID="proposal-result"
           >
             <Text style={styles.body}>{proposal.explanation}</Text>
@@ -376,6 +450,14 @@ export function WorkoutProposalScreen() {
           </Card>
 
           <Card title="Salvar como programa">
+            <View style={styles.chips}>
+              <Text style={styles.chipsLabel}>Tipo de treino</Text>
+              <SplitChips
+                value={reviewSplit}
+                onChange={setReviewSplit}
+                testIDPrefix="proposal-review-split"
+              />
+            </View>
             <TextField
               label="Nome do programa"
               value={programName}
