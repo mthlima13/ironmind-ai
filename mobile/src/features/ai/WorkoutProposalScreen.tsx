@@ -78,7 +78,11 @@ function SplitChips({ value, onChange, testIDPrefix }: SplitChipsProps) {
             accessibilityRole="button"
             accessibilityState={{ selected: isActive }}
             onPress={() => onChange(option.value)}
-            style={[styles.chip, isActive ? styles.chipActive : null]}
+            style={({ pressed }) => [
+              styles.chip,
+              isActive ? styles.chipActive : null,
+              pressed ? styles.chipPressed : null,
+            ]}
             testID={`${testIDPrefix}-${option.value ?? 'auto'}`}
           >
             <Text
@@ -288,7 +292,10 @@ export function WorkoutProposalScreen() {
               key={example}
               accessibilityRole="button"
               onPress={() => setPrompt(example)}
-              style={styles.example}
+              style={({ pressed }) => [
+                styles.example,
+                pressed ? styles.examplePressed : null,
+              ]}
               testID="proposal-example"
             >
               <Text style={styles.exampleText}>{example}</Text>
@@ -307,7 +314,11 @@ export function WorkoutProposalScreen() {
                   accessibilityRole="button"
                   accessibilityState={{ selected: isActive }}
                   onPress={() => setTrainingDays(option.value)}
-                  style={[styles.chip, isActive ? styles.chipActive : null]}
+                  style={({ pressed }) => [
+                    styles.chip,
+                    isActive ? styles.chipActive : null,
+                    pressed ? styles.chipPressed : null,
+                  ]}
                   testID={`proposal-days-${option.value ?? 'default'}`}
                 >
                   <Text
@@ -527,10 +538,15 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   example: {
     backgroundColor: colors.surfaceElevated,
+    borderColor: colors.border,
     borderRadius: radii.sm,
+    borderWidth: 1,
     minHeight: 44,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+  },
+  examplePressed: {
+    backgroundColor: colors.surfacePressed,
   },
   exampleText: {
     ...typography.caption,
@@ -551,7 +567,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   chip: {
     alignItems: 'center',
     backgroundColor: colors.surfaceElevated,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     borderRadius: radii.pill,
     borderWidth: 1,
     justifyContent: 'center',
@@ -561,6 +577,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   chipActive: {
     backgroundColor: colors.accentSoft,
     borderColor: colors.accent,
+  },
+  chipPressed: {
+    backgroundColor: colors.surfacePressed,
   },
   chipText: {
     ...typography.caption,

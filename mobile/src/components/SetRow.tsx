@@ -50,7 +50,10 @@ export function SetRow({
             accessibilityLabel={`Remover série ${index}`}
             testID={`set-remove-${index}`}
             onPress={onRemove}
-            style={styles.removeButton}
+            style={({ pressed }) => [
+              styles.removeButton,
+              pressed ? styles.removeButtonPressed : null,
+            ]}
           >
             <Ionicons name="trash-outline" size={18} color={colors.textMuted} />
           </Pressable>
@@ -145,6 +148,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     justifyContent: 'center',
     width: layout.minTouchTarget,
   },
+  removeButtonPressed: {
+    opacity: 0.6,
+  },
   inputs: {
     flexDirection: 'row',
     gap: spacing.sm,
@@ -160,7 +166,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   input: {
     ...typography.bodyStrong,
     backgroundColor: colors.backgroundElevated,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     borderRadius: radii.sm,
     borderWidth: 1,
     color: colors.text,

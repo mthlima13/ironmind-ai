@@ -115,7 +115,11 @@ export function CustomExerciseForm({ onCreated }: CustomExerciseFormProps) {
               accessibilityRole="button"
               accessibilityState={{ selected: isActive }}
               onPress={() => setMuscleGroup(group)}
-              style={[styles.pill, isActive ? styles.pillActive : null]}
+              style={({ pressed }) => [
+                styles.pill,
+                isActive ? styles.pillActive : null,
+                pressed ? styles.pillPressed : null,
+              ]}
               testID={`custom-exercise-muscle-${group}`}
             >
               <Text style={[styles.pillText, isActive ? styles.pillTextActive : null]}>
@@ -136,7 +140,11 @@ export function CustomExerciseForm({ onCreated }: CustomExerciseFormProps) {
               accessibilityRole="button"
               accessibilityState={{ selected: isActive }}
               onPress={() => setMovementType(type)}
-              style={[styles.pill, isActive ? styles.pillActive : null]}
+              style={({ pressed }) => [
+                styles.pill,
+                isActive ? styles.pillActive : null,
+                pressed ? styles.pillPressed : null,
+              ]}
               testID={`custom-exercise-movement-${type}`}
             >
               <Text style={[styles.pillText, isActive ? styles.pillTextActive : null]}>
@@ -173,7 +181,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   pill: {
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     borderRadius: radii.pill,
     borderWidth: 1,
     justifyContent: 'center',
@@ -183,6 +191,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   pillActive: {
     backgroundColor: colors.accentSoft,
     borderColor: colors.accent,
+  },
+  pillPressed: {
+    backgroundColor: colors.surfacePressed,
   },
   pillText: {
     ...typography.caption,

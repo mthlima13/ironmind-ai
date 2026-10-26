@@ -120,8 +120,13 @@ export function ProgramDayEditor({ day, onChange }: ProgramDayEditorProps) {
                 accessibilityLabel={`Mover ${programExercise.exercise.name} para cima`}
                 testID={`exercise-move-up-${programExercise.id}`}
                 disabled={index === 0}
+                accessibilityState={{ disabled: index === 0 }}
                 onPress={() => moveExercise(programExercise.id, 'up')}
-                style={styles.orderButton}
+                style={({ pressed }) => [
+                  styles.orderButton,
+                  index === 0 ? styles.orderButtonDisabled : null,
+                  pressed ? styles.orderButtonPressed : null,
+                ]}
               >
                 <Ionicons name="arrow-up" size={16} color={colors.textSecondary} />
               </Pressable>
@@ -130,8 +135,15 @@ export function ProgramDayEditor({ day, onChange }: ProgramDayEditorProps) {
                 accessibilityLabel={`Mover ${programExercise.exercise.name} para baixo`}
                 testID={`exercise-move-down-${programExercise.id}`}
                 disabled={index === day.exercises.length - 1}
+                accessibilityState={{ disabled: index === day.exercises.length - 1 }}
                 onPress={() => moveExercise(programExercise.id, 'down')}
-                style={styles.orderButton}
+                style={({ pressed }) => [
+                  styles.orderButton,
+                  index === day.exercises.length - 1
+                    ? styles.orderButtonDisabled
+                    : null,
+                  pressed ? styles.orderButtonPressed : null,
+                ]}
               >
                 <Ionicons name="arrow-down" size={16} color={colors.textSecondary} />
               </Pressable>
@@ -140,7 +152,10 @@ export function ProgramDayEditor({ day, onChange }: ProgramDayEditorProps) {
                 accessibilityLabel={`Remover ${programExercise.exercise.name}`}
                 testID={`exercise-remove-${programExercise.id}`}
                 onPress={() => removeExercise(programExercise.id)}
-                style={styles.orderButton}
+                style={({ pressed }) => [
+                  styles.orderButton,
+                  pressed ? styles.orderButtonPressed : null,
+                ]}
               >
                 <Ionicons name="trash-outline" size={16} color={colors.danger} />
               </Pressable>
@@ -202,7 +217,10 @@ export function ProgramDayEditor({ day, onChange }: ProgramDayEditorProps) {
                 key={exercise.id}
                 accessibilityRole="button"
                 onPress={() => addExercise(exercise.id)}
-                style={styles.pickerItem}
+                style={({ pressed }) => [
+                  styles.pickerItem,
+                  pressed ? styles.pickerItemPressed : null,
+                ]}
                 testID={`picker-exercise-${exercise.id}`}
               >
                 <Text style={styles.pickerItemName}>{exercise.name}</Text>
@@ -256,6 +274,12 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     justifyContent: 'center',
     width: layout.minTouchTarget,
   },
+  orderButtonPressed: {
+    opacity: 0.6,
+  },
+  orderButtonDisabled: {
+    opacity: 0.35,
+  },
   steppers: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -280,6 +304,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     minHeight: layout.minTouchTarget,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
+  },
+  pickerItemPressed: {
+    backgroundColor: colors.surfacePressed,
   },
   pickerItemName: {
     ...typography.body,

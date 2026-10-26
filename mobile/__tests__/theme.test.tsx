@@ -89,6 +89,61 @@ describe('useThemeStore', () => {
   });
 });
 
+/** WCAG 2.1 relative luminance of an opaque `#rrggbb` color. */
+function relativeLuminance(hex: string): number {
+  const channels = hex
+    .replace('#', '')
+    .match(/../g)!
+    .map((channel) => parseInt(channel, 16) / 255)
+    .map((value) =>
+      value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+    );
+  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+}
+
+function contrastRatio(foreground: string, background: string): number {
+  const lighter = Math.max(
+    relativeLuminance(foreground),
+    relativeLuminance(background)
+  );
+  const darker = Math.min(
+    relativeLuminance(foreground),
+    relativeLuminance(background)
+  );
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+const SURFACES = ['background', 'surface', 'surfaceElevated'] as const;
+const TEXT_TOKENS = ['text', 'textSecondary', 'textMuted', 'accent'] as const;
+const STATUS_TOKENS = ['danger', 'warning', 'success', 'info'] as const;
+
+describe('palette contrast (RNF-005)', () => {
+  it.each([
+    ['dark', darkColors],
+    ['light', lightColors],
+  ] as const)(
+    '%s keeps text readable and control borders visible',
+    (_name, palette) => {
+      for (const surface of SURFACES) {
+        for (const token of TEXT_TOKENS) {
+          // WCAG AA for normal-size text.
+          expect(contrastRatio(palette[token], palette[surface])).toBeGreaterThanOrEqual(4.5);
+        }
+        // WCAG 1.4.11 for the boundary of interactive controls.
+        expect(
+          contrastRatio(palette.borderStrong, palette[surface])
+        ).toBeGreaterThanOrEqual(3);
+      }
+
+      for (const token of STATUS_TOKENS) {
+        expect(contrastRatio(palette[token], palette.surface)).toBeGreaterThanOrEqual(4.5);
+      }
+
+      expect(contrastRatio(palette.onAccent, palette.accent)).toBeGreaterThanOrEqual(4.5);
+    }
+  );
+});
+
 const createProbeStyles = (colors: ThemeColors) => ({
   surface: { backgroundColor: colors.background },
 });

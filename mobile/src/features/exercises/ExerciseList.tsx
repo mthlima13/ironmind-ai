@@ -73,7 +73,11 @@ export function ExerciseList({
               accessibilityRole="button"
               accessibilityState={{ selected: isActive }}
               onPress={() => onChangeFilters({ ...filters, muscleGroup: group })}
-              style={[styles.filter, isActive ? styles.filterActive : null]}
+              style={({ pressed }) => [
+                styles.filter,
+                isActive ? styles.filterActive : null,
+                pressed ? styles.filterPressed : null,
+              ]}
               testID={`exercise-filter-${group}`}
             >
               <Text style={[styles.filterText, isActive ? styles.filterTextActive : null]}>
@@ -117,7 +121,10 @@ export function ExerciseList({
               key={exercise.id}
               accessibilityRole="button"
               onPress={() => onSelect?.(exercise)}
-              style={styles.item}
+              style={({ pressed }) => [
+                styles.item,
+                pressed ? styles.itemPressed : null,
+              ]}
               testID={`exercise-item-${exercise.id}`}
             >
               <View style={styles.itemText}>
@@ -148,7 +155,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   filter: {
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     borderRadius: radii.pill,
     borderWidth: 1,
     justifyContent: 'center',
@@ -158,6 +165,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   filterActive: {
     backgroundColor: colors.accentSoft,
     borderColor: colors.accent,
+  },
+  filterPressed: {
+    backgroundColor: colors.surfacePressed,
   },
   filterText: {
     ...typography.caption,
@@ -172,7 +182,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   item: {
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     borderRadius: radii.md,
     borderWidth: 1,
     flexDirection: 'row',
@@ -180,6 +190,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     justifyContent: 'space-between',
     minHeight: layout.minTouchTarget,
     padding: spacing.md,
+  },
+  itemPressed: {
+    backgroundColor: colors.surfacePressed,
   },
   itemText: {
     flex: 1,

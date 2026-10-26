@@ -257,7 +257,7 @@ export default function ProfileScreen() {
                   },
                 })
               }
-              trackColor={{ true: colors.accent, false: colors.border }}
+              trackColor={{ true: colors.accent, false: colors.borderStrong }}
               thumbColor={colors.onAccent}
               testID="profile-privacy-public"
             />
@@ -274,7 +274,7 @@ export default function ProfileScreen() {
                   },
                 })
               }
-              trackColor={{ true: colors.accent, false: colors.border }}
+              trackColor={{ true: colors.accent, false: colors.borderStrong }}
               thumbColor={colors.onAccent}
               testID="profile-privacy-records"
             />
@@ -291,7 +291,7 @@ export default function ProfileScreen() {
                   },
                 })
               }
-              trackColor={{ true: colors.accent, false: colors.border }}
+              trackColor={{ true: colors.accent, false: colors.borderStrong }}
               thumbColor={colors.onAccent}
               testID="profile-privacy-sharing"
             />

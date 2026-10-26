@@ -101,7 +101,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   input: {
     ...typography.body,
     backgroundColor: colors.surfaceElevated,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     borderRadius: radii.md,
     borderWidth: 1,
     color: colors.text,

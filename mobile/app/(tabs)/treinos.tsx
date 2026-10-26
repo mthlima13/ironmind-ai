@@ -121,7 +121,11 @@ export default function WorkoutsScreen() {
               accessibilityRole="tab"
               accessibilityState={{ selected: isActive }}
               onPress={() => setSection(item.key)}
-              style={[styles.segment, isActive ? styles.segmentActive : null]}
+              style={({ pressed }) => [
+                styles.segment,
+                isActive ? styles.segmentActive : null,
+                pressed ? styles.segmentPressed : null,
+              ]}
               testID={`workouts-section-${item.key}`}
             >
               <Text
@@ -210,7 +214,10 @@ export default function WorkoutsScreen() {
                       accessibilityRole="button"
                       accessibilityState={{ expanded: isExpanded }}
                       onPress={() => setExpandedDayId(isExpanded ? null : day.id)}
-                      style={styles.editToggle}
+                      style={({ pressed }) => [
+                        styles.editToggle,
+                        pressed ? styles.editTogglePressed : null,
+                      ]}
                       testID={`toggle-day-editor-${day.id}`}
                     >
                       <Ionicons
@@ -283,7 +290,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   segmented: {
     backgroundColor: colors.surface,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     borderRadius: radii.md,
     borderWidth: 1,
     flexDirection: 'row',
@@ -298,6 +305,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   segmentActive: {
     backgroundColor: colors.accentSoft,
+  },
+  segmentPressed: {
+    backgroundColor: colors.surfacePressed,
   },
   segmentText: {
     ...typography.bodyStrong,
@@ -335,6 +345,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.xs,
     minHeight: 44,
+  },
+  editTogglePressed: {
+    opacity: 0.6,
   },
   editToggleText: {
     ...typography.caption,

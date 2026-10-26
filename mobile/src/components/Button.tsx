@@ -78,6 +78,7 @@ export function Button({
         variant === 'primary'
           ? styles.primary
           : { backgroundColor: variantBackground[variant] },
+        variant === 'secondary' && styles.secondary,
         variant === 'ghost' && styles.ghost,
         fullWidth && styles.fullWidth,
         pressed && !isDisabled ? styles.pressed : null,
@@ -131,6 +132,10 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   primary: {
     backgroundColor: 'transparent',
+  },
+  secondary: {
+    borderColor: colors.border,
+    borderWidth: 1,
   },
   ghost: {
     borderWidth: 1,

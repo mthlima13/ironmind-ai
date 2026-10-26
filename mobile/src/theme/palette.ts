@@ -22,9 +22,12 @@ export type ThemeColors = {
   surfaceElevated: string;
   /** Surface pressed state. */
   surfacePressed: string;
-  /** Hairline borders. */
+  /** Decorative hairline borders (cards, dividers). */
   border: string;
-  /** Emphasised borders. */
+  /**
+   * Boundary of interactive controls (inputs, steppers, chips, switches).
+   * Keeps at least 3:1 against the surfaces it surrounds (WCAG 1.4.11).
+   */
   borderStrong: string;
 
   /** Primary text. */
@@ -98,9 +101,9 @@ export const lightColors: ThemeColors = {
   backgroundElevated: '#FFFFFF',
   surface: '#FFFFFF',
   surfaceElevated: '#F0F2EC',
-  surfacePressed: '#E3E7DD',
+  surfacePressed: '#D9DFD1',
   border: '#C4CBC0',
-  borderStrong: '#9BA495',
+  borderStrong: '#838D7B',
 
   text: '#141A16',
   textSecondary: '#46514A',
@@ -108,7 +111,7 @@ export const lightColors: ThemeColors = {
 
   accent: '#4F6B00',
   accentPressed: '#3D5400',
-  accentSoft: 'rgba(79, 107, 0, 0.12)',
+  accentSoft: 'rgba(79, 107, 0, 0.16)',
   onAccent: '#FFFFFF',
 
   danger: '#B3261E',

@@ -54,7 +54,11 @@ export function Stepper({
           disabled={decreaseDisabled}
           testID={`${testID}-decrease`}
           onPress={decrease}
-          style={[styles.stepperButton, decreaseDisabled ? styles.stepperButtonDisabled : null]}
+          style={({ pressed }) => [
+            styles.stepperButton,
+            pressed ? styles.stepperButtonPressed : null,
+            decreaseDisabled ? styles.stepperButtonDisabled : null,
+          ]}
         >
           <Ionicons name="remove" size={16} color={colors.text} />
         </Pressable>
@@ -73,7 +77,11 @@ export function Stepper({
           disabled={increaseDisabled}
           testID={`${testID}-increase`}
           onPress={increase}
-          style={[styles.stepperButton, increaseDisabled ? styles.stepperButtonDisabled : null]}
+          style={({ pressed }) => [
+            styles.stepperButton,
+            pressed ? styles.stepperButtonPressed : null,
+            increaseDisabled ? styles.stepperButtonDisabled : null,
+          ]}
         >
           <Ionicons name="add" size={16} color={colors.text} />
         </Pressable>
@@ -94,7 +102,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   stepperControls: {
     alignItems: 'center',
     backgroundColor: colors.surfaceElevated,
-    borderColor: colors.border,
+    borderColor: colors.borderStrong,
     borderRadius: radii.sm,
     borderWidth: 1,
     flexDirection: 'row',
@@ -106,6 +114,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     height: layout.minTouchTarget,
     justifyContent: 'center',
     width: layout.minTouchTarget,
+  },
+  stepperButtonPressed: {
+    opacity: 0.6,
   },
   stepperButtonDisabled: {
     opacity: 0.4,

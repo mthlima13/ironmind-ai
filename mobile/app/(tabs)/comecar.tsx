@@ -478,7 +478,11 @@ export default function StartWorkoutScreen() {
                   accessibilityRole="button"
                   accessibilityState={{ selected: isSelected }}
                   onPress={() => setSelectedExerciseId(sessionExercise.id)}
-                  style={[styles.exerciseRow, isSelected ? styles.exerciseRowActive : null]}
+                  style={({ pressed }) => [
+                    styles.exerciseRow,
+                    isSelected ? styles.exerciseRowActive : null,
+                    pressed ? styles.exerciseRowPressed : null,
+                  ]}
                   testID={`session-exercise-${sessionExercise.id}`}
                 >
                   <View style={styles.exerciseInfo}>
@@ -578,7 +582,10 @@ export default function StartWorkoutScreen() {
                         accessibilityRole="button"
                         accessibilityLabel={`Corrigir série ${set.setNumber}`}
                         onPress={() => beginSetEdit(set)}
-                        style={styles.setAction}
+                        style={({ pressed }) => [
+                          styles.setAction,
+                          pressed ? styles.setActionPressed : null,
+                        ]}
                         testID={`edit-set-${set.id}`}
                       >
                         <Ionicons name="create-outline" size={18} color={colors.accent} />
@@ -587,7 +594,10 @@ export default function StartWorkoutScreen() {
                         accessibilityRole="button"
                         accessibilityLabel={`Excluir série ${set.setNumber}`}
                         onPress={() => handleDeleteSet(set)}
-                        style={styles.setAction}
+                        style={({ pressed }) => [
+                          styles.setAction,
+                          pressed ? styles.setActionPressed : null,
+                        ]}
                         testID={`delete-set-${set.id}`}
                       >
                         <Ionicons name="trash-outline" size={18} color={colors.danger} />
@@ -693,6 +703,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   exerciseRowActive: {
     backgroundColor: colors.accentSoft,
   },
+  exerciseRowPressed: {
+    backgroundColor: colors.surfacePressed,
+  },
   exerciseInfo: {
     flex: 1,
     gap: spacing.xs,
@@ -743,6 +756,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     justifyContent: 'center',
     minHeight: 44,
     minWidth: 44,
+  },
+  setActionPressed: {
+    opacity: 0.6,
   },
   editSetPanel: {
     gap: spacing.sm,
