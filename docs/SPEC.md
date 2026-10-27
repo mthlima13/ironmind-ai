@@ -101,6 +101,13 @@ O produto combina:
 - Chave de API de LLM **nunca** vai para o aplicativo mobile nem para o repositório.
 - Não descrever recurso planejado como se estivesse implementado.
 
+> **Proposta (não implementada):** quando a autenticação for delegada, o owner
+> virá de uma identidade verificada pela infraestrutura, injetada em header
+> pelo gateway. O princípio não muda: a identidade **nunca** é aceita do corpo,
+> da query string ou de um valor escrito pelo cliente. O backend não autentica
+> o canal; a garantia de que o header veio do gateway é premissa da
+> infraestrutura. Ver [`AUTH-INTEGRATION.md`](AUTH-INTEGRATION.md).
+
 ### 1.5 Plataforma de lançamento: Android first
 
 O primeiro lançamento é **exclusivamente Android**. O iOS fica planejado para
@@ -972,6 +979,15 @@ Prefixo: `/api/v1`. Todos os endpoints privados exigem `Authorization: Bearer <t
 | `GET` | `/users/me` | Consultar perfil e preferências |
 | `PATCH` | `/users/me` | Atualizar perfil e preferências |
 
+> **Proposta (não implementada):** a autenticação do usuário sairia do backend.
+> O gateway autenticaria a sessão no provedor de identidade e injetaria a
+> identidade verificada; o backend leria o UUID do header e aplicaria a
+> autorização por proprietário. A autenticação do canal e a exposição do
+> serviço ficam com a infraestrutura. Os endpoints `/auth/*` e o
+> `Authorization: Bearer` continuam sendo o comportamento atual até a aprovação
+> e a implementação. Contrato, riscos e decisões pendentes em
+> [`AUTH-INTEGRATION.md`](AUTH-INTEGRATION.md). Nada muda no mobile nesta fase.
+
 ### 11.2 Exercícios
 
 | Método | Endpoint | Finalidade |
@@ -1254,6 +1270,13 @@ O treino deve continuar funcionando quando a conexão cair.
     senha atual como segunda prova de titularidade e cascata em todos os dados
     do usuário (ver [API.md](API.md#exclusão-da-conta)). O e-mail fica livre
     para um novo cadastro.
+    - **Proposta (não implementada):** com a autenticação delegada ao provedor
+      de identidade, a senha deixa de existir como prova. A titularidade passa
+      a ser demonstrada por confirmação explícita, reforçada por autenticação
+      recente (step-up) quando o gateway fornecer `auth_time`, e um tombstone
+      por `subject` impede que a próxima requisição recrie a conta. A senha
+      atual continua obrigatória até a mudança ser aprovada; detalhes em
+      [`AUTH-INTEGRATION.md`](AUTH-INTEGRATION.md#7-exclusão-segura-de-conta).
   - **Exportação:** ainda não implementada.
 - Definir retenção e exclusão de dados sensíveis e de recomendações de IA.
   - Os rascunhos de política de privacidade e termos estão em

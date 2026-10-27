@@ -11,6 +11,9 @@ ainda está pendente. Requisitos funcionais relacionados em
 | Ameaça | Mitigação |
 |---|---|
 | Acesso a dados de outro usuário | Filtro por owner em toda consulta de recurso privado; recurso alheio responde `404` |
+| Identidade forjada no header (**proposta**) | premissa da infraestrutura: gateway remove o header enviado pelo cliente e injeta o `sub` validado; backend rejeita header duplicado ou malformado |
+| Acesso direto ao backend (**proposta**) | premissa da infraestrutura: backend fora da exposição pública, alcançável apenas pela rede do gateway |
+| Conta excluída recriada pelo próximo request (**proposta**) | tombstone por `subject` bloqueia o provisionamento automático |
 | Escalada de privilégio | Papéis `USER`/`CREATOR`/`ADMIN` validados no servidor; rota de admin exige permissão explícita |
 | Token roubado ou vazado | Access token curto (15 min); refresh rotativo e revogável; segredos em keystore do dispositivo |
 | Senha em texto puro ou banco vazado | Hash Argon2id/BCrypt com salt; nunca logada; política de senha mínima |
@@ -89,6 +92,39 @@ ainda está pendente. Requisitos funcionais relacionados em
 - PostgreSQL sem exposição pública; volume persistente com backup.
 - Imagens Docker executando como usuário não-root.
 
+### 2.4 Identidade delegada à infraestrutura — **PROPOSTA**
+
+> Nada desta subseção está implementado. O backend continua autenticando com
+> JWT local. O contrato completo está em
+> [`AUTH-INTEGRATION.md`](AUTH-INTEGRATION.md), com as decisões pendentes.
+
+O modelo proposto separa três responsabilidades que hoje não estão
+discriminadas:
+
+| Camada | Responsabilidade proposta | Onde |
+|---|---|---|
+| Autenticação do usuário | provedor de identidade + gateway (login, sessão, expiração, revogação) | infraestrutura |
+| Autenticação do canal | garantia de que a requisição passou pelo gateway e de que a identidade não foi escrita pelo cliente | infraestrutura |
+| Autorização de recursos | backend, como hoje (filtro por proprietário, `404` para recurso alheio) | backend |
+
+**Escopo do backend:** remover a autenticação local, ajustar o banco e ler o
+UUID do header. Controles propostos, todos **pendentes**:
+
+- header de identidade configurável, com UUID canônico, exatamente um valor;
+- rejeição de header ausente, vazio, duplicado, concatenado ou malformado em
+  rota privada;
+- provisionamento atômico de usuário inexistente e tombstone para conta
+  excluída;
+- exclusão de conta com confirmação explícita e step-up quando o gateway
+  fornecer `auth_time`.
+
+**Premissa da infraestrutura (não é código deste backend):** o gateway remove
+qualquer header de identidade enviado pelo cliente, injeta o `sub` do token
+validado e o backend não é alcançável fora da rede do gateway. Se a premissa
+falhar, qualquer cliente que alcance o backend pode se declarar outro usuário;
+por isso a verificação no ambiente real é obrigatória antes de ativar o modo
+`header`.
+
 ---
 
 ## 3. IA — controles específicos
@@ -144,6 +180,12 @@ O requisito mais importante do projeto em termos de segurança:
   sessões, séries, recordes, restrições e recomendações de IA. Um access token
   ainda válido (até 15 min) deixa de autenticar de fato e recebe `404`; o
   refresh token é apagado e não renova mais a sessão.
+- **Proposta (não implementada):** com a autenticação delegada, a senha deixa
+  de existir e a prova de titularidade passa a ser confirmação explícita,
+  reforçada por autenticação recente (step-up) quando o gateway fornecer
+  `auth_time`. Um tombstone por `subject` impede que a próxima requisição
+  recrie a conta. Ver
+  [`AUTH-INTEGRATION.md`](AUTH-INTEGRATION.md#7-exclusão-segura-de-conta).
 - Admin não tem leitura livre sobre dados de saúde: acesso excepcional,
   justificado e auditado.
 
@@ -164,6 +206,7 @@ O requisito mais importante do projeto em termos de segurança:
 | 9 | Política de retenção de dados de IA | Pendente — depende da decisão 3 (provedor e retenção de prompts) | 5 |
 | 10 | Exclusão de conta in-app (exigência do Google Play para apps com login) | **Feito** — `DELETE /users/me` exige a senha, apaga em cascata todos os dados do titular e libera o e-mail; tela em Perfil com confirmação em duas etapas. Falta apenas a URL web de solicitação exigida pelo formulário *Data Safety* | 6 |
 | 11 | Keystore e chave de upload do Play fora do repositório | Pendente — checklist e comandos em [`PLAY-RELEASE.md`](PLAY-RELEASE.md); a keystore ainda não foi gerada | 6 |
+| 12 | Integração de identidade delegada à infraestrutura (header verificado) | **Proposta** — contrato em [`AUTH-INTEGRATION.md`](AUTH-INTEGRATION.md); nada implementado. Escopo do backend: remover a autenticação local, ajustar o banco e ler o UUID do header. Gateway, canal, rate limit e cluster são premissa da infraestrutura | a definir |
 
 ---
 

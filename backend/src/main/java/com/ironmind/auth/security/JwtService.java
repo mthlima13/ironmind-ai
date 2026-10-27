@@ -47,10 +47,6 @@ public class JwtService {
     private final JwtProperties properties;
     private final SecretKey signingKey;
 
-    public JwtService(JwtProperties properties) {
-        this(properties, null);
-    }
-
     public JwtService(JwtProperties properties, Environment environment) {
         this.properties = properties;
         this.signingKey = new SecretKeySpec(deriveKey(properties.secret()), ALGORITHM);

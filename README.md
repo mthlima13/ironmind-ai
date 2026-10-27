@@ -259,6 +259,7 @@ ironmind-ai/
 | [`docs/API.md`](docs/API.md) | Contrato da API, convenções, códigos de erro |
 | [`docs/DATA-MODEL.md`](docs/DATA-MODEL.md) | Modelo relacional e regras de integridade |
 | [`docs/SECURITY.md`](docs/SECURITY.md) | Threat model, controles implementados e pendências |
+| [`docs/AUTH-INTEGRATION.md`](docs/AUTH-INTEGRATION.md) | Contrato proposto para receber a identidade da infraestrutura (não implementado) |
 | [`docs/PRIVACY.md`](docs/PRIVACY.md) | Rascunho da política de privacidade — não publicado |
 | [`docs/TERMS.md`](docs/TERMS.md) | Rascunho dos termos de uso — não publicado |
 | [`docs/PLAY-RELEASE.md`](docs/PLAY-RELEASE.md) | Checklist de publicação no Google Play (conta, keystore, AAB, Data Safety) |

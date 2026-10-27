@@ -63,6 +63,13 @@ detectar reuso: apresentar um token já revogado revoga a família inteira.
 | `refresh_tokens` | Sessões de login: refresh token opaco, rotativo, com detecção de reuso | `users.id` |
 | `password_reset_tokens` | Recuperação de acesso: token de uso único, 30 minutos | `users.id` |
 
+> **Proposta (não implementada):** com a autenticação delegada à
+> infraestrutura, o modelo ganharia `users.identity_subject` e a tabela
+> `deleted_identities` (tombstone), e `users.email`/`users.password_hash`
+> deixariam de ser obrigatórios. Nada disso existe hoje: o schema atual
+> continua sendo o descrito acima e na migração `V1__baseline.sql`. Detalhes
+> em [§8](#8-identidade-externa--proposta-não-implementado).
+
 ---
 
 ## 3. Regras de integridade
@@ -142,6 +149,12 @@ detectar reuso: apresentar um token já revogado revoga a família inteira.
 | `password_reset_tokens` | `token_hash` (unique) | Buscar o token de recuperação |
 | `password_reset_tokens` | `(expires_at)` | Limpeza de tokens expirados |
 
+> **Proposta (não implementada):** `users.identity_subject` (unique, quando não
+> nulo) para resolver o `sub` do provedor em uma consulta; `deleted_identities`
+> com PK em `subject` para o tombstone; e remoção dos índices de
+> `refresh_tokens`/`password_reset_tokens` apenas depois que essas tabelas
+> saírem. Nenhum índice novo foi criado.
+
 ---
 
 ## 5. Enums
@@ -193,3 +206,71 @@ saúde. Requisitos:
 - Retenção definida e automática.
 - Nunca incluir em logs, em prompts de IA sem necessidade, nem em resposta de API
   para terceiros.
+
+---
+
+## 8. Identidade externa — **PROPOSTA (não implementado)**
+
+> Esta seção descreve uma mudança **futura**, condicionada à aprovação do
+> contrato em [`AUTH-INTEGRATION.md`](AUTH-INTEGRATION.md). Não existe migração,
+> coluna, tabela ou índice novo no banco; a migração `V1__baseline.sql`
+> permanece imutável e nenhuma `V3` foi escrita.
+
+### 8.1 `users.identity_subject` — **PROPOSTA**
+
+| Coluna | Tipo proposto | Regra |
+|---|---|---|
+| `identity_subject` | `text` | identificador opaco do provedor de identidade; `NULL` para contas ainda não vinculadas |
+
+- **Único quando não nulo** (`UNIQUE` parcial), para impedir que dois usuários
+  internos representem o mesmo titular.
+- Não é chave primária: `users.id` continua sendo o UUID interno referenciado
+  pelas FKs existentes. O vínculo `subject → users.id` é resolvido uma vez por
+  requisição e não reescreve nenhuma FK.
+- O formato do `sub` **não está confirmado** (é tratado como string opaca até a
+  decisão da infraestrutura). Não presumir que seja UUID nem que seja igual a
+  `users.id`.
+- Não guardar token, e-mail, nome ou qualquer PII do provedor nesta coluna.
+
+### 8.2 `deleted_identities` (tombstone) — **PROPOSTA**
+
+| Coluna | Tipo proposto | Regra |
+|---|---|---|
+| `subject` | `text` | PK; identificador externo já excluído |
+| `deleted_at` | `timestamptz` | instante da exclusão, em UTC |
+
+- **Sem PII:** nem e-mail, nem nome, nem hash de senha, nem token.
+- Serve para duas coisas: idempotência da exclusão e bloqueio de
+  re-provisionamento automático (ver
+  [`AUTH-INTEGRATION.md`](AUTH-INTEGRATION.md#7-exclusão-segura-de-conta)).
+- Retenção e período de carência são **PENDENTES** (produto + jurídico). Um
+  tombstone apagado cedo demais permite que a próxima requisição recrie a
+  conta; apagado tarde demais conflita com o direito à eliminação.
+- Alternativa em MongoDB: coleção `deleted_identities` com `_id = subject`.
+  A escolha acompanha a decisão de persistência, ainda pendente.
+
+### 8.3 Campos que deixariam de ser obrigatórios — **PROPOSTA**
+
+| Coluna atual | Hoje | Proposta |
+|---|---|---|
+| `users.email` | `NOT NULL`, unique | `NULL` permitido; unique apenas quando não nulo |
+| `users.password_hash` | `NOT NULL` | removida quando `/auth/*` sair |
+| `refresh_tokens` | tabela ativa | removida junto com o refresh local |
+| `password_reset_tokens` | tabela ativa | removida junto com a recuperação local |
+
+Enquanto o modo `header` não estiver ativo, **nada muda**: o schema atual
+continua válido e as restrições continuam como estão.
+
+### 8.4 Transição — **PENDENTE**
+
+1. A coluna e o tombstone exigiriam uma nova migração Flyway (`V3`), escrita
+   apenas depois da aprovação; migrações publicadas não são editadas.
+2. O preenchimento de `identity_subject` para contas existentes depende da
+   decisão de vínculo (por e-mail verificado, migração assistida ou conta
+   nova). Nenhuma dessas opções foi escolhida.
+3. A remoção de `password_hash` e das tabelas de token é a **última** etapa,
+   depois que o gateway estiver em produção e o modo `header` validado.
+4. A modelagem continua compatível com a futura migração para MongoDB: o
+   vínculo é um campo do documento `users` e o tombstone é uma coleção
+   separada. A migração não está autorizada.
+

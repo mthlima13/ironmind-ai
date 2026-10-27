@@ -38,6 +38,11 @@ em `/swagger-ui.html` com o backend em execução.
 | Idempotência | Header `Idempotency-Key` em escrita que cria registro. |
 | Owner | `user_id` **nunca** vem do corpo da requisição — vem do token. |
 
+> **Proposta (não implementada):** quando a autenticação passar a ser
+> delegada, o owner virá da identidade verificada pelo gateway, nunca do
+> corpo, da query ou de um header escrito pelo cliente. O comportamento atual
+> continua sendo o do token.
+
 ### Paginação
 
 ```http
@@ -101,6 +106,30 @@ Content-Type: application/json
 
 Revogação de refresh token no logout invalida a sessão. Tokens nunca são
 registrados em log.
+
+### Identidade delegada à infraestrutura — **PROPOSTA**
+
+> **Não implementado.** Hoje toda rota privada exige
+> `Authorization: Bearer <accessToken>`. O texto abaixo descreve apenas o
+> contrato proposto; ver [`AUTH-INTEGRATION.md`](AUTH-INTEGRATION.md).
+
+No modelo proposto, o gateway autentica o usuário no provedor de identidade e
+injeta a identidade já validada em um header. O backend não lê tokens de
+acesso do cliente.
+
+| Item | Proposta |
+|---|---|
+| Header de identidade | `X-IronMind-User-Id` (configurável; nome a confirmar) |
+| Valor | UUID canônico, exatamente um valor |
+| Prova de canal | fora do escopo do backend; premissa da infraestrutura (gateway remove o header do cliente e o backend não é exposto) |
+| Header ausente, duplicado, concatenado, vazio ou malformado em rota privada | `401 UNAUTHENTICATED` |
+| Rotas públicas | header inválido é ignorado; a requisição segue anônima |
+| Identidade de outro usuário no recurso | continua `404 NOT_FOUND` |
+
+O backend não autentica o canal: confia no header por premissa. A garantia
+depende de a infraestrutura remover o cabeçalho enviado pelo cliente, injetar o
+`sub` validado e manter o backend fora da exposição pública. A autorização por
+proprietário continua sendo aplicada em toda consulta.
 
 ---
 
@@ -306,6 +335,15 @@ roubado sozinho não apaga a conta. Senha ausente ou incorreta responde `422`
 | Refresh token | Apagado em cascata; `POST /auth/refresh` responde `401` `INVALID_REFRESH_TOKEN` |
 | Login | Responde `401` `INVALID_CREDENTIALS`, como qualquer conta inexistente |
 | Outro usuário | Não é afetado: o titular vem sempre do token, nunca do corpo |
+
+> **Proposta (não implementada):** com a autenticação delegada, a senha deixa
+> de existir. A prova de titularidade passa a ser uma **confirmação explícita**
+> no corpo e no app, reforçada por **autenticação recente** (step-up, via
+> `auth_time` do provedor) quando o gateway enviar esse header. Sem confirmação,
+> a resposta é `422`; se o step-up estiver configurado e falhar, a resposta é
+> `401 REAUTH_REQUIRED` e o app refaz o login. Um **tombstone** por `subject`
+> impede que a próxima requisição recrie a conta. Detalhes e alternativas em
+> [`AUTH-INTEGRATION.md`](AUTH-INTEGRATION.md#7-exclusão-segura-de-conta).
 
 > A operação **não** é reversível e não mantém cópia de arquivo. O app pede
 > confirmação em duas etapas e exige a senha antes de chamar este endpoint.
@@ -822,6 +860,7 @@ tabela. `traceId` correlaciona a requisição com os logs do servidor.
 | `INVALID_CREDENTIALS` | 401 | E-mail ou senha inválidos |
 | `INVALID_REFRESH_TOKEN` | 401 | Refresh token expirado, revogado ou reutilizado |
 | `INVALID_RESET_TOKEN` | 401 | Token de recuperação inválido, usado ou expirado |
+| `REAUTH_REQUIRED` (**proposta**) | 401 | Autenticação recente exigida para operação sensível; não implementado |
 | `RATE_LIMITED` | 429 | Limite de requisições excedido |
 | `AI_UNAVAILABLE` | 503 | Provedor de IA indisponível ou timeout |
 | `AI_INVALID_RESPONSE` | 502 | Resposta da IA fora do esquema |
