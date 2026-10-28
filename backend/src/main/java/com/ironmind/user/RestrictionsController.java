@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Endpoints of injury restrictions (SPEC.md section 11.5).
  *
- * <p>Restrictions contain sensitive health data and are always scoped to the authenticated user.
+ * <p>Restrictions contain sensitive health data and are always scoped to the user of the request.
  */
 @RestController
 @RequestMapping("/api/v1/restrictions")
@@ -36,10 +36,10 @@ public class RestrictionsController {
 
     @GetMapping
     @Operation(summary = "Consulta as restrições do usuário",
-            description = "Retorna as restrições cadastradas pelo usuário autenticado.")
+            description = "Retorna as restrições cadastradas pelo titular da requisição.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Lista de restrições"),
-            @ApiResponse(responseCode = "401", description = "Token ausente ou inválido", content = @Content)
+            @ApiResponse(responseCode = "401", description = "Header de identidade ausente ou inválido", content = @Content)
     })
     public List<InjuryRestrictionResponse> get() {
         UUID userId = SecurityUtils.requireCurrentUserId();
@@ -48,10 +48,10 @@ public class RestrictionsController {
 
     @PutMapping
     @Operation(summary = "Atualiza as restrições do usuário",
-            description = "Substitui o conjunto de restrições do usuário autenticado.")
+            description = "Substitui o conjunto de restrições do titular da requisição.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Restrições atualizadas"),
-            @ApiResponse(responseCode = "401", description = "Token ausente ou inválido", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Header de identidade ausente ou inválido", content = @Content),
             @ApiResponse(responseCode = "422", description = "Dados inválidos", content = @Content)
     })
     public List<InjuryRestrictionResponse> put(@Valid @RequestBody UpdateRestrictionsRequest request) {

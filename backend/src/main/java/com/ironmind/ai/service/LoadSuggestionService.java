@@ -17,11 +17,14 @@ import com.ironmind.user.entity.InjuryRestriction;
 import com.ironmind.user.repository.InjuryRestrictionRepository;
 import com.ironmind.workout.entity.ExerciseSet;
 import com.ironmind.workout.entity.SessionStatus;
+import com.ironmind.workout.entity.WorkoutSession;
 import com.ironmind.workout.repository.ExerciseSetRepository;
+import com.ironmind.workout.repository.WorkoutSessionRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -66,6 +69,7 @@ public class LoadSuggestionService {
     private final ExerciseRepository exerciseRepository;
     private final InjuryRestrictionRepository restrictionRepository;
     private final ExerciseSetRepository setRepository;
+    private final WorkoutSessionRepository sessionRepository;
     private final AiRecommendationService recommendationService;
     private final AiProperties properties;
     private final IdempotencyService idempotencyService;
@@ -74,6 +78,7 @@ public class LoadSuggestionService {
     public LoadSuggestionService(ExerciseRepository exerciseRepository,
             InjuryRestrictionRepository restrictionRepository,
             ExerciseSetRepository setRepository,
+            WorkoutSessionRepository sessionRepository,
             AiRecommendationService recommendationService,
             AiProperties properties,
             IdempotencyService idempotencyService,
@@ -81,6 +86,7 @@ public class LoadSuggestionService {
         this.exerciseRepository = exerciseRepository;
         this.restrictionRepository = restrictionRepository;
         this.setRepository = setRepository;
+        this.sessionRepository = sessionRepository;
         this.recommendationService = recommendationService;
         this.properties = properties;
         this.idempotencyService = idempotencyService;
@@ -90,7 +96,7 @@ public class LoadSuggestionService {
     /**
      * Suggests load and repetitions for an exercise.
      *
-     * @param userId         owner of the history, taken from the access token
+     * @param userId         owner of the history, taken from the identity header
      * @param request        exercise and target range
      * @param idempotencyKey key of the request, {@code null} when absent
      * @return conservative suggestion with its origin
@@ -128,11 +134,17 @@ public class LoadSuggestionService {
                     "Este exercício está bloqueado por uma restrição ativa.");
         }
 
-        List<ExerciseSet> history = setRepository.findByUserIdAndExerciseId(userId, exercise.getId()).stream()
-                .filter(set -> set.getSessionExercise().getSession().getStatus() == SessionStatus.COMPLETED)
+        List<ExerciseSet> history = setRepository
+                .findByUserIdAndExerciseIdOrderByCompletedAtAscIdAsc(userId, exercise.getId());
+        Map<UUID, WorkoutSession> sessionsById = sessionsOf(history);
+        List<ExerciseSet> completedSets = history.stream()
+                .filter(set -> {
+                    WorkoutSession session = sessionsById.get(set.getSessionId());
+                    return session != null && session.getStatus() == SessionStatus.COMPLETED;
+                })
                 .toList();
 
-        List<List<ExerciseSet>> sessions = groupBySession(history);
+        List<List<ExerciseSet>> sessions = groupBySession(completedSets);
         LoadSuggestionResponse response;
         String summary;
         if (sessions.isEmpty()) {
@@ -145,7 +157,7 @@ public class LoadSuggestionService {
             List<ExerciseSet> lastSession = considered.get(considered.size() - 1);
 
             Analysis analysis = analyse(considered, lastSession, targetMin, targetMax, limits);
-            Instant lastPerformedAt = lastPerformed(lastSession);
+            Instant lastPerformedAt = lastPerformed(lastSession, sessionsById);
 
             response = new LoadSuggestionResponse(
                     UUID.randomUUID(),
@@ -328,13 +340,25 @@ public class LoadSuggestionService {
     private static List<List<ExerciseSet>> groupBySession(List<ExerciseSet> history) {
         Map<UUID, List<ExerciseSet>> bySession = new LinkedHashMap<>();
         for (ExerciseSet set : history) {
-            bySession.computeIfAbsent(set.getSessionExercise().getSession().getId(),
+            bySession.computeIfAbsent(set.getSessionId(),
                     key -> new ArrayList<>()).add(set);
         }
         List<List<ExerciseSet>> sessions = new ArrayList<>();
         for (List<ExerciseSet> sets : bySession.values()) {
             sets.sort(Comparator.comparingInt(ExerciseSet::getSetNumber));
             sessions.add(sets);
+        }
+        return sessions;
+    }
+
+    /**
+     * Loads the sessions of the history in a single round trip.
+     */
+    private Map<UUID, WorkoutSession> sessionsOf(List<ExerciseSet> history) {
+        List<UUID> sessionIds = history.stream().map(ExerciseSet::getSessionId).distinct().toList();
+        Map<UUID, WorkoutSession> sessions = new HashMap<>();
+        for (WorkoutSession session : sessionRepository.findAllById(sessionIds)) {
+            sessions.put(session.getId(), session);
         }
         return sessions;
     }
@@ -349,8 +373,9 @@ public class LoadSuggestionService {
                 .orElseThrow();
     }
 
-    private static Instant lastPerformed(List<ExerciseSet> session) {
-        Instant completedAt = session.get(0).getSessionExercise().getSession().getCompletedAt();
+    private static Instant lastPerformed(List<ExerciseSet> session, Map<UUID, WorkoutSession> sessionsById) {
+        WorkoutSession owner = sessionsById.get(session.get(0).getSessionId());
+        Instant completedAt = owner == null ? null : owner.getCompletedAt();
         if (completedAt != null) {
             return completedAt;
         }

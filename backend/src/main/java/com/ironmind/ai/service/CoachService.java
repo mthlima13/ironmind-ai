@@ -46,7 +46,7 @@ public class CoachService {
     /**
      * Answers a coaching message.
      *
-     * @param userId  owner of the context, taken from the access token
+     * @param userId  owner of the context, taken from the identity header
      * @param request message written by the user
      * @return safe answer with the visible notices
      */

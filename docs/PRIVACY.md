@@ -29,13 +29,16 @@ Lei Geral de Proteção de Dados (Lei nº 13.709/2018 — LGPD), somos o
 
 ### 2.1 Dados de conta
 
+A conta (nome, e-mail e credencial) é mantida pelo **provedor de identidade**
+`[PREENCHER: provedor de identidade]`, que autentica você e entrega ao IronMind
+apenas um identificador opaco no formato UUID. O backend do IronMind **não
+guarda** nome, e-mail, senha, papel nem fuso horário.
+
 | Dado | Finalidade | Origem |
 |---|---|---|
-| Nome | Identificar você no app | Informado no cadastro |
-| E-mail | Login, recuperação de acesso e comunicações operacionais | Informado no cadastro |
-| Senha | Autenticação | Informada no cadastro; armazenamos **apenas o hash Argon2id**, nunca a senha |
-| Fuso horário | Exibir datas e agrupar treinos no dia correto | Informado ou inferido |
-| Papel (`USER`/`ADMIN`) | Controle de acesso | Atribuído pelo sistema |
+| Identificador (UUID) | Vincular treinos, recordes e restrições a você | Provedor de identidade, por header injetado pelo gateway |
+| Nome e e-mail | Cadastro e login | Provedor de identidade — fora do IronMind |
+| Senha | Autenticação | Provedor de identidade — o IronMind nunca a recebe |
 
 ### 2.2 Dados de treino
 
@@ -59,11 +62,11 @@ IA.
   não sensível da entrada e a versão do modelo.
 - **Conversas de coaching e transcrições de voz:** **não são armazenadas** no
   banco. A resposta é devolvida na hora e descartada pelo backend.
-- **Conteúdo enviado ao provedor de LLM:** objetivo, experiência, dias de
-  treino, equipamentos disponíveis, catálogo de exercícios visível para você,
-  restrições por **região do corpo** e o texto que você escreve no prompt.
-  **Não enviamos** seu nome, e-mail, senha, tokens nem a descrição em texto
-  livre das suas restrições.
+- **Conteúdo enviado ao provedor de LLM:** objetivo, experiência e dias de
+  treino padrão, catálogo de exercícios visível para você, restrições por
+  **região do corpo** e o texto que você escreve no prompt. **Não enviamos**
+  seu identificador, nome, e-mail, credencial nem a descrição em texto livre das
+  suas restrições.
 
 ### 2.5 Dados técnicos
 
@@ -76,7 +79,7 @@ Não usamos SDK de publicidade, rastreadores de terceiros nem cookies no app.
 
 | Finalidade | Base legal (LGPD) |
 |---|---|
-| Criar e manter sua conta, autenticar e recuperar acesso | Execução de contrato (art. 7º, V) |
+| Criar e manter sua conta no provedor de identidade, autenticar e recuperar acesso | Execução de contrato (art. 7º, V) |
 | Registrar treinos, calcular volume, 1RM e recordes | Execução de contrato (art. 7º, V) |
 | Tratar restrições por lesão | Consentimento específico para dado sensível (art. 11, I) `[PREENCHER: confirmar com jurídico]` |
 | Gerar propostas e sugestões com IA sob seu comando | Execução de contrato ou consentimento `[PREENCHER: confirmar]` |
@@ -89,12 +92,11 @@ isso pode impedir o uso dos recursos correspondentes.
 ## 4. Com quem compartilhamos
 
 - **Provedor de infraestrutura e banco de dados:** `[PREENCHER: provedor e região]`.
+- **Provedor de identidade:** `[PREENCHER: provedor]`, responsável pela conta,
+  autenticação e recuperação de acesso.
 - **Provedor de LLM:** `[PREENCHER: provedor, modelo e região]`, quando a
   configuração `LLM_PROVIDER` estiver diferente de `mock`. Recebe apenas o
   conteúdo descrito no item 2.4.
-- **Provedor de e-mail transacional** para recuperação de acesso:
-  `[PREENCHER: provedor]`. Hoje o backend usa uma porta de e-mail plugável e,
-  em desenvolvimento, apenas registra a mensagem em log.
 - **Autoridades públicas**, quando houver obrigação legal.
 
 Não vendemos dados pessoais e não os usamos para publicidade de terceiros.
@@ -105,26 +107,28 @@ salvaguardas.]`
 
 | Dado | Retenção |
 |---|---|
-| Conta, perfil e preferências | Até a exclusão da conta |
+| Conta, nome e e-mail | No provedor de identidade, até a exclusão da conta |
+| Identificador e dados de treino | Até a exclusão da conta |
 | Programas, sessões, séries e recordes | Até a exclusão da conta |
 | Restrições por lesão | Até a exclusão da conta ou até você removê-las |
 | Recomendações de IA | Até a exclusão da conta |
-| Refresh tokens e tokens de recuperação | Até expirar, serem usados ou a conta ser excluída |
 | Conversas de coaching e transcrições de voz | Não armazenadas |
 | Logs técnicos | `[PREENCHER: prazo]` |
 
-A exclusão da conta é **definitiva**: remove a linha do usuário e, por cascata,
-todos os registros acima. O e-mail fica livre para um novo cadastro. Não
+A exclusão da conta é **definitiva**. O provedor de identidade encerra a conta e
+o IronMind remove todos os documentos vinculados ao seu identificador. Não
 mantemos cópia de arquivo.
 
 ## 6. Seus direitos
 
 Você pode, a qualquer momento:
 
-- **Acessar** seus dados nas telas de perfil, histórico, evolução e recordes;
-- **Corrigir** nome, fuso horário, preferências, restrições e séries;
-- **Excluir a conta e todos os dados** em **Perfil → Excluir conta**, informando
-  a senha atual (também é possível solicitar pelo contato de privacidade);
+- **Acessar** seus dados nas telas de histórico, evolução e recordes;
+- **Corrigir** restrições e séries (e, no provedor de identidade, nome e
+  preferências da conta);
+- **Excluir a conta e todos os dados** pelo provedor de identidade
+  `[PREENCHER: caminho no app ou URL web]`, que também aciona a remoção dos
+  dados de treino; pedidos pelo contato de privacidade também são atendidos;
 - **Revogar o consentimento** para o tratamento de dados sensíveis;
 - **Solicitar portabilidade** dos dados que você forneceu
   `[PREENCHER: formato e canal de entrega — ainda não implementado]`;
@@ -135,13 +139,13 @@ de identidade antes de atender pedidos feitos fora do app.
 
 ## 7. Segurança
 
-- Senhas armazenadas apenas como hash Argon2id com parâmetros OWASP.
-- Acesso autenticado por access token JWT de curta duração e refresh token
-  opaco rotativo com detecção de reuso.
-- Toda operação é limitada ao titular: o identificador do usuário vem do token,
-  nunca do corpo da requisição; recurso de outro usuário responde `404`.
+- A autenticação e o armazenamento da credencial são responsabilidade do
+  provedor de identidade; o IronMind não recebe senha nem token.
+- Toda operação é limitada ao titular: o identificador do usuário vem do header
+  injetado pelo gateway, nunca do corpo da requisição; recurso de outro usuário
+  responde `404`.
 - Chaves de API e credenciais ficam no servidor, nunca no aplicativo.
-- Limitação de requisições nas rotas de autenticação e de IA.
+- Limitação de requisições nas rotas de IA e, na borda, no acesso ao serviço.
 - `[PREENCHER: TLS obrigatório em produção, backup criptografado, política de
   resposta a incidentes.]`
 

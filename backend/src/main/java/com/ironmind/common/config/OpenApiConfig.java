@@ -1,5 +1,6 @@
 package com.ironmind.common.config;
 
+import com.ironmind.common.security.IdentityProperties;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
@@ -18,7 +19,13 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class OpenApiConfig {
 
-    private static final String BEARER_SCHEME = "bearerAuth";
+    private static final String USER_HEADER_SCHEME = "userUuidHeader";
+
+    private final IdentityProperties identityProperties;
+
+    public OpenApiConfig(IdentityProperties identityProperties) {
+        this.identityProperties = identityProperties;
+    }
 
     @Bean
     public OpenAPI ironMindOpenApi() {
@@ -29,16 +36,17 @@ public class OpenApiConfig {
                         .description("""
                                 REST API of the IronMind AI mobile application.
 
-                                The API is versioned under /api/v1. Every private endpoint expects the
-                                header `Authorization: Bearer <accessToken>` and answers errors in the
-                                single format described in the specification (appendix A).
+                                The API is versioned under /api/v1. The service does not authenticate
+                                the caller: the gateway validates the session and forwards the owner
+                                identifier in the header below. Errors follow the single format
+                                described in the specification (appendix A).
                                 """)
                         .license(new License().name("Proprietary")))
-                .components(new Components().addSecuritySchemes(BEARER_SCHEME,
+                .components(new Components().addSecuritySchemes(USER_HEADER_SCHEME,
                         new SecurityScheme()
-                                .type(SecurityScheme.Type.HTTP)
-                                .scheme("bearer")
-                                .bearerFormat("JWT")))
-                .addSecurityItem(new SecurityRequirement().addList(BEARER_SCHEME));
+                                .type(SecurityScheme.Type.APIKEY)
+                                .in(SecurityScheme.In.HEADER)
+                                .name(identityProperties.userUuidHeader())))
+                .addSecurityItem(new SecurityRequirement().addList(USER_HEADER_SCHEME));
     }
 }

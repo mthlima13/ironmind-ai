@@ -8,9 +8,9 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.mongodb.repository.Query;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -20,16 +20,12 @@ import org.springframework.stereotype.Repository;
  * section 3.4: the session of another user is never read.
  */
 @Repository
-public interface WorkoutSessionRepository extends JpaRepository<WorkoutSession, UUID> {
+public interface WorkoutSessionRepository extends MongoRepository<WorkoutSession, UUID> {
 
     /**
      * Lists the sessions of the user, with the order of the request.
-     *
-     * <p>The history is the main use of this query: the mobile application shows the sessions
-     * with the exercises and the sets embedded.
      */
-    @Query("select s from WorkoutSession s where s.user.id = :userId")
-    Page<WorkoutSession> findByUserId(@Param("userId") UUID userId, Pageable pageable);
+    Page<WorkoutSession> findByUserId(UUID userId, Pageable pageable);
 
     /**
      * Finds a session that belongs to the given user.
@@ -37,20 +33,19 @@ public interface WorkoutSessionRepository extends JpaRepository<WorkoutSession, 
      * <p>The owner is part of the filter: a session of another user is reported as not found, so
      * the API never reveals the existence of foreign data (SPEC.md appendix A).
      */
-    @Query("select s from WorkoutSession s join fetch s.user where s.id = :id and s.user.id = :userId")
-    Optional<WorkoutSession> findOwnedById(@Param("id") UUID id, @Param("userId") UUID userId);
+    Optional<WorkoutSession> findByIdAndUserId(UUID id, UUID userId);
 
     /**
      * Lists the completed sessions of the user whose completion falls inside the period.
      *
-     * <p>The period is always resolved from the timezone of the user, so the boundaries reach the
-     * query as instants.
+     * <p>The interval is half-open ({@code [from, to)}) and both bounds are written in a single
+     * query: a derived name with two conditions on {@code completedAt} would make Spring Data
+     * overwrite the first operator with the second. The order comes from the {@code Sort}, because
+     * the {@code OrderBy} of the method name is ignored when {@code @Query} is present.
      */
-    @Query("select s from WorkoutSession s where s.user.id = :userId and s.status = :status "
-            + "and s.completedAt >= :from and s.completedAt < :to order by s.completedAt desc")
-    List<WorkoutSession> findCompletedBetween(@Param("userId") UUID userId,
-            @Param("status") SessionStatus status, @Param("from") Instant from,
-            @Param("to") Instant to);
+    @Query("{ 'userId': ?0, 'status': ?1, 'completedAt': { $gte: ?2, $lt: ?3 } }")
+    List<WorkoutSession> findCompletedBetween(UUID userId, SessionStatus status, Instant from,
+            Instant to, Sort sort);
 
     /**
      * Finds the last completed session of the user.
@@ -60,9 +55,6 @@ public interface WorkoutSessionRepository extends JpaRepository<WorkoutSession, 
 
     /**
      * Counts the completed sessions of the user after the given instant.
-     *
-     * <p>Feeds the short history summary sent to the language model, which never receives the
-     * sessions themselves (SPEC.md section 12.2, step 4).
      */
     long countByUserIdAndStatusAndCompletedAtAfter(UUID userId, SessionStatus status, Instant from);
 }

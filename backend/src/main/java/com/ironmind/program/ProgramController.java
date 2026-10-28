@@ -33,12 +33,12 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Endpoints of the training programs (SPEC.md section 11.3).
  *
- * <p>The owner always comes from the access token: the body of the request never identifies the
+ * <p>The owner always comes from the identity header: the body of the request never identifies the
  * user, and a program of another user is answered with {@code 404}.
  */
 @RestController
 @RequestMapping("/api/v1/programs")
-@Tag(name = "Programs", description = "Programas de treino do usuário autenticado")
+@Tag(name = "Programs", description = "Programas de treino do titular da requisição")
 @Validated
 public class ProgramController {
 
@@ -50,12 +50,12 @@ public class ProgramController {
 
     @GetMapping
     @Operation(summary = "Lista os programas do usuário",
-            description = "Retorna os programas do usuário autenticado, com os dias e os exercícios. "
+            description = "Retorna os programas do titular da requisição, com os dias e os exercícios. "
                     + "Os programas arquivados ficam de fora da listagem, salvo quando o parâmetro "
                     + "includeArchived é verdadeiro.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Página de programas"),
-            @ApiResponse(responseCode = "401", description = "Token ausente ou inválido", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Header de identidade ausente ou inválido", content = @Content),
             @ApiResponse(responseCode = "422", description = "Parâmetros de paginação inválidos", content = @Content)
     })
     public PageResponse<ProgramResponse> list(
@@ -79,7 +79,7 @@ public class ProgramController {
             description = "Devolve o programa com os dias e os exercícios. Um programa arquivado continua acessível.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Programa encontrado"),
-            @ApiResponse(responseCode = "401", description = "Token ausente ou inválido", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Header de identidade ausente ou inválido", content = @Content),
             @ApiResponse(responseCode = "404", description = "Programa inexistente ou de outro usuário",
                     content = @Content)
     })
@@ -90,12 +90,12 @@ public class ProgramController {
 
     @PostMapping
     @Operation(summary = "Cria um programa",
-            description = "O dono do programa é sempre o usuário autenticado. Os dias e os exercícios são "
+            description = "O dono do programa é sempre o titular da requisição. Os dias e os exercícios são "
                     + "gravados na ordem do corpo. Aceita o header Idempotency-Key.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Programa criado"),
             @ApiResponse(responseCode = "200", description = "Programa criado por uma requisição anterior com a mesma chave"),
-            @ApiResponse(responseCode = "401", description = "Token ausente ou inválido", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Header de identidade ausente ou inválido", content = @Content),
             @ApiResponse(responseCode = "409", description = "Chave de idempotência reutilizada com outro conteúdo", content = @Content),
             @ApiResponse(responseCode = "422", description = "Dados inválidos", content = @Content)
     })
@@ -119,7 +119,7 @@ public class ProgramController {
                     + "trocam os que estão gravados, e as posições seguem a ordem do corpo.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Programa atualizado"),
-            @ApiResponse(responseCode = "401", description = "Token ausente ou inválido", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Header de identidade ausente ou inválido", content = @Content),
             @ApiResponse(responseCode = "404", description = "Programa inexistente ou de outro usuário",
                     content = @Content),
             @ApiResponse(responseCode = "422", description = "Dados inválidos", content = @Content)
@@ -135,7 +135,7 @@ public class ProgramController {
                     + "pela consulta do identificador.")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Programa arquivado"),
-            @ApiResponse(responseCode = "401", description = "Token ausente ou inválido", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Header de identidade ausente ou inválido", content = @Content),
             @ApiResponse(responseCode = "404", description = "Programa inexistente ou de outro usuário",
                     content = @Content)
     })

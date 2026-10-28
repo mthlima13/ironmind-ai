@@ -3,7 +3,7 @@ package com.ironmind.ai.repository;
 import com.ironmind.ai.entity.AiRecommendation;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -13,7 +13,7 @@ import org.springframework.stereotype.Repository;
  * found instead of forbidden (SPEC.md appendix A).
  */
 @Repository
-public interface AiRecommendationRepository extends JpaRepository<AiRecommendation, UUID> {
+public interface AiRecommendationRepository extends MongoRepository<AiRecommendation, UUID> {
 
     /**
      * Finds a recommendation that belongs to the given user.

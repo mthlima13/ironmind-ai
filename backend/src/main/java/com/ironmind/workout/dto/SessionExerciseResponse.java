@@ -2,6 +2,7 @@ package com.ironmind.workout.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.ironmind.exercise.dto.ExerciseResponse;
+import com.ironmind.exercise.entity.Exercise;
 import com.ironmind.workout.entity.ExerciseSet;
 import com.ironmind.workout.entity.SessionExercise;
 import java.util.List;
@@ -40,11 +41,12 @@ public record SessionExerciseResponse(
     /**
      * Maps the entity into the API representation, with the sets already ordered.
      */
-    public static SessionExerciseResponse from(SessionExercise sessionExercise, List<ExerciseSet> sets) {
+    public static SessionExerciseResponse from(SessionExercise sessionExercise, Exercise exercise,
+            List<ExerciseSet> sets) {
         return new SessionExerciseResponse(
                 sessionExercise.getId(),
-                sessionExercise.getExercise().getId(),
-                ExerciseResponse.from(sessionExercise.getExercise()),
+                sessionExercise.getExerciseId(),
+                ExerciseResponse.from(exercise),
                 sessionExercise.getPosition(),
                 sessionExercise.getNotes(),
                 sets.stream().map(ExerciseSetResponse::from).toList(),

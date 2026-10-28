@@ -12,11 +12,7 @@ import com.ironmind.exercise.entity.MovementType;
 import com.ironmind.exercise.repository.ExerciseRepository;
 import com.ironmind.program.repository.WorkoutProgramRepository;
 import com.ironmind.record.repository.PersonalRecordRepository;
-import com.ironmind.user.entity.User;
-import com.ironmind.user.entity.UserRole;
-import com.ironmind.user.repository.UserRepository;
 import com.ironmind.workout.entity.ExerciseSet;
-import com.ironmind.workout.entity.SessionExercise;
 import com.ironmind.workout.entity.SessionStatus;
 import com.ironmind.workout.entity.WorkoutSession;
 import com.ironmind.workout.repository.ExerciseSetRepository;
@@ -33,7 +29,6 @@ import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -55,34 +50,32 @@ class AnalyticsServiceTest {
     private ExerciseRepository exerciseRepository;
     @Mock
     private WorkoutProgramRepository programRepository;
-    @Mock
-    private UserRepository userRepository;
 
-    @InjectMocks
-    private AnalyticsService analyticsService;
+    private AnalyticsService analyticsService() {
+        return new AnalyticsService(sessionRepository, exerciseSetRepository, recordRepository,
+                exerciseRepository, programRepository, new VolumeCalculator(),
+                new OneRepMaxCalculator(), Clock.fixed(Instant.parse("2026-10-21T12:00:00Z"),
+                        ZoneId.of("UTC")));
+    }
 
     @Test
     @DisplayName("builds the dashboard overview with volume, activity and comparison with the previous week")
     void buildsTheDashboardOverviewWithVolumeActivityAndComparison() {
-        analyticsService = new AnalyticsService(sessionRepository, exerciseSetRepository, recordRepository,
-                exerciseRepository, programRepository, userRepository, new VolumeCalculator(),
-                new OneRepMaxCalculator(), Clock.fixed(Instant.parse("2026-10-21T12:00:00Z"),
-                        ZoneId.of("UTC")));
-        User user = new User(USER_ID, "Ana", "ana@example.com", "hash", UserRole.USER, "UTC");
-        WorkoutSession current = new WorkoutSession(SESSION_ID, user, null, null,
+        AnalyticsService analyticsService = analyticsService();
+        WorkoutSession current = new WorkoutSession(SESSION_ID, USER_ID, null, null,
                 Instant.parse("2026-10-19T10:00:00Z"), SessionStatus.COMPLETED);
         current.complete(Instant.parse("2026-10-19T11:00:00Z"));
         Exercise exercise = new Exercise(EXERCISE_ID, "Supino", null, "PEITO", List.of(), "Barra", null,
                 MovementType.COMPOUND);
-        SessionExercise sessionExercise = new SessionExercise(SESSION_EXERCISE_ID, current, exercise, 1);
-        ExerciseSet set = new ExerciseSet(UUID.randomUUID(), sessionExercise, 1, new BigDecimal("80.00"), 10,
-                null, null, null, null, null);
+        ExerciseSet set = new ExerciseSet(UUID.randomUUID(), USER_ID, SESSION_ID, SESSION_EXERCISE_ID,
+                exercise.getId(), 1, new BigDecimal("80.00"), 10, null, null, null, null, null);
 
-        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
-        when(sessionRepository.findCompletedBetween(eq(USER_ID), eq(SessionStatus.COMPLETED), any(), any()))
+        when(sessionRepository.findCompletedBetween(
+                eq(USER_ID), eq(SessionStatus.COMPLETED), any(), any(), any()))
                 .thenReturn(List.of(current));
-        when(exerciseSetRepository.findBySessionIds(List.of(SESSION_ID))).thenReturn(List.of(set));
-        when(recordRepository.countAchievedBetween(eq(USER_ID), any(), any())).thenReturn(2L);
+        when(exerciseSetRepository.findBySessionIdIn(List.of(SESSION_ID))).thenReturn(List.of(set));
+        when(recordRepository.countAchievedBetween(
+                eq(USER_ID), any(), any())).thenReturn(2L);
         when(sessionRepository.findFirstByUserIdAndStatusAndCompletedAtIsNotNullOrderByCompletedAtDesc(
                 USER_ID, SessionStatus.COMPLETED)).thenReturn(Optional.of(current));
 
@@ -100,23 +93,15 @@ class AnalyticsServiceTest {
     @Test
     @DisplayName("builds exercise progress with best weight and best estimated 1RM per day")
     void buildsExerciseProgressWithBestWeightAndBestEstimated1RmPerDay() {
-        analyticsService = new AnalyticsService(sessionRepository, exerciseSetRepository, recordRepository,
-                exerciseRepository, programRepository, userRepository, new VolumeCalculator(),
-                new OneRepMaxCalculator(), Clock.fixed(Instant.parse("2026-10-21T12:00:00Z"),
-                        ZoneId.of("UTC")));
-        User user = new User(USER_ID, "Ana", "ana@example.com", "hash", UserRole.USER, "UTC");
+        AnalyticsService analyticsService = analyticsService();
         Exercise exercise = new Exercise(EXERCISE_ID, "Supino", null, "PEITO", List.of(), "Barra", null,
                 MovementType.COMPOUND);
-        WorkoutSession session = new WorkoutSession(SESSION_ID, user, null, null,
-                Instant.parse("2026-10-19T10:00:00Z"), SessionStatus.COMPLETED);
-        session.complete(Instant.parse("2026-10-19T11:00:00Z"));
-        SessionExercise sessionExercise = new SessionExercise(SESSION_EXERCISE_ID, session, exercise, 1);
-        ExerciseSet set = new ExerciseSet(UUID.randomUUID(), sessionExercise, 1, new BigDecimal("100.00"), 5,
-                null, null, null, null, null);
+        ExerciseSet set = new ExerciseSet(UUID.randomUUID(), USER_ID, SESSION_ID, SESSION_EXERCISE_ID,
+                EXERCISE_ID, 1, new BigDecimal("100.00"), 5, null, null, null, null, null);
 
         when(exerciseRepository.findById(EXERCISE_ID)).thenReturn(Optional.of(exercise));
-        when(userRepository.findById(USER_ID)).thenReturn(Optional.of(user));
-        when(exerciseSetRepository.findByUserIdAndExerciseId(USER_ID, EXERCISE_ID)).thenReturn(List.of(set));
+        when(exerciseSetRepository.findByUserIdAndExerciseIdOrderByCompletedAtAscIdAsc(USER_ID, EXERCISE_ID))
+                .thenReturn(List.of(set));
 
         ExerciseProgressResponse response = analyticsService.exerciseProgress(USER_ID, EXERCISE_ID);
 

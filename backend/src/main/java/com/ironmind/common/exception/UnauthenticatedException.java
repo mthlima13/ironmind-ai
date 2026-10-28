@@ -3,7 +3,7 @@ package com.ironmind.common.exception;
 import com.ironmind.common.ErrorCode;
 
 /**
- * Raised when an operation requires an authenticated principal but none is available.
+ * Raised when an operation requires a user of the request but none is available.
  */
 public class UnauthenticatedException extends ApiException {
 

@@ -15,7 +15,7 @@ param()
 $ErrorActionPreference = 'Continue'
 
 $requirements = @(
-    @{ Name = 'java';   Min = '21.0';  Args = '-version'; Hint = 'JDK 21+ (temurin)' },
+    @{ Name = 'java';   Min = '25.0';  Args = '-version'; Hint = 'JDK 25 (temurin)' },
     @{ Name = 'mvn';    Min = '3.10';  Args = '-version'; Hint = 'Maven 3.10+' },
     @{ Name = 'node';   Min = '24.0';  Args = '-v';       Hint = 'Node.js 24+' },
     @{ Name = 'npm';    Min = '11.0';  Args = '-v';       Hint = 'npm 11+' },
@@ -66,8 +66,8 @@ foreach ($req in $requirements) {
 
 Write-Host ""
 
-# O daemon do Docker e opcional para compilar, mas obrigatorio para o Postgres
-# local e para os testes de integracao com Testcontainers.
+# O daemon do Docker e opcional para compilar, mas obrigatorio para o MongoDB
+# local e para a suite de contrato em Python.
 $docker = Get-Command docker -ErrorAction SilentlyContinue
 if ($docker) {
     $daemon = $null
@@ -76,7 +76,7 @@ if ($docker) {
         Write-Host ("OK     docker daemon em execucao (v{0})" -f $daemon) -ForegroundColor Green
     } else {
         Write-Host "AVISO  Docker daemon nao esta rodando. Abra o Docker Desktop para usar o" -ForegroundColor Yellow
-        Write-Host "       Postgres local e os testes de integracao." -ForegroundColor Yellow
+        Write-Host "       MongoDB local e a suite de contrato em Python." -ForegroundColor Yellow
     }
 }
 

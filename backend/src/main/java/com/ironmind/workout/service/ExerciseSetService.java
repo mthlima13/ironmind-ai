@@ -31,7 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
  * exercise of the session, and it is assigned by the server, never by the body of the request.
  *
  * <p>The service also owns the durable idempotency of the registration. The key lives in the set
- * itself, in a column with a unique index, so the mechanism survives a restart of the server and
+ * itself, in a field with a unique index, so the mechanism survives a restart of the server and
  * is not shared by the instances of the API (SPEC.md section 7.8 and appendix A.3).
  */
 @Service
@@ -97,14 +97,15 @@ public class ExerciseSetService {
             }
         }
 
-        int setNumber = exerciseSetRepository.findMaxSetNumber(sessionExercise.getId()) + 1;
+        int setNumber = nextSetNumber(sessionExercise.getId());
 
-        ExerciseSet set = new ExerciseSet(UUID.randomUUID(), sessionExercise, setNumber, request.weightKg(),
+        ExerciseSet set = new ExerciseSet(UUID.randomUUID(), userId, sessionId, sessionExercise.getId(),
+                sessionExercise.getExerciseId(), setNumber, request.weightKg(),
                 request.repetitions(), request.durationSeconds(), request.distanceMeters(),
                 request.perceivedExertion(), request.restAfterSeconds(), key);
 
         ExerciseSet saved = exerciseSetRepository.save(set);
-        personalRecordService.recalculate(userId, sessionExercise.getExercise().getId());
+        personalRecordService.recalculate(userId, sessionExercise.getExerciseId());
         return new RegistrationResult(ExerciseSetResponse.from(saved), true);
     }
 
@@ -120,9 +121,7 @@ public class ExerciseSetService {
     @Transactional
     public ExerciseSetResponse update(UUID setId, UpdateSetRequest request, UUID userId) {
         ExerciseSet set = requireOwnedSet(setId, userId);
-        if (set.getSessionExercise().getSession().isFinalized()) {
-            throw new ConflictException("A sessão já foi finalizada e não aceita correções das séries.");
-        }
+        requireOpenSession(set.getSessionId(), userId);
 
         set.update(
                 weightOf(request, set),
@@ -133,7 +132,7 @@ public class ExerciseSetService {
                 request.restAfterSeconds() == null ? set.getRestAfterSeconds() : request.restAfterSeconds());
 
         ExerciseSet saved = exerciseSetRepository.save(set);
-        personalRecordService.recalculate(userId, set.getSessionExercise().getExercise().getId());
+        personalRecordService.recalculate(userId, set.getExerciseId());
         return ExerciseSetResponse.from(saved);
     }
 
@@ -176,14 +175,10 @@ public class ExerciseSetService {
     @Transactional
     public void delete(UUID setId, UUID userId) {
         ExerciseSet set = requireOwnedSet(setId, userId);
-        if (set.getSessionExercise().getSession().isFinalized()) {
-            throw new ConflictException("A sessão já foi finalizada e não aceita correções das séries.");
-        }
-        UUID exerciseId = set.getSessionExercise().getExercise().getId();
+        requireOpenSession(set.getSessionId(), userId);
+        UUID exerciseId = set.getExerciseId();
         exerciseSetRepository.delete(set);
-        // The recalculation reads the surviving sets, so the deletion has to reach the database
-        // first. Without the flush the query could still see the deleted row.
-        exerciseSetRepository.flush();
+        // The recalculation reads the surviving sets, and the deletion is already durable.
         personalRecordService.recalculate(userId, exerciseId);
     }
 
@@ -191,8 +186,28 @@ public class ExerciseSetService {
      * Loads the set of the user, or fails when it does not exist or belongs to another user.
      */
     private ExerciseSet requireOwnedSet(UUID setId, UUID userId) {
-        return exerciseSetRepository.findOwnedById(setId, userId)
+        return exerciseSetRepository.findByIdAndUserId(setId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("série", setId));
+    }
+
+    /**
+     * Loads the session of the set, failing when it is already finished.
+     */
+    private WorkoutSession requireOpenSession(UUID sessionId, UUID userId) {
+        WorkoutSession session = workoutSessionService.requireOwnedSession(sessionId, userId);
+        if (session.isFinalized()) {
+            throw new ConflictException("A sessão já foi finalizada e não aceita correções das séries.");
+        }
+        return session;
+    }
+
+    /**
+     * Returns the number of the next set of the exercise of the session, starting at one.
+     */
+    private int nextSetNumber(UUID sessionExerciseId) {
+        return exerciseSetRepository.findFirstBySessionExerciseIdOrderBySetNumberDesc(sessionExerciseId)
+                .map(ExerciseSet::getSetNumber)
+                .orElse(0) + 1;
     }
 
     /**
@@ -210,9 +225,9 @@ public class ExerciseSetService {
     /**
      * Builds the value stored in the set for the idempotency key.
      *
-     * <p>Appendix A.3 scopes the key by the user and by the endpoint, but the column has a
-     * global unique index: the scope is folded into a digest, so the key of a user never collides
-     * with the key of another user and the column never overflows.
+     * <p>Appendix A.3 scopes the key by the user and by the endpoint, but the field has a global
+     * unique index: the scope is folded into a digest, so the key of a user never collides with
+     * the key of another user and the field never overflows.
      */
     private static String scopedKey(UUID userId, String idempotencyKey) {
         String key = normalizedKey(idempotencyKey);
@@ -241,8 +256,8 @@ public class ExerciseSetService {
      * body is refused, and the same key with the same body replays the series.
      */
     private static boolean matches(ExerciseSet registered, UUID sessionId, RegisterSetRequest request) {
-        return registered.getSessionExercise().getSession().getId().equals(sessionId)
-                && registered.getSessionExercise().getId().equals(request.sessionExerciseId())
+        return sessionId.equals(registered.getSessionId())
+                && registered.getSessionExerciseId().equals(request.sessionExerciseId())
                 && sameNumber(registered.getWeightKg(), request.weightKg())
                 && registered.getRepetitions() == numberOf(request.repetitions())
                 && sameNumber(registered.getDurationSeconds(), request.durationSeconds())

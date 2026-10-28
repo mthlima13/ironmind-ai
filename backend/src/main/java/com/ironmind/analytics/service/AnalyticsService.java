@@ -13,8 +13,6 @@ import com.ironmind.exercise.repository.ExerciseRepository;
 import com.ironmind.program.entity.WorkoutProgram;
 import com.ironmind.program.repository.WorkoutProgramRepository;
 import com.ironmind.record.repository.PersonalRecordRepository;
-import com.ironmind.user.entity.User;
-import com.ironmind.user.repository.UserRepository;
 import com.ironmind.workout.entity.ExerciseSet;
 import com.ironmind.workout.entity.SessionStatus;
 import com.ironmind.workout.entity.WorkoutSession;
@@ -38,6 +36,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,8 +44,10 @@ import org.springframework.transaction.annotation.Transactional;
  * Aggregations for the dashboard and the evolution of exercises (SPEC.md section 11.5).
  *
  * <p>Every calculation is done in the backend. The period of the dashboard is the current week
- * in the timezone of the user, from Monday to Sunday, with the previous week as the comparison
- * point.
+ * in UTC, from Monday to Sunday, with the previous week as the comparison point.
+ *
+ * <p>The service stores no timezone of the user: the account belongs to the identity provider,
+ * so the analysis always runs in UTC and the client renders the local date.
  */
 @Service
 @Transactional(readOnly = true)
@@ -55,12 +56,16 @@ public class AnalyticsService {
     private static final BigDecimal ONE_HUNDRED = new BigDecimal("100");
     private static final int MAX_RECENT_SESSIONS = 20;
 
+    /**
+     * Timezone of the analysis, always UTC.
+     */
+    private static final ZoneId ANALYSIS_ZONE = ZoneId.of("UTC");
+
     private final WorkoutSessionRepository sessionRepository;
     private final ExerciseSetRepository exerciseSetRepository;
     private final PersonalRecordRepository recordRepository;
     private final ExerciseRepository exerciseRepository;
     private final WorkoutProgramRepository programRepository;
-    private final UserRepository userRepository;
     private final VolumeCalculator volumeCalculator;
     private final OneRepMaxCalculator oneRepMaxCalculator;
     private final Clock clock;
@@ -68,14 +73,12 @@ public class AnalyticsService {
     public AnalyticsService(WorkoutSessionRepository sessionRepository,
             ExerciseSetRepository exerciseSetRepository, PersonalRecordRepository recordRepository,
             ExerciseRepository exerciseRepository, WorkoutProgramRepository programRepository,
-            UserRepository userRepository, VolumeCalculator volumeCalculator,
-            OneRepMaxCalculator oneRepMaxCalculator, Clock clock) {
+            VolumeCalculator volumeCalculator, OneRepMaxCalculator oneRepMaxCalculator, Clock clock) {
         this.sessionRepository = sessionRepository;
         this.exerciseSetRepository = exerciseSetRepository;
         this.recordRepository = recordRepository;
         this.exerciseRepository = exerciseRepository;
         this.programRepository = programRepository;
-        this.userRepository = userRepository;
         this.volumeCalculator = volumeCalculator;
         this.oneRepMaxCalculator = oneRepMaxCalculator;
         this.clock = clock;
@@ -85,17 +88,17 @@ public class AnalyticsService {
      * Builds the dashboard overview for the current week of the user.
      */
     public DashboardOverviewResponse overview(UUID userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("usuário", userId));
-        ZoneId zoneId = ZoneId.of(user.getTimezone());
+        ZoneId zoneId = ANALYSIS_ZONE;
         ZonedDateTime now = ZonedDateTime.now(clock).withZoneSameInstant(zoneId);
         Period current = currentWeek(now);
         Period previous = previousWeek(current);
 
-        List<WorkoutSession> currentSessions = sessionRepository.findCompletedBetween(userId,
-                SessionStatus.COMPLETED, current.from(), current.to());
-        List<WorkoutSession> previousSessions = sessionRepository.findCompletedBetween(userId,
-                SessionStatus.COMPLETED, previous.from(), previous.to());
+        List<WorkoutSession> currentSessions = sessionRepository.findCompletedBetween(
+                userId, SessionStatus.COMPLETED, current.from(), current.to(),
+                Sort.by(Sort.Direction.DESC, "completedAt"));
+        List<WorkoutSession> previousSessions = sessionRepository.findCompletedBetween(
+                userId, SessionStatus.COMPLETED, previous.from(), previous.to(),
+                Sort.by(Sort.Direction.DESC, "completedAt"));
 
         List<ExerciseSet> currentSets = setsOf(currentSessions);
         List<ExerciseSet> previousSets = setsOf(previousSessions);
@@ -104,8 +107,8 @@ public class AnalyticsService {
         BigDecimal previousVolume = volumeCalculator.totalVolume(volumeOf(previousSets));
         int totalSets = currentSets.size();
         int completedSessions = currentSessions.size();
-        long recordsBroken = recordRepository.countAchievedBetween(userId, current.from(),
-                current.to());
+        long recordsBroken = recordRepository.countAchievedBetween(
+                userId, current.from(), current.to());
         int averageMinutes = averageMinutes(currentSessions);
         BigDecimal volumeChangePercent = changePercent(currentVolume, previousVolume);
 
@@ -126,7 +129,7 @@ public class AnalyticsService {
     }
 
     /**
-     * Builds the evolution of an exercise, grouping the sets by day in the timezone of the user.
+     * Builds the evolution of an exercise, grouping the sets by day in UTC.
      *
      * <p>A set of another user is reported as not found. The exercise must be visible to the user
      * in the same way as the exercise catalog (SPEC.md section 3.4).
@@ -135,11 +138,10 @@ public class AnalyticsService {
         Exercise exercise = exerciseRepository.findById(exerciseId)
                 .filter(candidate -> candidate.isVisibleTo(userId))
                 .orElseThrow(() -> new ResourceNotFoundException("exercício", exerciseId));
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("usuário", userId));
-        ZoneId zoneId = ZoneId.of(user.getTimezone());
+        ZoneId zoneId = ANALYSIS_ZONE;
 
-        List<ExerciseSet> sets = exerciseSetRepository.findByUserIdAndExerciseId(userId, exerciseId);
+        List<ExerciseSet> sets = exerciseSetRepository
+                .findByUserIdAndExerciseIdOrderByCompletedAtAscIdAsc(userId, exerciseId);
         List<ExerciseProgressPointResponse> points = groupByDay(sets, zoneId);
         return new ExerciseProgressResponse(ExerciseResponse.from(exercise), points);
     }
@@ -149,7 +151,7 @@ public class AnalyticsService {
             return List.of();
         }
         List<UUID> ids = sessions.stream().map(WorkoutSession::getId).toList();
-        return exerciseSetRepository.findBySessionIds(ids);
+        return exerciseSetRepository.findBySessionIdIn(ids);
     }
 
     private List<VolumeCalculator.SetVolume> volumeOf(List<ExerciseSet> sets) {

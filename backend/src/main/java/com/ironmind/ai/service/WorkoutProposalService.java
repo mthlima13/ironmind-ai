@@ -64,7 +64,7 @@ public class WorkoutProposalService {
     /**
      * Proposes a workout program to the user.
      *
-     * @param userId         owner of the proposal, taken from the access token
+     * @param userId         owner of the proposal, taken from the identity header
      * @param request        request written by the user
      * @param idempotencyKey key of the request, {@code null} when absent
      * @return validated proposal waiting for the review

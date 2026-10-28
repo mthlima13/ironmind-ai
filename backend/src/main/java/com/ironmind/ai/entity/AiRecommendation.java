@@ -1,60 +1,43 @@
 package com.ironmind.ai.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 /**
  * Recommendation produced by the AI service and reviewed by the user (SPEC.md section 10.13).
  *
- * <p>The row is written by the backend, never by the model, and only after the structured answer
- * passed the domain validation. The free text of the conversation is not stored: {@code input}
- * keeps a short summary without sensitive data and {@code result} keeps the validated structure.
+ * <p>The document is written by the backend, never by the model, and only after the structured
+ * answer passed the domain validation. The free text of the conversation is not stored:
+ * {@code inputSummary} keeps a short summary without sensitive data and {@code result} keeps the
+ * validated structure.
  */
-@Entity
-@Table(name = "ai_recommendations")
+@Document(collection = "ai_recommendations")
 public class AiRecommendation {
 
     @Id
     private UUID id;
 
-    @Column(name = "user_id", nullable = false)
+    @Indexed
     private UUID userId;
 
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Enumerated(EnumType.STRING)
-    @Column(name = "recommendation_type", nullable = false)
     private RecommendationType type;
 
-    @Column(name = "input_summary", columnDefinition = "text")
     private String inputSummary;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "result_json", nullable = false)
-    private Map<String, Object> result;
+    private Map<String, Object> result = new LinkedHashMap<>();
 
-    @Column(name = "model_version", length = 120)
     private String modelVersion;
 
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
     private RecommendationStatus status;
 
-    @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-    @Column(name = "accepted_at")
     private Instant acceptedAt;
 
     protected AiRecommendation() {

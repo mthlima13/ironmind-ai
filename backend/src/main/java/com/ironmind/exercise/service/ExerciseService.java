@@ -9,16 +9,17 @@ import com.ironmind.exercise.dto.ExerciseResponse;
 import com.ironmind.exercise.dto.UpdateExerciseRequest;
 import com.ironmind.exercise.entity.Exercise;
 import com.ironmind.exercise.repository.ExerciseRepository;
-import jakarta.persistence.criteria.Predicate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.UUID;
-import org.springframework.data.domain.Page;
+import java.util.regex.Pattern;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,10 +40,13 @@ public class ExerciseService {
     private static final String CREATE_SCOPE = "POST /api/v1/exercises";
 
     private final ExerciseRepository exerciseRepository;
+    private final MongoTemplate mongoTemplate;
     private final IdempotencyService idempotencyService;
 
-    public ExerciseService(ExerciseRepository exerciseRepository, IdempotencyService idempotencyService) {
+    public ExerciseService(ExerciseRepository exerciseRepository, MongoTemplate mongoTemplate,
+            IdempotencyService idempotencyService) {
         this.exerciseRepository = exerciseRepository;
+        this.mongoTemplate = mongoTemplate;
         this.idempotencyService = idempotencyService;
     }
 
@@ -50,8 +54,11 @@ public class ExerciseService {
      * Lists the exercises visible to the user, applying the informed filters.
      */
     public PageResponse<ExerciseResponse> list(ExerciseQuery query, UUID userId) {
-        Page<Exercise> page = exerciseRepository.findAll(visibleTo(query, userId), pageableOf(query));
-        return PageResponse.of(page, ExerciseResponse::from);
+        Pageable pageable = pageableOf(query);
+        Query mongoQuery = new Query(criteriaOf(query, userId)).with(pageable);
+        List<Exercise> content = mongoTemplate.find(mongoQuery, Exercise.class);
+        long total = mongoTemplate.count(Query.of(mongoQuery).limit(-1).skip(-1), Exercise.class);
+        return PageResponse.of(new PageImpl<>(content, pageable, total), ExerciseResponse::from);
     }
 
     /**
@@ -67,9 +74,9 @@ public class ExerciseService {
     }
 
     /**
-     * Creates a personal exercise owned by the authenticated user.
+     * Creates a personal exercise owned by the user of the request.
      *
-     * <p>The owner always comes from the session, never from the request body. When an
+     * <p>The owner always comes from the gateway header, never from the request body. When an
      * {@code Idempotency-Key} header is informed, a replay with the same payload returns the
      * exercise created by the first request instead of creating a new one.
      */
@@ -99,7 +106,7 @@ public class ExerciseService {
     }
 
     /**
-     * Updates a personal exercise owned by the authenticated user.
+     * Updates a personal exercise owned by the user of the request.
      *
      * @throws ResourceNotFoundException when the exercise does not exist or belongs to another user
      */
@@ -129,40 +136,41 @@ public class ExerciseService {
     public record CreationResult(ExerciseResponse exercise, boolean created) {
     }
 
-    private Specification<Exercise> visibleTo(ExerciseQuery query, UUID userId) {
-        return (root, criteriaQuery, criteriaBuilder) -> {
-            List<Predicate> predicates = new ArrayList<>();
+    private Criteria criteriaOf(ExerciseQuery query, UUID userId) {
+        List<Criteria> predicates = new ArrayList<>();
 
-            if (query.onlyMine()) {
-                predicates.add(criteriaBuilder.equal(root.get("createdByUserId"), userId));
-            } else if (userId == null) {
-                predicates.add(criteriaBuilder.isNull(root.get("createdByUserId")));
-            } else {
-                predicates.add(criteriaBuilder.or(
-                        criteriaBuilder.isNull(root.get("createdByUserId")),
-                        criteriaBuilder.equal(root.get("createdByUserId"), userId)));
-            }
+        if (query.onlyMine()) {
+            predicates.add(Criteria.where("createdByUserId").is(userId));
+        } else if (userId == null) {
+            predicates.add(Criteria.where("createdByUserId").is(null));
+        } else {
+            predicates.add(new Criteria().orOperator(
+                    Criteria.where("createdByUserId").is(null),
+                    Criteria.where("createdByUserId").is(userId)));
+        }
 
-            if (query.muscleGroup() != null && !query.muscleGroup().isBlank()) {
-                predicates.add(criteriaBuilder.equal(
-                        criteriaBuilder.lower(root.get("primaryMuscleGroup")),
-                        query.muscleGroup().trim().toLowerCase(Locale.ROOT)));
-            }
+        if (query.muscleGroup() != null && !query.muscleGroup().isBlank()) {
+            predicates.add(Criteria.where("primaryMuscleGroup")
+                    .regex(exactIgnoreCase(query.muscleGroup().trim())));
+        }
 
-            if (query.equipment() != null && !query.equipment().isBlank()) {
-                predicates.add(criteriaBuilder.equal(
-                        criteriaBuilder.lower(root.get("equipment")),
-                        query.equipment().trim().toLowerCase(Locale.ROOT)));
-            }
+        if (query.equipment() != null && !query.equipment().isBlank()) {
+            predicates.add(Criteria.where("equipment").regex(exactIgnoreCase(query.equipment().trim())));
+        }
 
-            if (query.search() != null && !query.search().isBlank()) {
-                String pattern = "%" + query.search().trim().toLowerCase(Locale.ROOT) + "%";
-                predicates.add(criteriaBuilder.like(
-                        criteriaBuilder.lower(root.get("name")), pattern));
-            }
+        if (query.search() != null && !query.search().isBlank()) {
+            predicates.add(Criteria.where("name").regex(containsIgnoreCase(query.search().trim())));
+        }
 
-            return criteriaBuilder.and(predicates.toArray(Predicate[]::new));
-        };
+        return new Criteria().andOperator(predicates.toArray(Criteria[]::new));
+    }
+
+    private static Pattern exactIgnoreCase(String value) {
+        return Pattern.compile("^" + Pattern.quote(value) + "$", Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
+    }
+
+    private static Pattern containsIgnoreCase(String value) {
+        return Pattern.compile(Pattern.quote(value), Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE);
     }
 
     private Pageable pageableOf(ExerciseQuery query) {

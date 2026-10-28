@@ -128,13 +128,16 @@ public class AiRecommendationService {
                 throw new FieldValidationException("programId",
                         "Somente propostas de treino podem ser vinculadas a um programa.");
             }
-            if (!programRepository.existsOwnedBy(savedProgramId, userId)) {
+            if (!programRepository.existsByIdAndUserId(savedProgramId, userId)) {
                 throw new ResourceNotFoundException("Programa não encontrado.");
             }
             result.put("savedProgramId", savedProgramId.toString());
         }
 
         recommendation.decide(status, clock.instant(), result);
+        // Spring Data Mongo does not dirty-check the entity: the decision only reaches the
+        // database when the document is saved explicitly.
+        repository.save(recommendation);
         return new RecommendationDecisionResponse(
                 recommendation.getId(),
                 recommendation.getStatus(),

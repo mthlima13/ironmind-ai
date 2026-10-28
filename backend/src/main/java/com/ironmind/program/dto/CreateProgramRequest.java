@@ -13,7 +13,7 @@ import java.util.List;
  *
  * <p>The update of a program replaces the whole structure: the days and the exercises of the
  * body are the new structure of the program, and the entries that are not sent are removed. The
- * owner is never read from the payload: it always comes from the access token
+ * owner is never read from the payload: it always comes from the identity header
  * (SPEC.md section 11.7).
  *
  * @param name        name of the program

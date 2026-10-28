@@ -1,0 +1,643 @@
+[
+  {
+    "name": "Supino reto com barra",
+    "description": "Movimento composto para peitoral, com apoio das costas no banco e pegada pronomada.",
+    "primaryMuscleGroup": "Peito",
+    "secondaryMuscleGroups": [
+      "Tríceps",
+      "Ombros"
+    ],
+    "equipment": "Barra",
+    "instructions": "Deite no banco, posicione os pés firmes no chão, segure a barra com pegada ligeiramente mais larga que os ombros, retire a barra do suporte e desça até o peito, mantendo os cotovelos próximos do corpo.",
+    "movementType": "COMPOUND"
+  },
+  {
+    "name": "Supino inclinado com barra",
+    "description": "Variante do supino com o banco inclinado, com maior recrutamento da parte superior do peitoral.",
+    "primaryMuscleGroup": "Peito",
+    "secondaryMuscleGroups": [
+      "Tríceps",
+      "Ombros"
+    ],
+    "equipment": "Barra",
+    "instructions": "Ajuste o banco a 30 ou 45 graus, encaixe a barra na base, retire do suporte, desça controlando a fase excêntrica e empurre até a extensão dos cotovelos.",
+    "movementType": "COMPOUND"
+  },
+  {
+    "name": "Supino inclinado com halteres",
+    "description": "Supino inclinado com halteres, permitindo corrigir a diferença de força entre os lados.",
+    "primaryMuscleGroup": "Peito",
+    "secondaryMuscleGroups": [
+      "Tríceps",
+      "Ombros"
+    ],
+    "equipment": "Halteres",
+    "instructions": "Sente-se com o banco inclinado, apoie as costas, segure os halteres na altura do peito, empurre para cima e junte os halteres no topo do movimento.",
+    "movementType": "COMPOUND"
+  },
+  {
+    "name": "Supino com halteres",
+    "description": "Movimento composto de pega anatômica, executado no banco reto.",
+    "primaryMuscleGroup": "Peito",
+    "secondaryMuscleGroups": [
+      "Tríceps"
+    ],
+    "equipment": "Halteres",
+    "instructions": "Deite no banco reto, segure os halteres acima do peito com os braços retos, desça até a altura do peito e empurre de volta, mantendo os pulsos firmes.",
+    "movementType": "COMPOUND"
+  },
+  {
+    "name": "Crucifixo com halteres",
+    "description": "Isolamento de peitoral com abertura dos braços e contração em alongamento.",
+    "primaryMuscleGroup": "Peito",
+    "secondaryMuscleGroups": [
+      "Ombros"
+    ],
+    "equipment": "Halteres",
+    "instructions": "Deite no banco, mantenha os cotovelos levemente flexionados, abra os braços em arco até sentir o alongamento do peitoral e volte juntando os halteres.",
+    "movementType": "ISOLATION"
+  },
+  {
+    "name": "Crucifixo na polia",
+    "description": "Isolamento de peitoral na polia baixa, com tensão constante durante todo o movimento.",
+    "primaryMuscleGroup": "Peito",
+    "secondaryMuscleGroups": [
+      "Ombros"
+    ],
+    "equipment": "Polia",
+    "instructions": "Sente-se entre as polias, segure as alças, mantenha os cotovelos levemente flexionados, junte as mãos à frente do abdômen e retorne devagar.",
+    "movementType": "ISOLATION"
+  },
+  {
+    "name": "Crucifixo inclinado com halteres",
+    "description": "Isolamento de peitoral com banco inclinado, com foco na parte superior do músculo.",
+    "primaryMuscleGroup": "Peito",
+    "secondaryMuscleGroups": [
+      "Ombros"
+    ],
+    "equipment": "Halteres",
+    "instructions": "Sente-se no banco inclinado, mantenha os halteres na altura do peito, abra os braços e volte controlando cada repetição.",
+    "movementType": "ISOLATION"
+  },
+  {
+    "name": "Flexão de braço",
+    "description": "Movimento de empurrar com o próprio peso, executado no chão ou com as mãos elevadas.",
+    "primaryMuscleGroup": "Peito",
+    "secondaryMuscleGroups": [
+      "Tríceps",
+      "Core"
+    ],
+    "equipment": "Corpo do peso",
+    "instructions": "Mãos no chão alinhadas com os ombros, corpo em linha reta, flexione os cotovelos até o peito tocar o chão e empurre o corpo de volta.",
+    "movementType": "COMPOUND"
+  },
+  {
+    "name": "Peck deck",
+    "description": "Isolamento de peitoral na máquina, com apoio do antebraço e trajetória fixa.",
+    "primaryMuscleGroup": "Peito",
+    "secondaryMuscleGroups": [
+      "Ombros"
+    ],
+    "equipment": "Máquina",
+    "instructions": "Ajuste o banco e a altura do apoio, posicione o antebraço na placa, empurre à frente até a extensão do cotovelo e retorne controlando.",
+    "movementType": "ISOLATION"
+  },
+  {
+    "name": "Compressão isométrica na barra",
+    "description": "Manutenção isométrica da barra contra a chest press, sem movimento dos cotovelos.",
+    "primaryMuscleGroup": "Peito",
+    "secondaryMuscleGroups": [
+      "Tríceps"
+    ],
+    "equipment": "Barra",
+    "instructions": "Deite no banco, segure a barra acima do peito, empurre contra a resistência sem permitir a subida dos cotovelos e mantenha a posição pelo tempo definido.",
+    "movementType": "ISOMETRIC"
+  },
+  {
+    "name": "Puxada frontal",
+    "description": "Movimento composto de costas na polia alta, com pegada aberta na frente.",
+    "primaryMuscleGroup": "Costas",
+    "secondaryMuscleGroups": [
+      "Bíceps"
+    ],
+    "equipment": "Polia",
+    "instructions": "Sente-se com as coxas fixas, segure a barra com as mãos afastadas, incline levemente o tronco para trás, puxe a barra em direção ao peito e retorne controlando.",
+    "movementType": "COMPOUND"
+  },
+  {
+    "name": "Puxada frontal com pegada aberta",
+    "description": "Variação da puxada frontal com pegada mais aberta, com maior recrutamento dos dorsais.",
+    "primaryMuscleGroup": "Costas",
+    "secondaryMuscleGroups": [
+      "Bíceps"
+    ],
+    "equipment": "Polia",
+    "instructions": "Sente-se na máquina, segure a barra com as mãos bem afastadas, puxe em direção ao peito superior e solte devagar até alongar os braços.",
+    "movementType": "COMPOUND"
+  },
+  {
+    "name": "Remada curvada",
+    "description": "Remada com tronco inclinado e barra curvada, o exercício de base da força de costas.",
+    "primaryMuscleGroup": "Costas",
+    "secondaryMuscleGroups": [
+      "Bíceps",
+      "Dorsais"
+    ],
+    "equipment": "Barra",
+    "instructions": "Fique em pé com o tronco inclinado a cerca de 45 graus, segure a barra, puxe em direção ao abdômen contraindo as escápulas e desça controlando.",
+    "movementType": "COMPOUND"
+  },
+  {
+    "name": "Remada cavalinha",
+    "description": "Remada com pegada estreita e tronco ereto, com foco no dorsal e no bíceps.",
+    "primaryMuscleGroup": "Costas",
+    "secondaryMuscleGroups": [
+      "Bíceps"
+    ],
+    "equipment": "Barra",
+    "instructions": "Fique em pé com a barra à frente das coxas, tronco ereto, puxe a barra em direção ao abdômen e retorne devagar sem perder a tensão.",
+    "movementType": "COMPOUND"
+  },
+  {
+    "name": "Remada unilateral",
+    "description": "Remada com um haltere por vez, permitindo corrigir assimetrias entre os lados.",
+    "primaryMuscleGroup": "Costas",
+    "secondaryMuscleGroups": [
+      "Bíceps"
+    ],
+    "equipment": "Halteres",
+    "instructions": "Apoie o joelho e a mão no banco, segure o haltere com a outra mão, puxe o cotovelo para trás contraindo as escápulas e retorne controlando.",
+    "movementType": "COMPOUND"
+  },
+  {
+    "name": "Remada baixa na polia",
+    "description": "Remada na polia baixa com pegada neutra, sentado, com a coluna apoiada no apoio.",
+    "primaryMuscleGroup": "Costas",
+    "secondaryMuscleGroups": [
+      "Bíceps"
+    ],
+    "equipment": "Polia",
+    "instructions": "Sente-se com os pés apoiados, segure a alça neutra, puxe o cabo em direção ao abdômen e retorne soltando a tensão.",
+    "movementType": "COMPOUND"
+  },
+  {
+    "name": "Remada na máquina",
+    "description": "Remada apoiada na máquina, com trajetória guiada e carga facilmente ajustada.",
+    "primaryMuscleGroup": "Costas",
+    "secondaryMuscleGroups": [
+      "Bíceps"
+    ],
+    "equipment": "Máquina",
+    "instructions": "Sente-se, posicione os pés na plataforma, segure as alças, puxe os cotovelos para trás e retorne devagar.",
+    "movementType": "COMPOUND"
+  },
+  {
+    "name": "Remada baixa no corpo inclinado",
+    "description": "Remada com o corpo inclinado e apoiado no banco, executada com o próprio peso.",
+    "primaryMuscleGroup": "Costas",
+    "secondaryMuscleGroups": [
+      "Bíceps"
+    ],
+    "equipment": "Corpo do peso",
+    "instructions": "Deite com o peito no banco, segure a barra ou as alças, puxe contraindo as escápulas e retorne devagar.",
+    "movementType": "COMPOUND"
+  },
+  {
+    "name": "Pullover na polia",
+    "description": "Isolamento de dorsais com o braço estendido, mantendo o tronco firme.",
+    "primaryMuscleGroup": "Costas",
+    "secondaryMuscleGroups": [
+      "Peito"
+    ],
+    "equipment": "Polia",
+    "instructions": "Deite no banco, segure a corda com as duas mãos, leve as mãos em direção às pernas com o tronco estável e retorne controlando.",
+    "movementType": "ISOLATION"
+  },
+  {
+    "name": "Pullover com haltere",
+    "description": "Isolamento de dorsais com haltere, realizado no banco com o braço estendido.",
+    "primaryMuscleGroup": "Costas",
+    "secondaryMuscleGroups": [
+      "Peito"
+    ],
+    "equipment": "Halteres",
+    "instructions": "Deite no banco, segure o haltere com as duas mãos sobre o peito, leve o peso para trás em direção à cabeça e retorne devagar.",
+    "movementType": "ISOLATION"
+  },
+  {
+    "name": "Flexão invertida",
+    "description": "Movimento de costas com o próprio peso, com o corpo na horizontal e a barra acima.",
+    "primaryMuscleGroup": "Costas",
+    "secondaryMuscleGroups": [
+      "Bíceps"
+    ],
+    "equipment": "Corpo do peso",
+    "instructions": "Instale a barra na porta, segure com as mãos na pegada aberta, estenda o corpo na horizontal e puxe o peito em direção à barra.",
+    "movementType": "COMPOUND"
+  },
+  {
+    "name": "Desenvolvimento com barra em pé",
+    "description": "Movimento composto de ombros com barra, executado em pé.",
+    "primaryMuscleGroup": "Ombros",
+    "secondaryMuscleGroups": [
+      "Tríceps",
+      "Core"
+    ],
+    "equipment": "Barra",
+    "instructions": "Fique em pé com a barra na altura da clavícula, segure com pegada um pouco mais larga que os ombros, empurre a barra acima da cabeça e retorne devagar.",
+    "movementType": "COMPOUND"
+  },
+  {
+    "name": "Desenvolvimento com halteres sentado",
+    "description": "Desenvolvimento sentado com halteres, com apoio das costas e maior estabilidade.",
+    "primaryMuscleGroup": "Ombros",
+    "secondaryMuscleGroups": [
+      "Tríceps"
+    ],
+    "equipment": "Halteres",
+    "instructions": "Sente-se com o banco ereto, segure os halteres na altura dos ombros, empurre para cima até a extensão dos cotovelos e retorne controlando.",
+    "movementType": "COMPOUND"
+  },
+  {
+    "name": "Elevação lateral com halteres",
+    "description": "Isolamento do deltoide lateral, com amplitude controlada e sem impulso do tronco.",
+    "primaryMuscleGroup": "Ombros",
+    "secondaryMuscleGroups": [
+      "Trapézio"
+    ],
+    "equipment": "Halteres",
+    "instructions": "Fique em pé com os halteres ao lado do corpo, eleve os braços até a altura dos ombros, com o cotovelo levemente à frente, e desça lentamente.",
+    "movementType": "ISOLATION"
+  },
+  {
+    "name": "Elevação lateral na polia",
+    "description": "Elevação lateral na polia, com tensão constante e sem perder a linha do corpo.",
+    "primaryMuscleGroup": "Ombros",
+    "secondaryMuscleGroups": [
+      "Trapézio"
+    ],
+    "equipment": "Polia",
+    "instructions": "Fique em pé com a alça na mão, eleve o braço até a altura do ombro, sem passar da linha paralela ao tronco, e retorne devagar.",
+    "movementType": "ISOLATION"
+  },
+  {
+    "name": "Elevação frontal com haltere",
+    "description": "Elevação frontal com um haltere, com foco no deltoide anterior.",
+    "primaryMuscleGroup": "Ombros",
+    "secondaryMuscleGroups": [
+      "Peito"
+    ],
+    "equipment": "Halteres",
+    "instructions": "Fique em pé, segure o haltere na mão oposta ao lado do corpo, eleve o braço à frente até a altura do ombro e desça controlando.",
+    "movementType": "ISOLATION"
+  },
+  {
+    "name": "Elevação lateral na máquina",
+    "description": "Elevação lateral na máquina, com trajetória fixa e carga fácil de regular.",
+    "primaryMuscleGroup": "Ombros",
+    "secondaryMuscleGroups": [],
+    "equipment": "Máquina",
+    "instructions": "Sente-se, ajuste a altura do apoio, segure as alças, eleve os braços até a altura dos ombros e retorne devagar.",
+    "movementType": "ISOLATION"
+  },
+  {
+    "name": "Face pull na polia",
+    "description": "Puxada para o rosto na polia, com foco no deltoide posterior e no trapézio.",
+    "primaryMuscleGroup": "Ombros",
+    "secondaryMuscleGroups": [
+      "Trapézio",
+      "Dorsais"
+    ],
+    "equipment": "Polia",
+    "instructions": "Ajuste a corda na altura do rosto, puxe a corda em direção ao rosto abrindo as mãos no final e retorne controlando.",
+    "movementType": "ISOLATION"
+  },
+  {
+    "name": "Elevação de escápula com barra",
+    "description": "Elevação das escápulas com a barra, para o trapézio médio.",
+    "primaryMuscleGroup": "Ombros",
+    "secondaryMuscleGroups": [
+      "Trapézio"
+    ],
+    "equipment": "Barra",
+    "instructions": "Segure a barra à frente do corpo, eleve as escápulas como se o ombro fosse para trás e baixo, sentindo a contração do trapézio.",
+    "movementType": "ISOLATION"
+  },
+  {
+    "name": "Rosca direta com barra",
+    "description": "Isolamento de bíceps com barra, em pé, com o cotovelo próximo ao corpo.",
+    "primaryMuscleGroup": "Bíceps",
+    "secondaryMuscleGroups": [
+      "Antebraço"
+    ],
+    "equipment": "Barra",
+    "instructions": "Fique em pé com a barra na altura da cintura, segure com pegada aberta, flexione o cotovelo levando a barra para cima e desça controlando.",
+    "movementType": "ISOLATION"
+  },
+  {
+    "name": "Rosca alternada com halteres",
+    "description": "Rosca com halteres alternando os braços, o clássico de bíceps com halteres.",
+    "primaryMuscleGroup": "Bíceps",
+    "secondaryMuscleGroups": [
+      "Antebraço"
+    ],
+    "equipment": "Halteres",
+    "instructions": "Fique em pé com os halteres ao lado do corpo, flexione um cotovelo por vez levando o haltere ao ombro e retorne controlando.",
+    "movementType": "ISOLATION"
+  },
+  {
+    "name": "Rosca inclineada com haltere",
+    "description": "Rosca com banco inclinado, que aumenta o alongamento da cabeça longa do bíceps.",
+    "primaryMuscleGroup": "Bíceps",
+    "secondaryMuscleGroups": [
+      "Antebraço"
+    ],
+    "equipment": "Halteres",
+    "instructions": "Sente-se no banco inclinado, estenda os braços, flexione o cotovelo até o haltere chegar ao ombro e desça devagar.",
+    "movementType": "ISOLATION"
+  },
+  {
+    "name": "Rosca martelo",
+    "description": "Rosca com pegada neutra, com foco no braquial e no antebraço.",
+    "primaryMuscleGroup": "Bíceps",
+    "secondaryMuscleGroups": [
+      "Antebraço"
+    ],
+    "equipment": "Halteres",
+    "instructions": "Segure os halteres com as palmas voltadas para dentro, flexione o cotovelo mantendo os punhos firmes e retorne controlando.",
+    "movementType": "ISOLATION"
+  },
+  {
+    "name": "Rosca na polia baixa",
+    "description": "Rosca na polia baixa com pegada invertida, com tensão constante na fase excêntrica.",
+    "primaryMuscleGroup": "Bíceps",
+    "secondaryMuscleGroups": [
+      "Antebraço"
+    ],
+    "equipment": "Polia",
+    "instructions": "Fique em pé de frente para a polia, segure a corda com as palmas para cima, flexione o cotovelo até o antebraço na vertical e retorne devagar.",
+    "movementType": "ISOLATION"
+  },
+  {
+    "name": "Rosca na corda",
+    "description": "Rosca na corda da polia, com pegada neutra e trabalho equivalente ao martelo.",
+    "primaryMuscleGroup": "Bíceps",
+    "secondaryMuscleGroups": [
+      "Antebraço"
+    ],
+    "equipment": "Polia",
+    "instructions": "Fique de frente para a polia, segure a ponta da corda com as palmas voltadas para cima, flexione o cotovelo e desça controlando.",
+    "movementType": "ISOLATION"
+  },
+  {
+    "name": "Tríceps na polia com corda",
+    "description": "Isolamento de tríceps na polia com corda, o mais usado para o tríceps.",
+    "primaryMuscleGroup": "Tríceps",
+    "secondaryMuscleGroups": [],
+    "equipment": "Polia",
+    "instructions": "Segure a ponta da corda, cotovelos colados ao corpo, estenda os cotovelos até a posição vertical dos antebraços e retorne devagar.",
+    "movementType": "ISOLATION"
+  },
+  {
+    "name": "Tríceps testa com barra",
+    "description": "Tríceps com barra na posição de testa, executado em pé ou sentado.",
+    "primaryMuscleGroup": "Tríceps",
+    "secondaryMuscleGroups": [],
+    "equipment": "Barra",
+    "instructions": "Segure a barra na frente do corpo, leve a barra em direção à testa, com os cotovelos apontando para frente, e retorne controlando.",
+    "movementType": "ISOLATION"
+  },
+  {
+    "name": "Tríceps na polia baixa",
+    "description": "Tríceps na polia baixa com pegada anatômica, com o braço estendido à frente.",
+    "primaryMuscleGroup": "Tríceps",
+    "secondaryMuscleGroups": [],
+    "equipment": "Polia",
+    "instructions": "Fique de costas para a polia, segure a barra com as palmas para cima, estenda os cotovelos e retorne devagar mantendo o ombro firme.",
+    "movementType": "ISOLATION"
+  },
+  {
+    "name": "Tríceps testa com haltere",
+    "description": "Tríceps com haltere em pegada neutra, com punhos firmes e amplitude controlada.",
+    "primaryMuscleGroup": "Tríceps",
+    "secondaryMuscleGroups": [],
+    "equipment": "Halteres",
+    "instructions": "Segure o haltere com as duas mãos, leve em direção à testa ou atrás da cabeça e retorne controlando a descida.",
+    "movementType": "ISOLATION"
+  },
+  {
+    "name": "Coice na polia",
+    "description": "Coice na polia com uma pegada por braço, com extensão completa do cotovelo.",
+    "primaryMuscleGroup": "Tríceps",
+    "secondaryMuscleGroups": [],
+    "equipment": "Polia",
+    "instructions": "Fique de frente para a polia, segure as alças com as palmas voltadas para o corpo, estenda os cotovelos e retorne devagar.",
+    "movementType": "ISOLATION"
+  },
+  {
+    "name": "Agachamento livre com barra",
+    "description": "Movimento composto das pernas, o padrão de força de quadríceps, glúteos e posteriores de coxa.",
+    "primaryMuscleGroup": "Quadríceps",
+    "secondaryMuscleGroups": [
+      "Glúteos",
+      "Posteriores de coxa",
+      "Lombar"
+    ],
+    "equipment": "Barra",
+    "instructions": "Posicione a barra sobre os ombros, afaste os pés na largura dos ombros, agache até a altura dos joelhos e suba empurrando o chão.",
+    "movementType": "COMPOUND"
+  },
+  {
+    "name": "Agachamento goblin",
+    "description": "Agachamento com haltere segurado à frente do corpo, com foco em quadríceps e postura ereta.",
+    "primaryMuscleGroup": "Quadríceps",
+    "secondaryMuscleGroups": [
+      "Glúteos"
+    ],
+    "equipment": "Halteres",
+    "instructions": "Segure o haltere junto ao peito, agache entre os joelhos mantendo o tronco ereto e suba contraindo os glúteos.",
+    "movementType": "COMPOUND"
+  },
+  {
+    "name": "Agachamento sumô",
+    "description": "Agachamento com os pés bem afastados e pontas dos pés para fora, com foco em adutores e glúteos.",
+    "primaryMuscleGroup": "Quadríceps",
+    "secondaryMuscleGroups": [
+      "Glúteos",
+      "Adutores"
+    ],
+    "equipment": "Barra",
+    "instructions": "Coloque a barra sobre os ombros, abra os pés e aponte as pontas para fora, agache descendo os joelhos para fora e suba.",
+    "movementType": "COMPOUND"
+  },
+  {
+    "name": "Leg press 45 graus",
+    "description": "Pressão de pernas na máquina inclinada, com trajetória unilateral e carga ajustável.",
+    "primaryMuscleGroup": "Quadríceps",
+    "secondaryMuscleGroups": [
+      "Glúteos"
+    ],
+    "equipment": "Máquina",
+    "instructions": "Sente-se com as costas e os quadris apoiados, posicione os pés na plataforma na largura dos ombros, flexione os joelhos e empurre até a extensão parcial.",
+    "movementType": "COMPOUND"
+  },
+  {
+    "name": "Cadeira extensora",
+    "description": "Isolamento de quadríceps na máquina, com foco na contração do quadríceps.",
+    "primaryMuscleGroup": "Quadríceps",
+    "secondaryMuscleGroups": [],
+    "equipment": "Máquina",
+    "instructions": "Sente-se com o joelho alinhado ao eixo da máquina, estenda o joelho até a extensão completa e retorne controlando.",
+    "movementType": "ISOLATION"
+  },
+  {
+    "name": "Avanço com halteres",
+    "description": "Avanço caminhando com halteres, com exigência de equilíbrio e estabilidade articular.",
+    "primaryMuscleGroup": "Quadríceps",
+    "secondaryMuscleGroups": [
+      "Glúteos",
+      "Posteriores de coxa"
+    ],
+    "equipment": "Halteres",
+    "instructions": "Fique em pé com um haltere em cada mão, dê um passo à frente, desça até o joelho da frente próximo do chão e empurre o chão para voltar.",
+    "movementType": "COMPOUND"
+  },
+  {
+    "name": "Afundo com o corpo do peso",
+    "description": "Afundo unilateral com o próprio peso, sem equipamento.",
+    "primaryMuscleGroup": "Quadríceps",
+    "secondaryMuscleGroups": [
+      "Glúteos"
+    ],
+    "equipment": "Corpo do peso",
+    "instructions": "Fique em pé com as mãos na cintura, dê um passo à frente, desça o joelho de trás quase até o chão e volte à posição inicial.",
+    "movementType": "COMPOUND"
+  },
+  {
+    "name": "Levantamento terra romeno",
+    "description": "Levantamento terra com foco nos posteriores de coxa, joelho levemente flexionado e quadril indo para trás.",
+    "primaryMuscleGroup": "Posteriores de coxa",
+    "secondaryMuscleGroups": [
+      "Glúteos",
+      "Lombar"
+    ],
+    "equipment": "Barra",
+    "instructions": "Segure a barra, mantenha os joelhos levemente flexionados, incline o tronco à frente com a lombar neutra e volte contraindo os glúteos.",
+    "movementType": "COMPOUND"
+  },
+  {
+    "name": "Mesa flexora",
+    "description": "Isolamento dos posteriores de coxa na mesa flexora, com o joelho alinhado ao eixo.",
+    "primaryMuscleGroup": "Posteriores de coxa",
+    "secondaryMuscleGroups": [],
+    "equipment": "Máquina",
+    "instructions": "Deite na mesa com o joelho no apoio, enrole o rolo na parte inferior do tornozelo e flexione o joelho contraindo os posteriores.",
+    "movementType": "ISOLATION"
+  },
+  {
+    "name": "Elevação pélvica com barra",
+    "description": "Elevação pélvica com barra, com foco máximo nos glúteos.",
+    "primaryMuscleGroup": "Glúteos",
+    "secondaryMuscleGroups": [
+      "Posteriores de coxa"
+    ],
+    "equipment": "Barra",
+    "instructions": "Apoie as costas no banco, posicione a barra sobre a bacia, contraia os glúteos subindo o quadril até o alinhamento do tronco e desça controlando.",
+    "movementType": "COMPOUND"
+  },
+  {
+    "name": "Panturrilha em pé na máquina",
+    "description": "Isolamento das panturrilhas em pé, com maior recrutamento do gastrocnêmio.",
+    "primaryMuscleGroup": "Panturrilha",
+    "secondaryMuscleGroups": [],
+    "equipment": "Máquina",
+    "instructions": "Posicione a ponta dos pés na plataforma, segure o apoio, eleve os calcanhares o máximo possível e desça devagar.",
+    "movementType": "ISOLATION"
+  },
+  {
+    "name": "Panturrilha sentado",
+    "description": "Isolamento das panturrilhas sentado, com foco no sóleo.",
+    "primaryMuscleGroup": "Panturrilha",
+    "secondaryMuscleGroups": [],
+    "equipment": "Máquina",
+    "instructions": "Sente-se na máquina, apoie a ponta dos pés na plataforma, empurre o calcanhar para cima e retorne controlando.",
+    "movementType": "ISOLATION"
+  },
+  {
+    "name": "Abdominal na máquina",
+    "description": "Abdominal na máquina, com apoio das costas e carga ajustável.",
+    "primaryMuscleGroup": "Abdômen",
+    "secondaryMuscleGroups": [],
+    "equipment": "Máquina",
+    "instructions": "Sente-se, encaixe os pés e segure as alças, flexione o tronco em direção ao joelho e retorne controlando sem inércia.",
+    "movementType": "ISOLATION"
+  },
+  {
+    "name": "Abdominal com haltere",
+    "description": "Abdominal com haltere segurado junto ao peito, sem uso de máquina.",
+    "primaryMuscleGroup": "Abdômen",
+    "secondaryMuscleGroups": [],
+    "equipment": "Halteres",
+    "instructions": "Deite no chão com os joelhos flexionados, segure o haltere junto ao peito, eleve o tronco e desça sem bater no chão.",
+    "movementType": "ISOLATION"
+  },
+  {
+    "name": "Prancha",
+    "description": "Isometria de antebraço com o corpo em linha reta, para o core.",
+    "primaryMuscleGroup": "Abdômen",
+    "secondaryMuscleGroups": [
+      "Core"
+    ],
+    "equipment": "Corpo do peso",
+    "instructions": "Apoie os antebraços no chão, eleve o quadril mantendo o corpo alinhado e respire normalmente pelo tempo definido.",
+    "movementType": "ISOMETRIC"
+  },
+  {
+    "name": "Esteira",
+    "description": "Corrida na esteira, com controle de velocidade e inclinação.",
+    "primaryMuscleGroup": "Cardio",
+    "secondaryMuscleGroups": [
+      "Panturrilha",
+      "Quadril"
+    ],
+    "equipment": "Equipamento de cardio",
+    "instructions": "Ajuste a inclinação e a velocidade, mantenha o passo cadenciado e acompanhe as zonas de esforço ao longo da sessão.",
+    "movementType": "CARDIO"
+  },
+  {
+    "name": "Bicicleta ergométrica",
+    "description": "Pedal na bicicleta ergométrica, com diferentes níveis de resistência.",
+    "primaryMuscleGroup": "Cardio",
+    "secondaryMuscleGroups": [
+      "Quadríceps",
+      "Glúteos"
+    ],
+    "equipment": "Equipamento de cardio",
+    "instructions": "Ajuste o banco de forma que o joelho fique levemente abaixo do quadril, pedale com cadência constante e altere a resistência conforme o objetivo.",
+    "movementType": "CARDIO"
+  },
+  {
+    "name": "Elíptico",
+    "description": "Movimento de elíptico, que combina braços e pernas com baixo impacto articular.",
+    "primaryMuscleGroup": "Cardio",
+    "secondaryMuscleGroups": [
+      "Quadríceps",
+      "Panturrilha"
+    ],
+    "equipment": "Equipamento de cardio",
+    "instructions": "Fique em pé sobre as plataformas, segure as alças e mova os braços e as pernas em ritmo contínuo, ajustando a resistência.",
+    "movementType": "CARDIO"
+  },
+  {
+    "name": "Remo ergométrico",
+    "description": "Remo no equipamento ergométrico, com trabalho sequencial de costas e pernas.",
+    "primaryMuscleGroup": "Cardio",
+    "secondaryMuscleGroups": [
+      "Costas",
+      "Pernas"
+    ],
+    "equipment": "Equipamento de cardio",
+    "instructions": "Encoste o tronco, segure a alça com as duas mãos, puxe o remo em direção ao abdômen e retorne alongando os braços.",
+    "movementType": "CARDIO"
+  }
+]

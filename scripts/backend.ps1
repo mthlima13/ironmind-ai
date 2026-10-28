@@ -79,10 +79,9 @@ switch ($Action) {
 
         # Credenciais padrao de desenvolvimento. Sobrescreva com variaveis de
         # ambiente antes de chamar este script em qualquer outro ambiente.
-        if (-not $env:DB_URL)    { $env:DB_URL = 'jdbc:postgresql://localhost:5432/ironmind' }
-        if (-not $env:DB_USER)   { $env:DB_USER = 'ironmind' }
-        if (-not $env:DB_PASSWORD) { $env:DB_PASSWORD = 'changeme' }
-        if (-not $env:JWT_SECRET) { $env:JWT_SECRET = 'change-me-32-bytes-minimum' }
+        if (-not $env:MONGODB_URI) {
+            $env:MONGODB_URI = 'mongodb://ironmind:changeme@localhost:27017/ironmind?authSource=admin&replicaSet=rs0'
+        }
 
         # Win32_Process.Create inicia o processo sem herdar o console de quem
         # chamou: o script retorna na hora e o backend continua rodando.

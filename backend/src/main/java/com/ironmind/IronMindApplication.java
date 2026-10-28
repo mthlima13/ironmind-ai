@@ -8,12 +8,12 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 /**
  * Entry point of the IronMind AI backend.
  *
- * <p>The API is versioned under {@code /api/v1}. Flyway owns the database schema;
- * Hibernate is configured with {@code ddl-auto: none} so the JPA model never
- * mutates the schema behind the migration history.
+ * <p>The API is versioned under {@code /api/v1}. The documents of the domain declare their own
+ * indexes, which are created on startup; the exercises of the global catalog are seeded from
+ * {@code catalog/exercises.json} in an idempotent way.
  *
- * <p>The API is stateless and authenticates with bearer tokens, so the default
- * in memory user of Spring Boot is not used and its auto configuration is
+ * <p>The API is stateless and receives the owner identifier from the gateway, so the
+ * default in memory user of Spring Boot is not used and its auto configuration is
  * disabled.
  */
 @SpringBootApplication(exclude = UserDetailsServiceAutoConfiguration.class)

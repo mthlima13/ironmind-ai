@@ -28,7 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Endpoints of the sets registered in the sessions (SPEC.md section 11.4).
  *
- * <p>The owner always comes from the access token: a series of another user is answered with
+ * <p>The owner always comes from the identity header: a series of another user is answered with
  * {@code 404}.
  */
 @RestController
@@ -50,7 +50,7 @@ public class SetController {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Série registrada"),
             @ApiResponse(responseCode = "200", description = "Série registrada por uma requisição anterior com a mesma chave"),
-            @ApiResponse(responseCode = "401", description = "Token ausente ou inválido", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Header de identidade ausente ou inválido", content = @Content),
             @ApiResponse(responseCode = "404", description = "Sessão ou exercício da sessão inexistente, ou de outro usuário",
                     content = @Content),
             @ApiResponse(responseCode = "409", description = "Sessão finalizada ou chave de idempotência reutilizada com outro conteúdo",
@@ -78,7 +78,7 @@ public class SetController {
                     + "número da série.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Série corrigida"),
-            @ApiResponse(responseCode = "401", description = "Token ausente ou inválido", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Header de identidade ausente ou inválido", content = @Content),
             @ApiResponse(responseCode = "404", description = "Série inexistente ou de outro usuário", content = @Content),
             @ApiResponse(responseCode = "409", description = "A sessão da série já foi finalizada", content = @Content),
             @ApiResponse(responseCode = "422", description = "Dados inválidos", content = @Content)
@@ -93,7 +93,7 @@ public class SetController {
             description = "Exclui uma série registrada e reavalia os recordes derivados de forma transacional.")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Série excluída"),
-            @ApiResponse(responseCode = "401", description = "Token ausente ou inválido", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Header de identidade ausente ou inválido", content = @Content),
             @ApiResponse(responseCode = "404", description = "Série inexistente ou de outro usuário", content = @Content),
             @ApiResponse(responseCode = "409", description = "A sessão da série já foi finalizada", content = @Content)
     })

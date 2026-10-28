@@ -8,34 +8,13 @@ spring:
   application:
     name: ironmind-backend
 
-  datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/ironmind}
-    username: ${DB_USER:ironmind}
-    password: ${DB_PASSWORD:changeme}
-    hikari:
-      maximum-pool-size: ${DB_POOL_SIZE:10}
-      connection-timeout: 10000
-
-  jpa:
-    # Flyway owns the schema: Hibernate never creates or alters it, so the
-    # migration history stays the single source of truth of the database.
-    # "validate" makes the application fail fast when an entity drifts away
-    # from the migrations.
-    hibernate:
-      ddl-auto: validate
-    open-in-view: false
-    properties:
-      hibernate:
-        jdbc:
-          time_zone: UTC
-        format_sql: false
-
-  flyway:
-    enabled: true
-    locations: classpath:db/migration
-    encoding: UTF-8
-    baseline-on-migrate: true
-    validate-on-migrate: true
+  data:
+    mongodb:
+      # The development database runs as a single node replica set, because the
+      # recalculation of the records uses a multi document transaction.
+      uri: ${MONGODB_URI:mongodb://ironmind:changeme@localhost:27017/ironmind?authSource=admin&replicaSet=rs0}
+      # The indexes declared by the documents are created on startup.
+      auto-index-creation: true
 
   jackson:
     default-property-inclusion: non_null
@@ -75,38 +54,11 @@ springdoc:
 
 app:
   security:
-    trusted-proxies: ${TRUSTED_PROXIES:}
-    jwt:
-      # Replace it with a random value of 32 bytes or more before any real
-      # deployment. The application boots with the default value, but it logs a
-      # strong warning while doing so.
-      secret: ${JWT_SECRET:change-me-32-bytes-minimum}
-      ttl-seconds: ${JWT_TTL_SECONDS:900}
-      refresh-ttl-seconds: ${JWT_REFRESH_TTL_SECONDS:2592000}
-      issuer: ${JWT_ISSUER:ironmind-ai}
-    rate-limit:
-      # Fixed window, kept in memory. The production version keeps the counters
-      # in Redis, so the window is shared by every instance of the API.
-      ip-multiplier: ${AUTH_RATE_LIMIT_IP_MULTIPLIER:4}
-      login:
-        max-requests: ${RATE_LIMIT_LOGIN_REQUESTS:10}
-        window-seconds: ${RATE_LIMIT_WINDOW_SECONDS:60}
-      register:
-        max-requests: ${RATE_LIMIT_REGISTER_REQUESTS:5}
-        window-seconds: ${RATE_LIMIT_WINDOW_SECONDS:60}
-      forgot-password:
-        max-requests: ${RATE_LIMIT_FORGOT_PASSWORD_REQUESTS:5}
-        window-seconds: ${RATE_LIMIT_WINDOW_SECONDS:60}
-      refresh:
-        max-requests: ${RATE_LIMIT_REFRESH_REQUESTS:30}
-        window-seconds: ${RATE_LIMIT_WINDOW_SECONDS:60}
-      reset-password:
-        max-requests: ${RATE_LIMIT_RESET_PASSWORD_REQUESTS:10}
-        window-seconds: ${RATE_LIMIT_WINDOW_SECONDS:60}
-  mail:
-    # "logging" only writes the recovery token in the log. A real provider must
-    # replace it before the publication of the application.
-    provider: ${MAIL_PROVIDER:logging}
+    identity:
+      # Header written by the gateway with the authenticated user UUID. The service
+      # does not authenticate the caller: it trusts this identifier to decide who
+      # owns each resource. Never accept it from a client-facing entry point.
+      user-uuid-header: ${USER_UUID_HEADER:X-User-UUID}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:8081,http://localhost:19006,http://localhost:19007}
   llm:
@@ -149,7 +101,7 @@ logging:
     com.ironmind: ${LOG_LEVEL:INFO}
 
 ---
-# Development profile: verbose application logs, Flyway on the info level.
+# Development profile: verbose application logs.
 spring:
   config:
     activate:
@@ -157,19 +109,14 @@ spring:
 logging:
   level:
     com.ironmind: DEBUG
-    org.flywaydb: INFO
 
 ---
-# Test profile: used by the automated tests. The database connection is
-# provided by Testcontainers when the integration tests run.
+# Test profile: used by the automated tests.
 spring:
   config:
     activate:
       on-profile: test
-  jpa:
-    open-in-view: false
 logging:
   level:
     root: WARN
     com.ironmind: INFO
-    org.flywaydb: WARN

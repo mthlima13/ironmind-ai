@@ -34,11 +34,11 @@ public class AnalyticsController {
 
     @GetMapping("/overview")
     @Operation(summary = "Resumo do período",
-            description = "Resumo da semana atual do usuário autenticado, com comparação com a semana "
+            description = "Resumo da semana atual do titular da requisição, com comparação com a semana "
                     + "anterior, atividade por dia, sessões recentes e volume calculado pelo servidor.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Resumo da semana"),
-            @ApiResponse(responseCode = "401", description = "Token ausente ou inválido", content = @Content)
+            @ApiResponse(responseCode = "401", description = "Header de identidade ausente ou inválido", content = @Content)
     })
     public DashboardOverviewResponse overview() {
         UUID userId = SecurityUtils.requireCurrentUserId();
@@ -51,7 +51,7 @@ public class AnalyticsController {
                     + "e volume do dia, calculados pelo servidor.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Evolução do exercício"),
-            @ApiResponse(responseCode = "401", description = "Token ausente ou inválido", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Header de identidade ausente ou inválido", content = @Content),
             @ApiResponse(responseCode = "404", description = "Exercício inexistente ou de outro usuário", content = @Content)
     })
     public ExerciseProgressResponse exerciseProgress(@PathVariable UUID id) {

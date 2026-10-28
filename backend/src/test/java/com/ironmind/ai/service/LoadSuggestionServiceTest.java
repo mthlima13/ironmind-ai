@@ -19,14 +19,12 @@ import com.ironmind.exercise.entity.Exercise;
 import com.ironmind.exercise.entity.MovementType;
 import com.ironmind.exercise.repository.ExerciseRepository;
 import com.ironmind.user.entity.InjuryRestriction;
-import com.ironmind.user.entity.User;
-import com.ironmind.user.entity.UserRole;
 import com.ironmind.user.repository.InjuryRestrictionRepository;
 import com.ironmind.workout.entity.ExerciseSet;
-import com.ironmind.workout.entity.SessionExercise;
 import com.ironmind.workout.entity.SessionStatus;
 import com.ironmind.workout.entity.WorkoutSession;
 import com.ironmind.workout.repository.ExerciseSetRepository;
+import com.ironmind.workout.repository.WorkoutSessionRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -45,8 +43,6 @@ class LoadSuggestionServiceTest {
 
     private static final UUID USER_ID = UUID.randomUUID();
     private static final UUID EXERCISE_ID = UUID.randomUUID();
-    private static final User USER = new User(
-            USER_ID, "Ana", "ana@example.com", "hash", UserRole.USER, "America/Sao_Paulo");
     private static final Exercise EXERCISE = new Exercise(
             EXERCISE_ID, "Supino reto", null, "PEITO", List.of(), "Barra", null, MovementType.COMPOUND);
 
@@ -57,18 +53,24 @@ class LoadSuggestionServiceTest {
     @Mock
     private ExerciseSetRepository setRepository;
     @Mock
+    private WorkoutSessionRepository sessionRepository;
+    @Mock
     private AiRecommendationService recommendationService;
     @Mock
     private IdempotencyService idempotencyService;
+
+    private final List<WorkoutSession> trackedSessions = new ArrayList<>();
 
     private LoadSuggestionService service;
 
     @BeforeEach
     void setUp() {
+        trackedSessions.clear();
         service = new LoadSuggestionService(
                 exerciseRepository,
                 restrictionRepository,
                 setRepository,
+                sessionRepository,
                 recommendationService,
                 properties(),
                 idempotencyService,
@@ -77,12 +79,15 @@ class LoadSuggestionServiceTest {
         lenient().when(restrictionRepository.findByUserId(USER_ID)).thenReturn(List.of());
         lenient().when(idempotencyService.findExistingResource(anyString(), any(), any(), any()))
                 .thenReturn(Optional.empty());
+        lenient().when(sessionRepository.findAllById(any())).thenAnswer(
+                invocation -> List.copyOf(trackedSessions));
     }
 
     @Test
     @DisplayName("does not suggest a load without history")
     void doesNotSuggestALoadWithoutHistory() {
-        when(setRepository.findByUserIdAndExerciseId(USER_ID, EXERCISE_ID)).thenReturn(List.of());
+        when(setRepository.findByUserIdAndExerciseIdOrderByCompletedAtAscIdAsc(USER_ID, EXERCISE_ID))
+                .thenReturn(List.of());
 
         LoadSuggestionResponse response = service.suggest(USER_ID, request(8, 12), null);
 
@@ -98,10 +103,11 @@ class LoadSuggestionServiceTest {
     @Test
     @DisplayName("increases the load after the top of the range in the last two sessions with controlled effort")
     void increasesTheLoadAfterTheTopOfTheRange() {
-        when(setRepository.findByUserIdAndExerciseId(USER_ID, EXERCISE_ID)).thenReturn(history(
-                session("2026-10-01T10:00:00Z", "80.00", 12, (short) 8, 1),
-                session("2026-10-08T10:00:00Z", "80.00", 12, (short) 8, 1),
-                session("2026-10-15T10:00:00Z", "80.00", 12, (short) 8, 1)));
+        when(setRepository.findByUserIdAndExerciseIdOrderByCompletedAtAscIdAsc(USER_ID, EXERCISE_ID))
+                .thenReturn(history(
+                        session("2026-10-01T10:00:00Z", "80.00", 12, (short) 8, 1),
+                        session("2026-10-08T10:00:00Z", "80.00", 12, (short) 8, 1),
+                        session("2026-10-15T10:00:00Z", "80.00", 12, (short) 8, 1)));
 
         LoadSuggestionResponse response = service.suggest(USER_ID, request(8, 12), null);
 
@@ -116,10 +122,11 @@ class LoadSuggestionServiceTest {
     @Test
     @DisplayName("does not increase the load when the perceived effort is missing")
     void doesNotIncreaseTheLoadWithoutPerceivedEffort() {
-        when(setRepository.findByUserIdAndExerciseId(USER_ID, EXERCISE_ID)).thenReturn(history(
-                session("2026-10-01T10:00:00Z", "80.00", 12, null, 1),
-                session("2026-10-08T10:00:00Z", "80.00", 12, null, 1),
-                session("2026-10-15T10:00:00Z", "80.00", 12, null, 1)));
+        when(setRepository.findByUserIdAndExerciseIdOrderByCompletedAtAscIdAsc(USER_ID, EXERCISE_ID))
+                .thenReturn(history(
+                        session("2026-10-01T10:00:00Z", "80.00", 12, null, 1),
+                        session("2026-10-08T10:00:00Z", "80.00", 12, null, 1),
+                        session("2026-10-15T10:00:00Z", "80.00", 12, null, 1)));
 
         LoadSuggestionResponse response = service.suggest(USER_ID, request(8, 12), null);
 
@@ -131,9 +138,10 @@ class LoadSuggestionServiceTest {
     @Test
     @DisplayName("does not increase the load with fewer than three sessions")
     void doesNotIncreaseTheLoadWithFewerThanThreeSessions() {
-        when(setRepository.findByUserIdAndExerciseId(USER_ID, EXERCISE_ID)).thenReturn(history(
-                session("2026-10-08T10:00:00Z", "80.00", 12, (short) 8, 1),
-                session("2026-10-15T10:00:00Z", "80.00", 12, (short) 8, 1)));
+        when(setRepository.findByUserIdAndExerciseIdOrderByCompletedAtAscIdAsc(USER_ID, EXERCISE_ID))
+                .thenReturn(history(
+                        session("2026-10-08T10:00:00Z", "80.00", 12, (short) 8, 1),
+                        session("2026-10-15T10:00:00Z", "80.00", 12, (short) 8, 1)));
 
         LoadSuggestionResponse response = service.suggest(USER_ID, request(8, 12), null);
 
@@ -145,9 +153,10 @@ class LoadSuggestionServiceTest {
     @Test
     @DisplayName("reduces the load when the last session reached a high perceived effort")
     void reducesTheLoadAfterAHighPerceivedEffort() {
-        when(setRepository.findByUserIdAndExerciseId(USER_ID, EXERCISE_ID)).thenReturn(history(
-                session("2026-10-08T10:00:00Z", "80.00", 10, (short) 8, 1),
-                session("2026-10-15T10:00:00Z", "80.00", 10, (short) 9, 1)));
+        when(setRepository.findByUserIdAndExerciseIdOrderByCompletedAtAscIdAsc(USER_ID, EXERCISE_ID))
+                .thenReturn(history(
+                        session("2026-10-08T10:00:00Z", "80.00", 10, (short) 8, 1),
+                        session("2026-10-15T10:00:00Z", "80.00", 10, (short) 9, 1)));
 
         LoadSuggestionResponse response = service.suggest(USER_ID, request(8, 12), null);
 
@@ -158,8 +167,9 @@ class LoadSuggestionServiceTest {
     @Test
     @DisplayName("reduces the load when the last session stayed below the minimum repetitions")
     void reducesTheLoadBelowTheMinimumRepetitions() {
-        when(setRepository.findByUserIdAndExerciseId(USER_ID, EXERCISE_ID)).thenReturn(history(
-                session("2026-10-15T10:00:00Z", "80.00", 5, (short) 7, 1)));
+        when(setRepository.findByUserIdAndExerciseIdOrderByCompletedAtAscIdAsc(USER_ID, EXERCISE_ID))
+                .thenReturn(history(
+                        session("2026-10-15T10:00:00Z", "80.00", 5, (short) 7, 1)));
 
         LoadSuggestionResponse response = service.suggest(USER_ID, request(8, 12), null);
 
@@ -171,9 +181,10 @@ class LoadSuggestionServiceTest {
     @Test
     @DisplayName("mirrors the last session when there is not enough evidence to progress")
     void mirrorsTheLastSessionWithoutEvidenceToProgress() {
-        when(setRepository.findByUserIdAndExerciseId(USER_ID, EXERCISE_ID)).thenReturn(history(
-                session("2026-10-08T10:00:00Z", "60.00", 10, (short) 8, 3),
-                session("2026-10-15T10:00:00Z", "60.00", 10, (short) 8, 3)));
+        when(setRepository.findByUserIdAndExerciseIdOrderByCompletedAtAscIdAsc(USER_ID, EXERCISE_ID))
+                .thenReturn(history(
+                        session("2026-10-08T10:00:00Z", "60.00", 10, (short) 8, 3),
+                        session("2026-10-15T10:00:00Z", "60.00", 10, (short) 8, 3)));
 
         LoadSuggestionResponse response = service.suggest(USER_ID, request(8, 12), null);
 
@@ -189,8 +200,9 @@ class LoadSuggestionServiceTest {
     @Test
     @DisplayName("keeps the repetitions of a bodyweight exercise and explains that no load is suggested")
     void keepsTheRepetitionsOfABodyweightExercise() {
-        when(setRepository.findByUserIdAndExerciseId(USER_ID, EXERCISE_ID)).thenReturn(history(
-                session("2026-10-15T10:00:00Z", null, 12, (short) 8, 2)));
+        when(setRepository.findByUserIdAndExerciseIdOrderByCompletedAtAscIdAsc(USER_ID, EXERCISE_ID))
+                .thenReturn(history(
+                        session("2026-10-15T10:00:00Z", null, 12, (short) 8, 2)));
 
         LoadSuggestionResponse response = service.suggest(USER_ID, request(8, 12), null);
 
@@ -207,7 +219,7 @@ class LoadSuggestionServiceTest {
     @DisplayName("rejects an exercise blocked by an active restriction")
     void rejectsAnExerciseBlockedByAnActiveRestriction() {
         InjuryRestriction restriction = new InjuryRestriction(
-                UUID.randomUUID(), USER, "Ombro", "Evitar movimentos acima da cabeça", true, List.of(EXERCISE_ID));
+                UUID.randomUUID(), USER_ID, "Ombro", "Evitar movimentos acima da cabeça", true, List.of(EXERCISE_ID));
         when(restrictionRepository.findByUserId(USER_ID)).thenReturn(List.of(restriction));
 
         assertThatThrownBy(() -> service.suggest(USER_ID, request(8, 12), null))
@@ -244,19 +256,20 @@ class LoadSuggestionServiceTest {
         return all;
     }
 
-    private static List<ExerciseSet> session(String completedAt, String weight, int repetitions, Short rpe,
+    private List<ExerciseSet> session(String completedAt, String weight, int repetitions, Short rpe,
             int setCount) {
         Instant instant = Instant.parse(completedAt);
+        UUID sessionId = UUID.randomUUID();
         WorkoutSession session = new WorkoutSession(
-                UUID.randomUUID(), USER, null, null, instant, SessionStatus.COMPLETED);
+                sessionId, USER_ID, null, null, instant, SessionStatus.COMPLETED);
         session.complete(instant);
-        SessionExercise sessionExercise = new SessionExercise(
-                UUID.randomUUID(), session, EXERCISE, 1);
+        trackedSessions.add(session);
+        UUID sessionExerciseId = UUID.randomUUID();
         BigDecimal load = weight == null ? null : new BigDecimal(weight);
         List<ExerciseSet> sets = new ArrayList<>();
         for (int setNumber = 1; setNumber <= setCount; setNumber++) {
-            sets.add(new ExerciseSet(UUID.randomUUID(), sessionExercise, setNumber, load, repetitions,
-                    null, null, rpe, null, null));
+            sets.add(new ExerciseSet(UUID.randomUUID(), USER_ID, sessionId, sessionExerciseId, EXERCISE_ID,
+                    setNumber, load, repetitions, null, null, rpe, null, null));
         }
         return sets;
     }

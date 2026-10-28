@@ -18,14 +18,15 @@ import com.ironmind.program.entity.WorkoutProgram;
 import com.ironmind.program.repository.ProgramDayRepository;
 import com.ironmind.program.repository.ProgramExerciseRepository;
 import com.ironmind.program.repository.WorkoutProgramRepository;
-import com.ironmind.user.entity.User;
-import com.ironmind.user.repository.UserRepository;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -38,7 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>The service owns the ownership rule: a program of another user is reported as not found,
  * never as forbidden, so the API never reveals the existence of foreign data (SPEC.md appendix
- * A). The owner always comes from the access token.
+ * A). The owner always comes from the header injected by the gateway.
  *
  * <p>The service also owns the replacement rule: creating or updating a program writes the days
  * and the exercises in the order they are sent, and the update removes the entries that are not
@@ -67,17 +68,15 @@ public class ProgramService {
     private final ProgramDayRepository programDayRepository;
     private final ProgramExerciseRepository programExerciseRepository;
     private final ExerciseRepository exerciseRepository;
-    private final UserRepository userRepository;
     private final IdempotencyService idempotencyService;
 
     public ProgramService(WorkoutProgramRepository programRepository, ProgramDayRepository programDayRepository,
             ProgramExerciseRepository programExerciseRepository, ExerciseRepository exerciseRepository,
-            UserRepository userRepository, IdempotencyService idempotencyService) {
+            IdempotencyService idempotencyService) {
         this.programRepository = programRepository;
         this.programDayRepository = programDayRepository;
         this.programExerciseRepository = programExerciseRepository;
         this.exerciseRepository = exerciseRepository;
-        this.userRepository = userRepository;
         this.idempotencyService = idempotencyService;
     }
 
@@ -87,24 +86,23 @@ public class ProgramService {
      * <p>The archived programs are left out of the listing by default: archiving is not deletion,
      * and the program stays reachable by its identifier.
      *
-     * @param userId          identifier of the authenticated user, always taken from the access token
+     * @param userId          identifier of the user of the request, always taken from the gateway header
      * @param includeArchived whether the archived programs are listed too
      */
     public PageResponse<ProgramResponse> list(int page, int size, String sort, boolean includeArchived,
             UUID userId) {
         Pageable pageable = PageRequest.of(page, size, sortOf(sort));
         Page<WorkoutProgram> programs = includeArchived
-                ? programRepository.findAllByUser(userId, pageable)
-                : programRepository.findActiveByUser(userId, pageable);
+                ? programRepository.findByUserId(userId, pageable)
+                : programRepository.findByUserIdAndArchivedFalse(userId, pageable);
 
         List<UUID> programIds = programs.getContent().stream().map(WorkoutProgram::getId).toList();
-        List<ProgramDay> days = programIds.isEmpty() ? List.of() : programDayRepository.findByProgramIds(programIds);
-        List<ProgramExercise> exercises = programIds.isEmpty()
-                ? List.of()
-                : programExerciseRepository.findByProgramIds(programIds);
+        List<ProgramDay> days = programIds.isEmpty() ? List.of()
+                : programDayRepository.findByProgramIdInOrderByProgramIdAscPositionAsc(programIds);
+        List<ProgramExercise> exercises = programIds.isEmpty() ? List.of()
+                : programExerciseRepository.findByProgramIdIn(programIds);
 
-        Map<UUID, List<ProgramExerciseResponse>> exercisesByDay = groupExercisesByDay(exercises);
-        return PageResponse.of(programs, program -> toResponse(program, days, exercisesByDay));
+        return PageResponse.of(programs, program -> toResponse(program, days, exercises));
     }
 
     /**
@@ -116,13 +114,13 @@ public class ProgramService {
      */
     public ProgramResponse findById(UUID id, UUID userId) {
         WorkoutProgram program = requireOwnedProgram(id, userId);
-        List<ProgramDay> days = programDayRepository.findByProgramId(program.getId());
+        List<ProgramDay> days = programDayRepository.findByProgramIdOrderByPositionAsc(program.getId());
         List<ProgramExercise> exercises = programExerciseRepository.findByProgramId(program.getId());
-        return toResponse(program, days, groupExercisesByDay(exercises));
+        return toResponse(program, days, exercises);
     }
 
     /**
-     * Creates a program owned by the authenticated user.
+     * Creates a program owned by the user of the request.
      *
      * <p>When an {@code Idempotency-Key} header is informed, a replay with the same payload
      * returns the program created by the first request instead of creating a new one.
@@ -137,17 +135,15 @@ public class ProgramService {
             }
         }
 
-        User owner = requireUser(userId);
         List<ResolvedDay> days = resolve(request.days(), userId);
 
-        WorkoutProgram program = programRepository.save(new WorkoutProgram(UUID.randomUUID(), owner,
+        WorkoutProgram program = programRepository.save(new WorkoutProgram(UUID.randomUUID(), userId,
                 request.name().trim(), request.description(), request.goal(), request.splitType()));
 
         Structure structure = persist(program, days);
 
         idempotencyService.rememberAfterCommit(CREATE_SCOPE, idempotencyKey, userId, fingerprint, program.getId());
-        return new CreationResult(
-                toResponse(program, structure.days(), groupExercisesByDay(structure.exercises())), true);
+        return new CreationResult(toResponse(program, structure.days(), structure.exercises()), true);
     }
 
     /**
@@ -167,14 +163,12 @@ public class ProgramService {
         program.update(request.name().trim(), request.description(), request.goal(), request.splitType());
         programRepository.save(program);
 
-        programExerciseRepository.deleteAllByProgramId(program.getId());
-        programDayRepository.deleteAllByProgramId(program.getId());
-        programRepository.flush();
+        programExerciseRepository.deleteByProgramId(program.getId());
+        programDayRepository.deleteByProgramId(program.getId());
 
         Structure structure = persist(program, days);
-        programRepository.flush();
 
-        return toResponse(program, structure.days(), groupExercisesByDay(structure.exercises()));
+        return toResponse(program, structure.days(), structure.exercises());
     }
 
     /**
@@ -208,14 +202,6 @@ public class ProgramService {
         return programRepository.findById(id)
                 .filter(program -> program.isOwnedBy(userId))
                 .orElseThrow(() -> new ResourceNotFoundException("programa", id));
-    }
-
-    /**
-     * Loads the account of the token.
-     */
-    private User requireUser(UUID userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("usuário", userId));
     }
 
     /**
@@ -270,7 +256,8 @@ public class ProgramService {
     private Structure persist(WorkoutProgram program, List<ResolvedDay> days) {
         List<ProgramDay> daysToSave = new ArrayList<>();
         for (ResolvedDay resolvedDay : days) {
-            daysToSave.add(new ProgramDay(UUID.randomUUID(), program, resolvedDay.name(), daysToSave.size() + 1));
+            daysToSave.add(new ProgramDay(UUID.randomUUID(), program.getId(), resolvedDay.name(),
+                    daysToSave.size() + 1));
         }
         List<ProgramDay> savedDays = programDayRepository.saveAll(daysToSave);
 
@@ -279,7 +266,8 @@ public class ProgramService {
             ProgramDay savedDay = savedDays.get(dayIndex);
             int position = 1;
             for (ResolvedExercise resolvedExercise : days.get(dayIndex).exercises()) {
-                exercisesToSave.add(new ProgramExercise(UUID.randomUUID(), savedDay, resolvedExercise.exercise(),
+                exercisesToSave.add(new ProgramExercise(UUID.randomUUID(), program.getId(), savedDay.getId(),
+                        resolvedExercise.exercise().getId(),
                         position++, resolvedExercise.request().targetSets(),
                         resolvedExercise.request().targetRepsMin(),
                         resolvedExercise.request().targetRepsMax(),
@@ -293,28 +281,42 @@ public class ProgramService {
     }
 
     /**
-     * Groups the exercises of the program by the day they belong to.
-     */
-    private Map<UUID, List<ProgramExerciseResponse>> groupExercisesByDay(List<ProgramExercise> exercises) {
-        Map<UUID, List<ProgramExerciseResponse>> exercisesByDay = new LinkedHashMap<>();
-        for (ProgramExercise programExercise : exercises) {
-            exercisesByDay
-                    .computeIfAbsent(programExercise.getDay().getId(), key -> new ArrayList<>())
-                    .add(ProgramExerciseResponse.from(programExercise));
-        }
-        return exercisesByDay;
-    }
-
-    /**
      * Builds the answer of a program, with the days and the exercises grouped by day.
      */
     private ProgramResponse toResponse(WorkoutProgram program, List<ProgramDay> days,
-            Map<UUID, List<ProgramExerciseResponse>> exercisesByDay) {
+            List<ProgramExercise> exercises) {
+        Map<UUID, Exercise> exerciseById = exercisesOf(exercises);
+        Map<UUID, List<ProgramExerciseResponse>> exercisesByDay = new LinkedHashMap<>();
+        for (ProgramExercise programExercise : exercises) {
+            exercisesByDay.computeIfAbsent(programExercise.getDayId(), key -> new ArrayList<>())
+                    .add(ProgramExerciseResponse.from(programExercise,
+                            exerciseById.get(programExercise.getExerciseId())));
+        }
+        exercisesByDay.values().forEach(entries -> entries.sort(
+                Comparator.comparingInt(ProgramExerciseResponse::position)));
+
         List<ProgramDayResponse> dayResponses = days.stream()
-                .filter(day -> day.getProgram().getId().equals(program.getId()))
+                .filter(day -> program.getId().equals(day.getProgramId()))
+                .sorted(Comparator.comparingInt(ProgramDay::getPosition))
                 .map(day -> ProgramDayResponse.from(day, exercisesByDay.getOrDefault(day.getId(), List.of())))
                 .toList();
         return ProgramResponse.from(program, dayResponses);
+    }
+
+    /**
+     * Loads the exercises of the entries in a single round trip.
+     */
+    private Map<UUID, Exercise> exercisesOf(List<ProgramExercise> programExercises) {
+        Set<UUID> exerciseIds = programExercises.stream().map(ProgramExercise::getExerciseId)
+                .collect(Collectors.toSet());
+        if (exerciseIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, Exercise> exercises = new HashMap<>();
+        for (Exercise exercise : exerciseRepository.findAllById(exerciseIds)) {
+            exercises.put(exercise.getId(), exercise);
+        }
+        return exercises;
     }
 
     /**

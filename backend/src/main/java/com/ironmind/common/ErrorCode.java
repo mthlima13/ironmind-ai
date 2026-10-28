@@ -19,10 +19,6 @@ public enum ErrorCode {
     RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "Too Many Requests"),
     AI_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "Service Unavailable"),
     AI_INVALID_RESPONSE(HttpStatus.BAD_GATEWAY, "Bad Gateway"),
-    EMAIL_ALREADY_IN_USE(HttpStatus.CONFLICT, "Conflict"),
-    INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "Unauthorized"),
-    INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "Unauthorized"),
-    INVALID_RESET_TOKEN(HttpStatus.UNAUTHORIZED, "Unauthorized"),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error");
 
     private final HttpStatus status;
@@ -54,7 +50,7 @@ public enum ErrorCode {
     public String defaultMessage() {
         return switch (this) {
             case VALIDATION_ERROR -> "Dados inválidos.";
-            case UNAUTHENTICATED -> "Autenticação necessária.";
+            case UNAUTHENTICATED -> "Identidade ausente ou inválida.";
             case FORBIDDEN -> "Acesso negado.";
             case NOT_FOUND -> "Recurso não encontrado.";
             case CONFLICT -> "Conflito de estado.";
@@ -62,10 +58,6 @@ public enum ErrorCode {
             case RATE_LIMITED -> "Limite de requisições excedido. Tente novamente mais tarde.";
             case AI_UNAVAILABLE -> "Serviço de IA indisponível no momento.";
             case AI_INVALID_RESPONSE -> "Resposta inválida recebida do serviço de IA.";
-            case EMAIL_ALREADY_IN_USE -> "Este e-mail já está cadastrado.";
-            case INVALID_CREDENTIALS -> "E-mail ou senha inválidos.";
-            case INVALID_REFRESH_TOKEN -> "Sessão expirada. Entre novamente.";
-            case INVALID_RESET_TOKEN -> "Token de recuperação inválido ou expirado.";
             case INTERNAL_ERROR -> "Erro interno. Tente novamente mais tarde.";
         };
     }

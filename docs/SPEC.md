@@ -9,8 +9,8 @@
 |---|---|
 | Nome provisório | IronMind AI |
 | Tipo | Aplicativo mobile **Android** (iOS planejado para fase posterior) |
-| Stack | React Native + Expo + TypeScript (mobile) · Java + Spring Boot (backend) · PostgreSQL (dados) |
-| Status | Planejamento. **Nenhum recurso descrito aqui está implementado.** |
+| Stack | React Native + Expo + TypeScript (mobile) · Java + Spring Boot (backend) · MongoDB (dados) |
+| Status | Backend implementado com identidade delegada e MongoDB. O app Android existe, mas ainda usa o contrato antigo de autenticação e precisa ser migrado. |
 | Documentos anteriores | `docs/archive/ironmind-ai-projeto.md`, `docs/archive/ironmind-ai-especificacao.md` |
 
 > Este documento consolida dois rascunhos anteriores em uma única fonte da
@@ -97,12 +97,13 @@ O produto combina:
 - A IA **nunca** inventa IDs de exercício, **nunca** grava direto no banco e
   **nunca** decide sozinha alterar um treino do usuário.
 - O servidor **nunca** aceita `user_id` enviado pelo cliente como prova de
-  identidade — o owner vem sempre da sessão autenticada.
+  identidade — o owner vem sempre do UUID que o gateway injeta no header depois
+  de autenticar a sessão.
 - Chave de API de LLM **nunca** vai para o aplicativo mobile nem para o repositório.
 - Não descrever recurso planejado como se estivesse implementado.
 
-> **Proposta (não implementada):** quando a autenticação for delegada, o owner
-> virá de uma identidade verificada pela infraestrutura, injetada em header
+> **Como funciona hoje:** a autenticação é delegada. O owner vem de uma
+> identidade verificada pela infraestrutura, injetada no header `X-User-UUID`
 > pelo gateway. O princípio não muda: a identidade **nunca** é aceita do corpo,
 > da query string ou de um valor escrito pelo cliente. O backend não autentica
 > o canal; a garantia de que o header veio do gateway é premissa da
@@ -209,8 +210,9 @@ recursos avançados.
 
 ### 3.1 Usuário autenticado
 
-Gerencia próprio perfil, preferências, restrições, programas, sessões, séries,
-histórico, recordes e configurações de privacidade.
+Gerencia as próprias restrições, programas, sessões, séries, histórico, recordes
+e configurações no aplicativo. A conta (nome, e-mail, credencial e encerramento)
+pertence ao provedor de identidade, não a este backend.
 
 ### 3.2 Criador de programas — fase futura
 
@@ -222,7 +224,8 @@ moderação e suporte.
 
 Gerencia catálogo de exercícios, denúncias, conteúdo inadequado e configurações
 operacionais. O acesso administrativo deve ser restrito, auditável e protegido
-por permissões específicas — nunca por um campo booleano no `users`.
+por permissões específicas — nunca por um campo booleano no cadastro do provedor
+de identidade.
 
 ### 3.4 Regra de acesso a recursos
 
@@ -282,14 +285,14 @@ aplicado na camada de repositório/serviço, não apenas no controller.
 | ID | Requisito | Verificação |
 |---|---|---|
 | RNF-001 | Comunicação cliente-servidor por HTTPS em ambientes publicados | Configuração de ambiente |
-| RNF-002 | Senhas com hash moderno (Argon2id ou BCrypt), nunca em texto puro | Teste unitário do encoder |
+| RNF-002 | Nenhuma credencial no backend; a autenticação é delegada ao provedor de identidade | Revisão de rotas e dependências |
 | RNF-003 | Autorização por recurso e usuário no backend, inclusive em leituras | Teste de acesso cruzado entre usuários |
 | RNF-004 | Validação de entrada no aplicativo **e** na API | Testes de DTO inválido |
 | RNF-005 | Acessibilidade: contraste, alvos de toque, alternativas a cor, leitor de tela | Revisão manual + teste de componente |
 | RNF-006 | Interface responsiva e adequada a diferentes tamanhos de tela e versões de OS | Testes em simuladores |
 | RNF-007 | Mensagens de erro compreensíveis, sem stack trace, segredo ou detalhe interno | Teste de handler de exceção |
 | RNF-008 | Testes automatizados cobrindo regras de domínio e endpoints críticos | CI verde |
-| RNF-009 | Logs sem senhas, tokens ou dados sensíveis desnecessários | Revisão de config de log |
+| RNF-009 | Logs sem credenciais, identidade completa ou dados sensíveis desnecessários | Revisão de config de log |
 | RNF-010 | Estratégia de backup e recuperação do banco definida e testada | Runbook documentado |
 | RNF-011 | Consentimento explícito para recursos que tratam dados sensíveis | Tela de consentimento |
 | RNF-012 | Idempotência em operações de registro para reduzir duplicação | Teste de requisição repetida |
@@ -322,8 +325,9 @@ aplicado na camada de repositório/serviço, não apenas no controller.
 
 1. O usuário descreve o objetivo em linguagem natural.
 2. O aplicativo envia o pedido à API.
-3. O backend recupera preferências, experiência, equipamentos, restrições e
-   histórico relevante.
+3. O backend monta o contexto pelas restrições ativas e pelo histórico
+   relevante. Sem preferências persistidas, usa os padrões documentados
+   (objetivo `GENERAL`, experiência `BEGINNER`, 3 dias, catálogo completo).
 4. O serviço de IA gera uma proposta estruturada.
 5. O backend valida formato, existência dos exercícios, limites de séries e
    reps, e conformidade com as restrições.
@@ -343,21 +347,22 @@ Exemplo de entrada: "cem quilos por oito".
 > A interpretação respeita unidades, idioma e configurações do usuário. A
 > entrada manual permanece sempre disponível como alternativa.
 
-### 6.4 Criar conta e entrar
+### 6.4 Autenticar e acessar os dados
 
-1. O usuário preenche nome, e-mail e senha no aplicativo.
-2. O aplicativo valida a senha localmente (mínimo de 8 caracteres, uma letra e
-   um número) e a API valida as mesmas regras.
-3. A API hasheia a senha com Argon2id, cria a conta e as preferências padrão
-   em uma única transação.
-4. A API emite o access token e um refresh token opaco.
-5. O aplicativo guarda os dois tokens no armazenamento seguro do dispositivo.
-6. Em uma falha de rede, o aplicativo reenvia a mesma requisição com a mesma
-   `Idempotency-Key` e recebe o mesmo resultado, sem criar duas contas.
+1. O usuário se autentica no provedor de identidade, pela experiência oferecida
+   pelo aplicativo ou pela infraestrutura.
+2. O gateway valida a sessão, remove qualquer header de identidade enviado pelo
+   cliente e injeta o UUID do titular em `X-User-UUID`.
+3. A API lê o UUID, valida o formato e o usa como dono de todo recurso criado ou
+   consultado. O corpo da requisição nunca define o dono.
+4. Um UUID válido sem dados recebe listas vazias; o primeiro recurso criado já
+   pertence a ele. O backend não cria perfil nem guarda nome, e-mail ou senha.
+5. O aplicativo não guarda token de API: a credencial de sessão pertence ao
+   fluxo do provedor de identidade.
 
-**Recuperação de acesso:** o usuário informa o e-mail; a API responde sempre da
-mesma forma, exista ou não a conta, e emite um token de uso único com 30
-minutos de validade, entregue por e-mail.
+**Recuperação de acesso, troca de senha e encerramento de conta** são
+responsabilidade do provedor de identidade. A API não expõe `/auth/*` nem
+`/users/me`.
 
 ### 6.5 Corrigir um registro
 1. O usuário abre o histórico e seleciona a série.
@@ -403,8 +408,8 @@ considera **apenas carga externa**.
   corporal — o número reflete somente a carga externa movimentada.
 
 > **Unidade canônica de armazenamento: quilograma.** O app exibe em `lb` ou `kg`
-> conforme `user_preferences.preferred_units`, convertendo na fronteira de
-> apresentação. O banco nunca guarda valor ambíguo.
+> conforme a preferência local, convertendo na fronteira de apresentação. O banco
+> nunca guarda valor ambíguo.
 
 ### 7.3 Estimativa de 1RM
 
@@ -447,50 +452,30 @@ A estimativa é calculada apenas no backend e marcada como estimativa na interfa
 > Alterar ou excluir um programa **não** deve modificar sessões já realizadas.
 > Sessões realizadas gravam snapshot dos valores no momento do registro.
 
-### 7.7 Conta, senha e tokens
+### 7.7 Identidade e autorização
 
-**Cadastro**
+**Premissa**
 
-1. O e-mail é normalizado: minúsculas e sem espaços nas pontas.
-2. O e-mail é único. E-mail já cadastrado responde `409` com o código
-   `EMAIL_ALREADY_IN_USE`.
-3. A senha é validada (mínimo de 8 caracteres, uma letra e um número) e
-   hasheada com Argon2id. A senha em texto puro não é logada nem retornada.
-4. A conta, as preferências padrão e a primeira família de refresh tokens são
-   criadas na **mesma transação**. Se qualquer passo falhar, nada é gravado.
-5. O cadastro aceita `Idempotency-Key`: reenviar a mesma requisição devolve a
-   mesma conta, sem duplicar.
+1. A sessão do usuário é autenticada pelo provedor de identidade e pelo gateway.
+2. O gateway remove o header de identidade enviado pelo cliente e injeta o UUID
+   validado do titular.
+3. O backend não valida token, não chama o provedor e não guarda sessão.
 
-**Login**
+**Regras do backend**
 
-1. E-mail inexistente e senha errada devolvem a **mesma** resposta (`401`
-   `INVALID_CREDENTIALS`), sem revelar se o e-mail existe.
-2. Um login bem-sucedido cria uma nova família de refresh tokens.
-3. O login é limitado por taxa, por IP e por e-mail.
+1. O UUID vem somente do header configurado (`X-User-UUID` por padrão), em
+   formato canônico e com exatamente um valor.
+2. Header ausente, vazio, duplicado, concatenado, nulo ou malformado em rota
+   privada responde `401 UNAUTHENTICATED` antes de qualquer regra de negócio.
+3. O UUID é o `userId` de todos os documentos privados. Não há cadastro,
+   provisionamento, `identity_subject` nem tombstone.
+4. Um UUID válido sem dados enxerga listas vazias — nunca `401`.
+5. Recurso de outro usuário responde `404`, nunca `403`.
+6. O serviço não expõe perfil, preferências, exclusão de conta ou qualquer
+   endpoint de usuário. Esses fluxos pertencem ao provedor de identidade.
 
-**Renovação**
-
-1. O refresh token apresentado precisa existir, não estar revogado e não estar
-   expirado.
-2. A renovação emite um token novo, revoga o antigo e aponta o antigo para o
-   novo (`replaced_by_token_id`).
-3. **Apresentar um token já revogado revoga a família inteira** e devolve
-   `401`. É a resposta a um token roubado usado duas vezes.
-4. Tokens expirados são revogados no momento do uso.
-
-**Recuperação de acesso**
-
-1. A resposta é genérica e igual exista ou não a conta.
-2. O token tem uso único: depois de usado, `used_at` é preenchido e ele não
-   funciona mais.
-3. Usar o token **revoga todos os refresh tokens** do usuário: recuperar a
-   senha encerra as sessões abertas.
-4. O token expira em 30 minutos.
-
-**Logout**
-
-1. Revoga o refresh token apresentado.
-2. É idempotente: revogar um token já revogado não é erro.
+Contrato completo, premissas de infraestrutura e testes de aceitação em
+[`AUTH-INTEGRATION.md`](AUTH-INTEGRATION.md).
 
 ### 7.8 Sessão de treino
 
@@ -519,8 +504,8 @@ A estimativa é calculada apenas no backend e marcada como estimativa na interfa
    **copiado** para a sessão: séries alvo, faixa de repetições e descanso.
 2. O plano é um **snapshot**: editar o programa depois **não** muda as sessões
    já realizadas.
-3. O plano viaja em colunas próprias (`target_sets`, `target_reps_min`,
-   `target_reps_max`, `rest_seconds`), para poder ser comparado com o que foi
+3. O plano viaja em campos próprios (`targetSets`, `targetRepsMin`,
+   `targetRepsMax`, `restSeconds`), para poder ser comparado com o que foi
    executado. As observações guardam também a versão legível do plano
    ("4x6-8 (descanso 150s)").
 4. Em treino livre, o exercício é adicionado sem plano e os campos ficam
@@ -532,9 +517,9 @@ A estimativa é calculada apenas no backend e marcada como estimativa na interfa
    exercício da sessão. Ele **não** vem do corpo da requisição.
 2. `weightKg` é a unidade canônica (kg) e pode ser `null` para peso corporal.
 3. `perceivedExertion` é o RPE, de 1 a 10.
-4. A chave de idempotência é gravada **na própria série**, em uma coluna com
-   índice único. É o mecanismo durável: sobrevive a um restart do servidor, ao
-   contrário do cache em memória.
+4. A chave de idempotência é gravada **na própria série**, em um campo com
+   índice único e sparse. É o mecanismo durável: sobrevive a um restart do
+   servidor, ao contrário do cache em memória.
 5. Corrigir uma série mantém o seu `id` e o seu `setNumber`.
 
 **Estados**
@@ -566,21 +551,25 @@ Aplicativo React Native / Expo
             |
             | HTTPS / JSON
             v
+Gateway (autentica a sessão e injeta X-User-UUID)
+            |
+            v
 API REST — Spring Boot  (/api/v1)
             |
-            +---- Auth & autorização
-            +---- Usuários, preferências e restrições
+            +---- Identidade e autorização por proprietário
             +---- Exercícios
             +---- Programas e dias
             +---- Sessões, exercícios e séries
             +---- Analytics e recordes
+            +---- Restrições de lesão
             +---- Serviço de IA  ---> API externa de LLM
             +---- Comunidade (Fase 3)
             |
             v
-        PostgreSQL  (+ Flyway)
+        MongoDB 7 (replica set, transações)
 
 Serviços complementares:
+- Provedor de identidade e gateway (fora do backend)
 - Armazenamento de objetos privado (fotos, Fase 4)
 - Notificações push
 - Observabilidade e logs estruturados
@@ -594,9 +583,9 @@ Serviços complementares:
 | **Controller** | Recebe requisição HTTP, valida formato, devolve resposta. Sem regra de negócio. |
 | **Service** | Regras de negócio, transações, orquestração. |
 | **Repository** | Consulta e persiste dados, sempre filtrado por owner quando aplicável. |
-| **Entity** | Modelo persistido, mapeado por JPA/Flyway. |
+| **Entity** | Modelo persistido, mapeado por Spring Data MongoDB (`@Document`). |
 | **DTO** | Contrato de entrada e saída da API. Nunca expor entidades. |
-| **Security** | Autenticação, autorização, filtros de owner, configuração de acesso. |
+| **Security** | Leitura da identidade injetada, autorização e configuração de acesso. Não autentica o usuário. |
 | **Integration** | Comunicação com serviços externos, incluindo o provedor de LLM. |
 | **Validation** | Bean Validation e validações de domínio. |
 
@@ -605,7 +594,7 @@ Serviços complementares:
 - Regra de negócio dentro do controller.
 - Depender de resposta livre da IA para alterar o banco sem validação.
 - Consultar repositório de entidade privada sem escopo de usuário.
-- Expor entidade JPA diretamente no JSON de resposta.
+- Expor entidade persistida diretamente no JSON de resposta.
 
 ### 8.3 Estrutura do repositório
 
@@ -632,8 +621,7 @@ ironmind-ai/
 │   ├── src/
 │   │   ├── main/
 │   │   │   ├── java/com/ironmind/
-│   │   │   │   ├── auth/
-│   │   │   │   ├── user/
+│   │   │   │   ├── user/          # restrições de lesão (sem conta/perfil)
 │   │   │   │   ├── exercise/
 │   │   │   │   ├── program/
 │   │   │   │   ├── workout/
@@ -641,13 +629,14 @@ ironmind-ai/
 │   │   │   │   ├── analytics/
 │   │   │   │   ├── ai/
 │   │   │   │   └── common/
-│   │   │   └── resources/db/migration/
+│   │   │   └── resources/catalog/exercises.json
 │   │   └── test/
 │   ├── pom.xml
 │   └── Dockerfile
 ├── infra/
 │   ├── docker-compose.yml
-│   └── init/01-init.sql
+│   └── mongo/init-replica-set.js
+├── tests/integration/     # contrato da API em Python (pytest)
 ├── docs/
 │   ├── SPEC.md
 │   ├── API.md
@@ -679,7 +668,7 @@ ironmind-ai/
 - Gerenciamento de estado: TanStack Query para servidor + Zustand para estado de UI
 - Armazenamento local: SQLite (Expo SQLite) para rascunhos, fila offline e
   preferências do aparelho, como o tema escolhido
-- `expo-secure-store` para token de acesso
+- `expo-secure-store` para a credencial de sessão do provedor de identidade
 - Testes: Jest + React Native Testing Library
 
 **Alvo do primeiro lançamento: Android** (ver [seção 1.5](#15-plataforma-de-lançamento-android-first)).
@@ -697,20 +686,22 @@ comportamento anterior quando o usuário nega.
 ### 9.2 Backend
 
 - **Java 25** + **Spring Boot 3.5.x**
-- **Spring Security** (JWT com access + refresh token)
-- **Spring Data JPA** + **Hibernate**
+- **Spring Security** para autorização de rotas (sem autenticação própria)
+- **Spring Data MongoDB**
 - **Bean Validation**
 - **Maven**
-- **Flyway** para versionamento de schema
 - **OpenAPI 3 / springdoc-openapi** para documentação
-- Testes: JUnit 5, AssertJ, Mockito, Testcontainers (PostgreSQL)
+- Testes: JUnit 5, AssertJ e Mockito — apenas testes unitários; a integração é
+  uma suíte de contrato em Python contra a API real
 
 ### 9.3 Dados e infraestrutura
 
-- **PostgreSQL 16** como banco principal
-- **Docker** + Docker Compose para ambiente local
-- **Redis** opcional para cache, rate limiting ou filas — só quando houver
-  necessidade demonstrada
+- **MongoDB 7** como banco principal, em **replica set de 1 nó** (`rs0`), porque
+  o recálculo dos recordes usa transação de múltiplos documentos
+- Índices declarados nos documentos e criados no start
+- **Docker** + Docker Compose para ambiente local (MongoDB + bootstrap do
+  replica set + API + suíte de testes)
+- Sem Redis: o backend não guarda sessão, rate limit de identidade ou fila
 - Armazenamento de objetos privado para fotos, quando a Fase 4 chegar
 - CI/CD executando build e testes
 
@@ -726,267 +717,101 @@ comportamento anterior quando o usuário nega.
 
 ## 10. Modelo de dados
 
-UUID como chave primária em todas as tabelas. Todas as entidades com
-`created_at` / `updated_at` conforme aplicável. Índices por `user_id`, data e
-`exercise_id`.
+O modelo executável está em [`DATA-MODEL.md`](DATA-MODEL.md). Resumo:
 
-### 10.1 `users`
+- MongoDB 7, replica set de 1 nó, UUID como `_id` de todas as coleções.
+- Referências entre documentos são IDs planos (`userId`, `sessionId`,
+  `sessionExerciseId`, `exerciseId`, `programId`, `dayId`), sem `@DBRef` e sem
+  embedding. O serviço carrega os relacionados em lote.
+- Não existem coleções de `users`, `user_preferences`, `refresh_tokens` nem
+  `password_reset_tokens`. O dono é o UUID do header.
+- Todas as datas são `Instant` em UTC; não há fuso do usuário no banco.
 
-| Campo | Tipo | Observação |
+### 10.1 Identidade — fora do banco
+
+O backend não persiste conta. O UUID do titular chega no header `X-User-UUID`,
+injetado pelo gateway, e é gravado como `userId` em cada documento privado. Nome,
+e-mail, papel, fuso, unidades, objetivo e experiência pertencem ao provedor de
+identidade. Ver [`AUTH-INTEGRATION.md`](AUTH-INTEGRATION.md).
+
+### 10.2 Preferências — fora do banco
+
+Não há `user_preferences`. O contexto de IA usa os padrões documentados
+(objetivo `GENERAL`, experiência `BEGINNER`, 3 dias, sem filtro de equipamento).
+Unidades e demais preferências são apresentação do cliente ou dado da conta no
+provedor de identidade.
+
+### 10.3 Coleções
+
+O detalhe de cada campo está em [`DATA-MODEL.md`](DATA-MODEL.md). Resumo:
+
+| Coleção | Propósito | Dono / referência |
 |---|---|---|
-| `id` | UUID PK | |
-| `name` | varchar | |
-| `email` | varchar unique | |
-| `password_hash` | varchar | Argon2id ou BCrypt; nunca texto puro |
-| `role` | enum | `USER`, `CREATOR`, `ADMIN` — default `USER` |
-| `timezone` | varchar | IANA, ex. `America/Sao_Paulo` |
-| `created_at` | timestamptz | |
-| `updated_at` | timestamptz | |
+| `exercises` | Catálogo global + exercícios personalizados | `createdByUserId` (ausente no catálogo) |
+| `workout_programs` | Programa de treino | `userId` |
+| `program_days` | Dia do programa | `programId` |
+| `program_exercises` | Exercício dentro do dia, com metas | `programId`, `dayId`, `exerciseId` |
+| `workout_sessions` | Sessão realizada | `userId`, `programId`, `programDayId` |
+| `session_exercises` | Exercício dentro da sessão | `sessionId`, `exerciseId` |
+| `exercise_sets` | Série registrada | `userId`, `sessionId`, `sessionExerciseId`, `exerciseId` |
+| `personal_records` | Recorde por usuário/exercício/tipo | `userId`, `exerciseId`, `sourceSetId` |
+| `injury_restrictions` | Limitações informadas | `userId`, `exerciseIds[]` |
+| `ai_recommendations` | Propostas e sugestões com status | `userId` |
 
-### 10.2 `user_preferences`
+Regras transversais:
 
-| Campo | Tipo | Observação |
-|---|---|---|
-| `id` | UUID PK | |
-| `user_id` | UUID FK → users | unique |
-| `preferred_units` | enum | `KG` \| `LB` |
-| `training_experience` | enum | `BEGINNER` \| `INTERMEDIATE` \| `ADVANCED` |
-| `goal` | enum | `HYPERTROPHY` \| `STRENGTH` \| `ENDURANCE` \| `GENERAL` |
-| `available_equipment` | jsonb | Lista de equipamentos disponíveis |
-| `training_days` | smallint | Dias por semana |
-| `privacy_settings` | jsonb | Visibilidade de perfil, recordes, etc. |
+- Referências são **IDs planos**, sem `@DBRef` e sem embedding. O serviço carrega
+  os relacionados em lote.
+- `exercise_sets` guarda `userId` além das referências, para que a consulta não
+  dependa de join.
+- Unicidade: `(userId, exerciseId, recordType)` em `personal_records`;
+  `idempotencyKey` único e sparse em `exercise_sets`.
+- `injury_restrictions` guarda os exercícios a evitar em `exerciseIds[]`; não há
+  coleção associativa.
+- Não há chave estrangeira: a integridade é validada pelo serviço antes de
+  gravar.
+- Arquivar programa ou excluir dia **nunca** altera sessões já realizadas.
 
-> Este é o insumo principal do contexto de IA. Sem ele, a Fase 2 geraria
-> propostas genéricas.
 
-### 10.3 `exercises`
+### 10.4 Tokens — fora do banco
 
-| Campo | Tipo | Observação |
-|---|---|---|
-| `id` | UUID PK | |
-| `name` | varchar | |
-| `description` | text | |
-| `primary_muscle_group` | varchar | |
-| `secondary_muscle_groups` | jsonb | |
-| `equipment` | varchar | |
-| `instructions` | text | |
-| `movement_type` | enum | `COMPOUND` \| `ISOLATION` \| `CARDIO` \| `ISOMETRIC` |
-| `is_system` | boolean | `true` para o catálogo seed; `false` para o do usuário |
-| `created_by_user_id` | UUID FK → users | nullable; `null` para exercício do sistema |
-| `created_at` | timestamptz | |
-| `updated_at` | timestamptz | |
+Não existem `refresh_tokens` nem `password_reset_tokens`. Sessão, rotação,
+revogação e recuperação de acesso pertencem ao provedor de identidade. O backend
+não emite, não guarda e não valida token.
 
-> `is_system = true` + `created_by_user_id = null` é a definição de exercício
-> global, legível e editável apenas por administrador.
+### 10.5 Relacionamentos
 
-### 10.4 `workout_programs`
-
-| Campo | Tipo | Observação |
-|---|---|---|
-| `id` | UUID PK | |
-| `user_id` | UUID FK → users | |
-| `name` | varchar | |
-| `description` | text | |
-| `goal` | enum | espelha `user_preferences.goal` |
-| `split_type` | varchar | `PPL`, `UPPER_LOWER`, `FULL_BODY`, `ABCDE`, `ABC`, `ARNOLD_SPLIT`, `PHUL`, `HYBRID_PPL_UPPER_LOWER`, `CUSTOM` |
-| `is_archived` | boolean | arquivar ≠ excluir |
-| `created_at` | timestamptz | |
-| `updated_at` | timestamptz | |
-
-### 10.5 `program_days`
-
-| Campo | Tipo | Observação |
-|---|---|---|
-| `id` | UUID PK | |
-| `program_id` | UUID FK → workout_programs | cascade delete |
-| `name` | varchar | ex. "Peito e Tríceps" |
-| `position` | int | ordenação |
-
-### 10.6 `program_exercises`
-
-| Campo | Tipo | Observação |
-|---|---|---|
-| `id` | UUID PK | |
-| `program_day_id` | UUID FK → program_days | cascade delete |
-| `exercise_id` | UUID FK → exercises | |
-| `position` | int | ordenação |
-| `target_sets` | int | |
-| `target_reps_min` | int | |
-| `target_reps_max` | int | |
-| `rest_seconds` | int | |
-| `notes` | text | nullable |
-
-### 10.7 `workout_sessions`
-
-| Campo | Tipo | Observação |
-|---|---|---|
-| `id` | UUID PK | |
-| `user_id` | UUID FK → users | |
-| `program_id` | UUID FK → workout_programs | nullable (treino livre) |
-| `program_day_id` | UUID FK → program_days | nullable |
-| `started_at` | timestamptz | |
-| `completed_at` | timestamptz | nullable |
-| `status` | enum | `IN_PROGRESS`, `PAUSED`, `COMPLETED`, `ABANDONED` |
-| `notes` | text | nullable |
-| `created_at` | timestamptz | |
-
-### 10.8 `session_exercises`
-
-| Campo | Tipo | Observação |
-|---|---|---|
-| `id` | UUID PK | |
-| `session_id` | UUID FK → workout_sessions | cascade delete |
-| `exercise_id` | UUID FK → exercises | |
-| `position` | int | |
-| `notes` | text | nullable |
-| `target_sets` | int | nullable — séries planejadas no dia do programa |
-| `target_reps_min` | int | nullable — limite inferior das repetições planejadas |
-| `target_reps_max` | int | nullable — limite superior das repetições planejadas |
-| `rest_seconds` | int | nullable — descanso entre as séries planejadas |
-
-### 10.9 `exercise_sets`
-
-| Campo | Tipo | Observação |
-|---|---|---|
-| `id` | UUID PK | |
-| `session_exercise_id` | UUID FK → session_exercises | cascade delete |
-| `set_number` | int | sequencial dentro do exercício |
-| `weight_kg` | numeric(6,2) | **unidade canônica: kg**; null para peso corporal |
-| `repetitions` | int | |
-| `duration_seconds` | int | nullable (isométrico, cardio) |
-| `distance_meters` | int | nullable (cardio) |
-| `perceived_exertion` | smallint | nullable — RPE 1..10 |
-| `rest_after_seconds` | int | nullable |
-| `completed_at` | timestamptz | |
-| `created_at` | timestamptz | |
-| `idempotency_key` | varchar unique | nullable; ver [RNF-012](#5-requisitos-não-funcionais) |
-
-### 10.10 `personal_records`
-
-| Campo | Tipo | Observação |
-|---|---|---|
-| `id` | UUID PK | |
-| `user_id` | UUID FK → users | |
-| `exercise_id` | UUID FK → exercises | |
-| `record_type` | enum | `MAX_WEIGHT`, `MAX_REPS_AT_WEIGHT`, `BEST_ESTIMATED_1RM` |
-| `value` | numeric(8,2) | valor na unidade canônica do tipo |
-| `unit` | varchar | `kg`, `reps`, `kg` (estimado) |
-| `source_set_id` | UUID FK → exercise_sets | nullable |
-| `achieved_at` | timestamptz | |
-
-> Unicidade por `(user_id, exercise_id, record_type)`. Recalculado
-> transacionalmente a cada alteração de série.
-
-### 10.11 `injury_restrictions`
-
-| Campo | Tipo | Observação |
-|---|---|---|
-| `id` | UUID PK | |
-| `user_id` | UUID FK → users | |
-| `body_region` | varchar | ex. "ombro direito" |
-| `description` | text | |
-| `is_active` | boolean | |
-| `created_at` | timestamptz | |
-| `updated_at` | timestamptz | |
-
-> Informações sobre lesões são **dados pessoais sensíveis**. Coleta opcional,
-> acesso restrito ao próprio usuário (e a administrador com auditoria),
-> finalidade declarada e opção de revogar/excluir.
-
-### 10.12 `restriction_exercises` (associativa)
-
-| Campo | Tipo | Observação |
-|---|---|---|
-| `restriction_id` | UUID FK → injury_restrictions | PK composta |
-| `exercise_id` | UUID FK → exercises | PK composta |
-
-> Exercícios a evitar **não** ficam como array em coluna — relação N:N real,
-> indexável e com integridade referencial.
-
-### 10.13 `ai_recommendations`
-
-| Campo | Tipo | Observação |
-|---|---|---|
-| `id` | UUID PK | |
-| `user_id` | UUID FK → users | |
-| `recommendation_type` | enum | `WORKOUT_PROGRAM`, `LOAD_SUGGESTION`, `COACH_REPLY` |
-| `input_summary` | text | contexto de entrada, sem dados sensíveis desnecessários |
-| `result_json` | jsonb | saída estruturada validada |
-| `model_version` | varchar | modelo + versão usados |
-| `status` | enum | `PENDING`, `ACCEPTED`, `EDITED`, `REJECTED`, `ERROR` |
-| `created_at` | timestamptz | |
-| `accepted_at` | timestamptz | nullable |
-
-> Não guardar conversa completa. Definir política de retenção e exclusão.
-
-### 10.14 `refresh_tokens`
-
-| Campo | Tipo | Observação |
-|---|---|---|
-| `id` | UUID PK | |
-| `user_id` | UUID FK → users | cascade delete |
-| `family_id` | UUID | tokens da mesma sessão de login; a detecção de reuso revoga a família inteira |
-| `token_hash` | char(64) unique | SHA-256 hexadecimal do token opaco |
-| `expires_at` | timestamptz | |
-| `created_at` | timestamptz | |
-| `revoked_at` | timestamptz | nullable |
-| `replaced_by_token_id` | UUID FK → refresh_tokens | nullable; token que substituiu este |
-
-> O token em texto puro **nunca** é gravado. O índice único em `token_hash`
-> permite a busca por hash sem varrer a tabela.
-
-### 10.15 `password_reset_tokens`
-
-| Campo | Tipo | Observação |
-|---|---|---|
-| `id` | UUID PK | |
-| `user_id` | UUID FK → users | cascade delete |
-| `token_hash` | char(64) unique | SHA-256 hexadecimal |
-| `expires_at` | timestamptz | 30 minutos |
-| `used_at` | timestamptz | nullable — token de uso único |
-| `created_at` | timestamptz | |
-
-### 10.16 Relacionamentos
-
-- Um usuário possui vários programas, sessões, preferências e restrições.
+- Um `userId` possui vários programas, sessões, recordes, restrições e
+  recomendações. Não há documento de usuário para referenciar.
 - Um programa possui vários dias; cada dia possui vários exercícios ordenados.
 - Uma sessão possui vários exercícios realizados; cada um possui várias séries.
 - Um exercício aparece em vários programas, dias e sessões.
 - Um usuário pode ter vários recordes, um por tipo e exercício.
 - Uma recomendação de IA pertence a um usuário e **não altera treino sem
   confirmação**.
-- Um usuário possui vários refresh tokens, um por sessão de login; os tokens de
-  uma sessão compartilham a mesma `family_id`.
-- Um usuário pode ter vários tokens de recuperação de acesso, todos de uso
-  único.
+- Arquivar programa ou excluir dia não altera sessões já realizadas.
 
 ---
 
 ## 11. API REST
 
-Prefixo: `/api/v1`. Todos os endpoints privados exigem `Authorization: Bearer <token>`.
+Prefixo: `/api/v1`. Todas as rotas privadas exigem o header de identidade
+`X-User-UUID`, injetado pelo gateway. O contrato completo está em
+[`API.md`](API.md).
 
-### 11.1 Autenticação e usuário
+### 11.1 Identidade e usuário
 
 | Método | Endpoint | Finalidade |
 |---|---|---|
-| `POST` | `/auth/register` | Criar conta |
-| `POST` | `/auth/login` | Autenticar e emitir tokens |
-| `POST` | `/auth/refresh` | Renovar access token |
-| `POST` | `/auth/logout` | Revogar refresh token |
-| `POST` | `/auth/forgot-password` | Iniciar recuperação de acesso |
-| `POST` | `/auth/reset-password` | Concluir recuperação de acesso |
-| `GET` | `/users/me` | Consultar perfil e preferências |
-| `PATCH` | `/users/me` | Atualizar perfil e preferências |
+| — | — | **Não existe endpoint de autenticação ou de usuário** |
 
-> **Proposta (não implementada):** a autenticação do usuário sairia do backend.
-> O gateway autenticaria a sessão no provedor de identidade e injetaria a
-> identidade verificada; o backend leria o UUID do header e aplicaria a
-> autorização por proprietário. A autenticação do canal e a exposição do
-> serviço ficam com a infraestrutura. Os endpoints `/auth/*` e o
-> `Authorization: Bearer` continuam sendo o comportamento atual até a aprovação
-> e a implementação. Contrato, riscos e decisões pendentes em
-> [`AUTH-INTEGRATION.md`](AUTH-INTEGRATION.md). Nada muda no mobile nesta fase.
+- Cadastro, login, sessão, recuperação de acesso, perfil e exclusão de conta são
+  do provedor de identidade.
+- `GET /health` e `GET /exercises/**` são públicas; as demais rotas exigem o
+  header.
+- Header ausente ou inválido em rota privada responde `401 UNAUTHENTICATED`.
+- Contrato, premissas do gateway e testes em
+  [`AUTH-INTEGRATION.md`](AUTH-INTEGRATION.md).
 
 ### 11.2 Exercícios
 
@@ -1056,7 +881,7 @@ Prefixo: `/api/v1`. Todos os endpoints privados exigem `Authorization: Bearer <t
 - `Idempotency-Key` (header) em operações de escrita que criam registro.
 - Documentação OpenAPI gerada e versionada junto com o código.
 - Nunca retornar stack trace, caminho de arquivo ou segredo ao cliente.
-- `user_id` **nunca** é lido do corpo da requisição; vem do token.
+- `user_id` **nunca** é lido do corpo da requisição; vem do header de identidade.
 
 ---
 
@@ -1103,10 +928,10 @@ do modelo; sem escolha e sem sugestão válida, a proposta é classificada como
 **Fluxo obrigatório:**
 
 1. App envia o pedido em linguagem natural, com a divisão escolhida (opcional).
-2. Backend autentica e resolve o owner a partir da sessão.
-3. Backend monta o contexto: preferências, experiência, equipamentos,
-   restrições ativas, exercício do catálogo, histórico relevante e divisão
-   escolhida.
+2. Backend lê o UUID do header de identidade e resolve o owner.
+3. Backend monta o contexto: restrições ativas, exercício do catálogo,
+   histórico relevante, divisão escolhida e os padrões documentados de objetivo,
+   experiência e dias por semana.
 4. Serviço de IA chama o LLM com o contexto mínimo necessário.
 5. Resposta é desserializada em DTO e validada contra o esquema.
 6. Backend verifica: IDs de exercício existem; belong to catálogo; sets e reps
@@ -1121,10 +946,11 @@ do modelo; sem escolha e sem sugestão válida, a proposta é classificada como
 
 **Implementação atual:**
 
-- O contexto enviado ao modelo é mínimo: preferências, experiência,
-  equipamentos, região das restrições ativas, catálogo já filtrado, um resumo
+- O contexto enviado ao modelo é mínimo: padrões de objetivo, experiência e
+  dias por semana, região das restrições ativas, catálogo já filtrado, um resumo
   do histórico recente e a divisão escolhida pelo usuário. Texto livre de
-  restrições e dado de saúde não são enviados.
+  restrições e dado de saúde não são enviados. O serviço não tem preferências
+  do usuário: elas pertencem à conta no provedor de identidade.
 - A divisão escolhida no pedido prevalece sobre a divisão sugerida pelo modelo.
   Quando o usuário deixa "IA escolhe", o provedor simulado deriva a divisão de
   forma determinística a partir do número de dias; não há sorteio.
@@ -1221,40 +1047,29 @@ O treino deve continuar funcionando quando a conexão cair.
 
 ## 14. Segurança, privacidade e conformidade
 
-### 14.1 Autenticação e autorização
+### 14.1 Identidade e autorização
 
 - HTTPS obrigatório em ambientes publicados.
-- **Senhas com Argon2id**, parâmetros OWASP (m = 19 MiB, t = 2, p = 1, saída
-  de 32 bytes, salt de 16 bytes). A senha em texto puro nunca é gravada, logada
-  nem comparada diretamente.
-- **Política de senha:** mínimo de 8 caracteres, ao menos uma letra e ao menos
-  um número. A mesma regra roda no aplicativo (feedback imediato) e na API
-  (garantia do contrato) — as duas implementações não podem divergir.
-- **Access token:** JWT stateless, 15 minutos, com `sub`, `email`, `role` e
-  `tokenType=access`.
-- **Refresh token:** valor **opaco** de 256 bits, aleatório, nunca um JWT. É
-  uma credencial, não um documento: por isso o servidor não precisa confiar em
-  nenhuma claim dele.
-  - Armazenado **apenas como hash SHA-256** no banco. O valor em texto puro
-    existe no cliente e na resposta de login, e em nenhum outro lugar.
-  - Validade de 30 dias, **rotativo**: cada renovação emite um token novo e
-    revoga o anterior.
-  - **Detecção de reuso:** apresentar um token já revogado revoga a família
-    inteira de tokens da sessão. Um token roubado e usado duas vezes derruba a
-    sessão, em vez de dar acesso silencioso.
-  - `logout` revoga o token apresentado.
-- **Recuperação de acesso:** token de uso único, 30 minutos de validade, com o
-  valor armazenado apenas como hash. A resposta HTTP é **sempre genérica**,
-  exista ou não o e-mail — a API não confirma se um e-mail está cadastrado.
+- **Sem autenticação no backend:** JWT, senha, refresh token, recuperação de
+  acesso e Redis foram removidos. O serviço não emite, guarda ou valida
+  credencial.
+- **Identidade delegada:** o gateway autentica a sessão e injeta o UUID do
+  titular em `X-User-UUID`; o backend valida formato e unicidade do header.
+- Header ausente, vazio, duplicado, concatenado ou malformado em rota privada
+  responde `401 UNAUTHENTICATED` antes de qualquer regra de negócio.
 - **Autorização** aplicada em **todos** os endpoints privados, inclusive leitura.
-- O token carrega `userId` e `role`; o backend nunca confia em `user_id` do
-  corpo da requisição.
-- **Rate limiting** nos endpoints de autenticação e de recuperação de acesso,
-  por IP e por e-mail.
+  O UUID do header é o dono; o backend nunca confia em `user_id` do corpo da
+  requisição.
+- Recurso de outro usuário responde `404`, nunca `403`.
+- Um UUID válido sem dados recebe listas vazias; o serviço não provisiona
+  usuário, não guarda perfil e não expõe exclusão de conta.
+- **Rate limiting** na borda (gateway) é responsabilidade da infraestrutura; o
+  backend limita apenas as chamadas de IA.
 
 ### 14.2 Dados e abuso
 
-- Rate limiting em autenticação, recuperação de senha e todos os endpoints de IA.
+- Rate limiting em todos os endpoints de IA (10 requisições/60 s por usuário, por
+  padrão, e cota diária de 50).
 - Validação de arquivos enviados: formato, tamanho e verificação de conteúdo.
 - Proteção de fotos e dados corporais com acesso privado e URLs assinadas.
 - CORS restrito às origens do aplicativo publicado.
@@ -1266,25 +1081,20 @@ O treino deve continuar funcionando quando a conexão cair.
 - Consentimento explícito para dados de saúde, restrições e fotos.
 - Permitir que o usuário compreenda, **exporte** e solicite a **exclusão** dos
   seus dados.
-  - **Exclusão:** implementada como hard delete em `DELETE /users/me`, com a
-    senha atual como segunda prova de titularidade e cascata em todos os dados
-    do usuário (ver [API.md](API.md#exclusão-da-conta)). O e-mail fica livre
-    para um novo cadastro.
-    - **Proposta (não implementada):** com a autenticação delegada ao provedor
-      de identidade, a senha deixa de existir como prova. A titularidade passa
-      a ser demonstrada por confirmação explícita, reforçada por autenticação
-      recente (step-up) quando o gateway fornecer `auth_time`, e um tombstone
-      por `subject` impede que a próxima requisição recrie a conta. A senha
-      atual continua obrigatória até a mudança ser aprovada; detalhes em
-      [`AUTH-INTEGRATION.md`](AUTH-INTEGRATION.md#7-exclusão-segura-de-conta).
+  - **Exclusão:** fora do backend. O provedor de identidade encerra a conta e o
+    edge (ou uma rotina administrativa) remove os documentos pelo `userId`. O
+    serviço não expõe `DELETE /users/me` nem mantém tombstone; bloquear a
+    recriação da conta é papel do IdP. Ver
+    [`DATA-MODEL.md` §8](DATA-MODEL.md#8-exclusão-dos-dados-do-titular).
   - **Exportação:** ainda não implementada.
 - Definir retenção e exclusão de dados sensíveis e de recomendações de IA.
   - Os rascunhos de política de privacidade e termos estão em
     [`PRIVACY.md`](PRIVACY.md) e [`TERMS.md`](TERMS.md); **não foram revisados
     juridicamente nem publicados**.
-- Proteger dados locais no dispositivo e limpar rascunhos no logout.
-  - O logout e a exclusão de conta limpam tokens e a fila offline; a exclusão
-    também limpa o cache de consultas do app.
+- Proteger dados locais no dispositivo e limpar rascunhos no encerramento da
+  sessão.
+  - O logout no provedor de identidade limpa a credencial de sessão; a fila
+    offline e o cache de consultas do app são limpos ao sair.
 
 ### 14.4 Conformidade
 
@@ -1295,9 +1105,9 @@ O treino deve continuar funcionando quando a conexão cair.
   - Formulário *Data Safety* preenchido e coerente com a coleta real.
   - URL de política de privacidade publicada.
   - Opção de exclusão de conta acessível dentro do app (exigência do Play para
-    apps que criam conta). **Implementado** em `DELETE /users/me` e na tela de
-    Perfil; falta a URL web de solicitação exigida pelo formulário *Data
-    Safety*.
+    apps que criam conta). **Fora do backend** — a exclusão é executada pelo
+    provedor de identidade/edge; falta a URL web de solicitação exigida pelo
+    formulário *Data Safety*.
   - Classificação de conteúdo e declaração de anúncios.
 - Criar política de privacidade e termos de uso antes do lançamento público.
   Rascunhos em [`PRIVACY.md`](PRIVACY.md) e [`TERMS.md`](TERMS.md), pendentes de
@@ -1312,7 +1122,7 @@ O treino deve continuar funcionando quando a conexão cair.
 
 - Segredos em variáveis de ambiente ou gerenciador de segredos.
 - `.env` com credenciais reais **nunca** versionado — apenas `.env.example`.
-- Logging sem senhas, tokens, conteúdo corporal ou chats completos.
+- Logging sem tokens, conteúdo corporal ou chats completos.
 
 ---
 
@@ -1380,7 +1190,7 @@ app falha na revisão ou irrita no uso diário.
 | Barra de status e navegação | Cores e contraste garantidos nos dois temas, com ícones legíveis sobre o fundo |
 | Teclado | `KeyboardAvoidingView` nos formulários de sessão e série, sem cobrir o campo em foco |
 | Permissões em runtime | Notificação (API 33+), câmera e microfone (voz) solicitados no momento do uso, com recusa tratada e alternativa manual |
-| Tela dividida eOrientation | Layout utilizável em modo multi-janela e com tela deitada bloqueada |
+| Tela dividida e orientação | Layout utilizável em modo multi-janela e com tela deitada bloqueada |
 | Tela pequena | Layout sem corte em 5" e no limite de 320 dp de largura |
 | Toque | Alvo mínimo de 48 dp em toda ação durante o treino |
 | Sem dependência de iOS | Nenhum fluxo pode exigir gesture ou API exclusive de iOS |
@@ -1391,14 +1201,18 @@ app falha na revisão ou irrita no uso diário.
 
 ### 16.1 Backend
 
-- Testes unitários de volume, 1RM e detecção de recordes.
+- Testes **unitários** de volume, 1RM e detecção de recordes.
 - Testes de serviço para criação, pausa e finalização de sessão.
-- Testes de integração com PostgreSQL via Testcontainers.
-- Testes de autorização impedindo leitura e escrita cruzada entre usuários.
+- Testes do filtro de identidade: header ausente, duplicado, concatenado,
+  malformado, nulo e rota pública.
 - Testes de validação de DTOs inválidos.
 - Testes de idempotência: requisição repetida não duplica série.
-- Testes de migração do banco (Flyway up/down).
 - Testes de timeout e falha do serviço de IA (mock do provedor).
+
+Não há teste de integração em JUnit e o backend não usa Testcontainers. A
+integração é uma **suíte de contrato em Python** (`tests/integration/`) que roda
+contra a API real do `docker compose`: isolamento entre usuários, paginação,
+idempotência, recordes transacionais, analytics e IA.
 
 ### 16.2 Mobile
 
@@ -1419,7 +1233,7 @@ app falha na revisão ou irrita no uso diário.
 
 ### 16.4 Critérios de aceite do MVP
 
-- [x] O usuário cria conta, faz login e recupera acesso.
+- [x] O usuário acessa a API com a identidade injetada pelo gateway.
 - [x] O usuário consulta e filtra o catálogo de exercícios.
 - [ ] O usuário cria um programa com dias e exercícios.
   - O backend já expõe `POST /programs`; a tela do app ainda edita o dia em
@@ -1430,10 +1244,9 @@ app falha na revisão ou irrita no uso diário.
   - O backend já expõe `PATCH /sets/{id}` e `DELETE /sets/{id}`; falta a
     interface no app.
 - [x] A sessão finalizada aparece no histórico.
-- [ ] Volume, 1RM e recordes são calculados de forma consistente e transacional.
-  - As calculadoras de volume e 1RM existem e têm teste, mas ainda não são
-    usadas por nenhum endpoint; a detecção de recordes não foi implementada.
-    Item da Sprint 4.
+- [x] Volume, 1RM e recordes são calculados de forma consistente e transacional.
+  - `/analytics/*` e `/records` usam as calculadoras, e o recálculo dos recordes
+    roda na mesma transação da escrita da série.
 - [x] Um usuário não consegue ler nem escrever dados privados de outro.
 - [x] Erros de validação aparecem de forma compreensível.
 - [x] A documentação da API (OpenAPI) está disponível.
@@ -1462,13 +1275,11 @@ UI com Detox ou Appium é o caminho quando a cobertura de regras de domínio
 estabilizar.
 
 **Execução parcial registrada (API 35):** emulador Android 15 (API 35, x86_64,
-perfil Pixel 6), com o app falando com a API e o banco reais. Verificado:
-cadastro pela interface, navegação entre as cinco abas, leitura do catálogo e
-do perfil vinda do backend, e o comportamento de erro das telas que dependem
-de endpoints das Sprints 3 e 4. **Pendente:** aparelho físico de outra marca,
-tela de 5 polegadas, modo multi-janela, TalkBack, escala máxima de fonte e o
-ciclo de vida da sessão com o app em background.
-
+perfil Pixel 6), com o app falando com a API e o banco reais no contrato antigo.
+Verificado: navegação entre as cinco abas e leitura do catálogo. **Pendente:**
+migrar o app para a identidade injetada pelo gateway, aparelho físico de outra
+marca, tela de 5 polegadas, modo multi-janela, TalkBack, escala máxima de fonte
+e o ciclo de vida da sessão com o app em background.
 
 ### 16.6 Distribuição
 
@@ -1488,18 +1299,19 @@ ciclo de vida da sessão com o app em background.
 - [x] Criar repositório Git e estrutura de pastas.
 - [x] Configurar projeto Spring Boot + Maven.
 - [x] Configurar React Native com Expo e TypeScript.
-- [x] Subir PostgreSQL local via Docker Compose.
-- [x] Configurar Flyway, OpenAPI e `.env.example`.
+- [x] Subir MongoDB local via Docker Compose (replica set de 1 nó).
+- [x] Configurar OpenAPI, `.env.example` e o seed do catálogo.
 - [x] Configurar CI com build e testes.
 - [x] Definir convenções de código, branches e escopo do MVP.
 
-### Sprint 2 — Usuários, preferências e exercícios
+### Sprint 2 — Identidade, restrições e exercícios
 
-- [x] Implementar cadastro, login, refresh e recuperação de acesso.
-- [x] Implementar perfil, preferências e unidades.
-- [x] Criar catálogo seed de exercícios + exercises personalizados.
+- [x] Identidade delegada: header `X-User-UUID`, filtro, autorização por dono.
+- [x] Remover autenticação local, perfil e preferências do backend.
+- [x] Criar catálogo seed de exercícios + exercícios personalizados.
+- [x] Implementar restrições de lesão.
 - [x] Implementar busca e filtros.
-- [x] Escrever testes de autorização.
+- [x] Escrever testes unitários de autorização e do filtro de identidade.
 
 ### Sprint 3 — Treinos
 
@@ -1537,15 +1349,12 @@ ciclo de vida da sessão com o app em background.
 - [ ] Gerar AAB assinado e publicar no track de teste do Google Play.
 - [ ] Documentar instalação, execução e demonstração.
 
-> **Entregue nesta rodada:** exclusão de conta in-app (API, tela, testes),
-> rascunhos de política de privacidade e termos de uso, checklist de
-> publicação em [`PLAY-RELEASE.md`](PLAY-RELEASE.md) e o fechamento das
-> pendências funcionais do app: pausar/retomar/abandonar sessão, corrigir e
-> excluir séries, persistir a edição manual de um dia do programa
-> (`PUT /programs/{id}`) e criar exercícios personalizados, tudo coberto por
-> testes do adaptador mock. Os itens da lista acima continuam abertos: a
-> matriz Android, o AAB assinado e a publicação no Play dependem de aparelho
-> físico, keystore e conta de desenvolvedor.
+> **Estado desta rodada:** o backend está completo no novo contrato de
+> identidade (sem autenticação própria) e em MongoDB, coberto por testes
+> unitários JUnit e pela suíte de contrato em Python. O aplicativo ainda usa o
+> contrato antigo (`/auth/*`, `/users/me`): a migração do mobile é o item que
+> bloqueia o uso da API real pelo app. A exclusão de conta é do provedor de
+> identidade, não do backend.
 
 > As sprints são uma divisão de trabalho sugerida — **não** são estimativa
 > garantida de prazo.
@@ -1579,7 +1388,6 @@ Formato: `<tipo>(<escopo>): <descrição>`.
 Exemplos:
 
 ```text
-feat(auth): add user authentication and refresh tokens
 feat(workout): implement workout session logging
 feat(analytics): calculate personal records transactionally
 test(workout): cover volume calculation edge cases
@@ -1589,7 +1397,7 @@ fix(workout): prevent duplicate set submissions
 
 ### 18.3 Regras
 
-- Nunca commitar tokens, senhas, `.env` com credenciais reais ou dados reais de
+- Nunca commitar credenciais, `.env` com valores reais ou dados reais de
   usuários.
 - Pull request com descrição, testes executados e critérios de aceite vinculados.
 - Commits pequenos e focados.
@@ -1603,8 +1411,8 @@ Este projeto demonstra competências relevantes para vagas de desenvolvimento:
 - Mobile com React Native, Expo e TypeScript.
 - Backend Java com Spring Boot e arquitetura em camadas.
 - API REST documentada com OpenAPI.
-- Modelagem relacional em PostgreSQL com migrações versionadas.
-- Autenticação, autorização e modelagem de segurança.
+- Modelagem de documentos em MongoDB, índices e transações.
+- Identidade delegada, autorização por proprietário e modelagem de segurança.
 - Testes unitários e de integração.
 - Regras de domínio para histórico, volume, 1RM e recordes.
 - Integração de IA com saída estruturada, validação e limites.
@@ -1637,23 +1445,25 @@ bloqueantes travam a sprint indicada.
 | # | Decisão | Impacto | Bloqueia |
 |---|---|---|---|
 | 1 | ~~Fórmula de 1RM (Brzycki vs Epley) e limites de validade~~ | **Decidido:** Brzycki, `1RM = carga × 36 / (37 − repetições)`, apenas de 1 a 10 repetições (ver [seção 7.3](#73-estimativa-de-1rm)) | — |
-| 2 | ~~Estratégia de tokens~~ | **Decidido:** access token JWT stateless de 15 min + refresh token opaco rotativo com detecção de reuso (ver [seção 14.1](#141-autenticação-e-autorização)). Revogação persistida em banco | — |
+| 2 | ~~Estratégia de autenticação~~ | **Decidido:** identidade delegada. O gateway autentica a sessão e injeta `X-User-UUID`; o backend não emite, guarda nem valida token (ver [seção 14.1](#141-identidade-e-autorização) e [`AUTH-INTEGRATION.md`](AUTH-INTEGRATION.md)) | — |
 | 3 | Provedor de LLM e orçamento de uso; política de retenção de prompts | Fase 2 inteira | Sprint 5 |
 | 4 | Origem do catálogo seed de exercícios: manual ou importado com licença | Seed do banco | Sprint 2 |
 | 5 | ~~Regras de volume para peso corporal, séries sem carga e movimentos isométricos~~ | **Decidido:** o volume soma apenas carga externa (`carga × repetições`); peso corporal, exercício assistido e movimento isométrico somam zero (ver [seção 7.2](#72-volume-de-treino)) | — |
 | 6 | Alvo de hospedagem e implantação (Railway / Render / VPS / cloud) | CI/CD e secrets | Sprint 1 |
 | 7 | ~~Primeiro lançamento~~ | **Decidido: Android only** (ver [seção 1.5](#15-plataforma-de-lançamento-android-first)). iOS fica para a fase posterior | — |
 | 8 | Escopo da Fase 2: qual subset — geração de treino, sugestão de carga, voz, coaching | Esforço de IA | Sprint 5 |
-| 9 | ~~Modalidade de recuperação de acesso~~ | **Decidido:** token de uso único de 30 min, resposta genérica anti-enumeração, entrega por porta de e-mail plugável (ver [seção 14.1](#141-autenticação-e-autorização)) | — |
-| 14 | ~~Algoritmo de hash de senha~~ | **Decidido:** Argon2id com parâmetros OWASP. BCrypt aceitável como alternativa | — |
+| 9 | ~~Modalidade de recuperação de acesso~~ | **Decidido:** recuperação de acesso, troca de senha e encerramento de conta pertencem ao provedor de identidade; o backend não expõe `/auth/*` | — |
+| 14 | ~~Algoritmo de hash de senha~~ | **Resolvido por remoção:** o backend não guarda senha. O hash é responsabilidade do provedor de identidade | — |
 | 10 | Política de privacidade, termos de uso e retenção de dados | **Parcial** — rascunhos em [`PRIVACY.md`](PRIVACY.md) e [`TERMS.md`](TERMS.md); falta revisão jurídica, publicação em URL pública e designação do DPO | Sprint 6 |
 | 11 | Escopo da social: quem pode ser amigo, visibilidade padrão, moderação | Fase 3 | — |
 | 12 | Nome definitivo e identidade visual | Branding | Sprint 1 |
 | 13 | Conta de desenvolvedor Google Play ativa e pipeline de build: EAS Build (nuvem) ou Gradle local | **Pendente** — checklist em [`PLAY-RELEASE.md`](PLAY-RELEASE.md); recomendação provisória: EAS Build. Conta, keystore e AAB ainda não existem | Sprint 6 |
 
-> As decisões 1, 2, 5, 7, 9 e 14 já estão resolvidas. As que mais restringem o
-> que falta são a **3** (provedor de LLM e custo) e a **8** (escopo da Fase 2):
-> resolva-as antes da Sprint 5.
+> As decisões 1, 2, 5, 7, 9 e 14 já estão resolvidas. A **2** e a **9** foram
+> resolvidas pela remoção da autenticação local: o provedor de identidade cuida
+> de login, sessão e recuperação. As que mais restringem o que falta são a **3**
+> (provedor de LLM e custo) e a **8** (escopo da Fase 2): resolva-as antes da
+> Sprint 5.
 >
 > As decisões **4** (origem do seed), **6** (hospedagem) e **12** (nome e
 > identidade) continuam abertas: as Sprints 1 a 3 foram entregues com soluções
@@ -1664,19 +1474,22 @@ bloqueantes travam a sprint indicada.
 
 ## 21. Próximos passos
 
-1. Implementar volume, 1RM e recordes com testes de casos conhecidos e expor
-   `/analytics/*` e `/records` (Sprint 4).
+1. Migrar o aplicativo mobile para a identidade injetada pelo gateway: remover
+   as telas e chamadas de `/auth/*` e `/users/me`, e passar a falar com a API
+   real usando o header que a infraestrutura injeta.
 2. Ligar ao backend real as telas que ainda usam o adaptador de mock: dashboard,
-   evolução por exercício e recordes.
-3. Completar as telas pendentes do MVP: persistir a edição de programa,
-   corrigir/excluir série, pausar/retomar/abandonar sessão e criar exercício
-   personalizado.
-4. Resolver a decisão 3 (provedor de LLM e orçamento) e a 8 (escopo da Fase 2).
-5. Integrar a primeira funcionalidade de IA.
-6. Fechar as pendências de publicação: revisar e publicar a política de
+   evolução por exercício, recordes e catálogo pessoal.
+3. Resolver a decisão 3 (provedor de LLM e orçamento) e a 8 (escopo da Fase 2).
+4. Integrar a primeira funcionalidade de IA no app, com revisão e decisão do
+   usuário.
+5. Fechar as pendências de publicação: revisar e publicar a política de
    privacidade e os termos de uso, criar a URL web de solicitação de exclusão,
    abrir a conta de desenvolvedor Google Play, gerar a keystore fora do
-   repositório e assinar o AAB. A exclusão de conta in-app já está implementada.
+   repositório e assinar o AAB.
+6. Verificar no ambiente real as premissas de rede do gateway antes de expor o
+   serviço — a checagem I2/I3 de
+   [`AUTH-INTEGRATION.md`](AUTH-INTEGRATION.md#52-infraestrutura-ambiente-real--não-é-código-deste-repositório)
+   bloqueia produção.
 
 ---
 
@@ -1703,7 +1516,7 @@ Formato único para toda a API:
 
 - `code` é estável e serve para tratamento no cliente (i18n).
 - `message` é legível por humanos; nunca inclui stack trace, caminho de arquivo
-  ou nome de tabela/coluna.
+  ou nome de coleção/campo.
 - `traceId` correlaciona a requisição com os logs do servidor.
 
 ### A.2 Paginação
@@ -1739,38 +1552,30 @@ Idempotency-Key: 3f8c1d2e-9b7a-4c1e-8f2b-0a1c3d5e7f90
 - Conflito: mesma chave com corpo diferente → `409 Conflict`, código
   `IDEMPOTENCY_KEY_REUSED`.
 
-### A.4 Autenticação
+### A.4 Identidade
+
+Toda rota privada exige o header injetado pelo gateway:
 
 ```text
-Authorization: Bearer <accessToken>
+X-User-UUID: 3f8c1d2e-9b7a-4c1e-8f2b-0a1c3d5e7f90
 ```
 
-Resposta de login:
-
-```json
-{
-  "accessToken": "eyJhbGciOi...",
-  "refreshToken": "d3f1a...",
-  "tokenType": "Bearer",
-  "expiresIn": 900,
-  "user": { "id": "...", "name": "...", "email": "...", "role": "USER" }
-}
-```
+- Não há login, `Authorization: Bearer`, access token nem refresh token.
+- Header ausente, duplicado, concatenado, nulo ou malformado responde
+  `401 UNAUTHENTICATED`.
+- Rotas públicas (`/health` e `/exercises/**`) funcionam sem o header.
+- Contrato completo em [`AUTH-INTEGRATION.md`](AUTH-INTEGRATION.md).
 
 ### A.5 Códigos de erro de domínio
 
 | Código | HTTP | Significado |
 |---|---|---|
 | `VALIDATION_ERROR` | 422 | Entrada inválida |
-| `UNAUTHENTICATED` | 401 | Token ausente, expirado ou inválido |
-| `FORBIDDEN` | 403 | Recurso pertence a outro usuário |
+| `UNAUTHENTICATED` | 401 | Header de identidade ausente ou inválido em rota privada |
+| `FORBIDDEN` | 403 | Operação proibida (reservado: recurso de outro usuário responde `404`) |
 | `NOT_FOUND` | 404 | Recurso inexistente **ou** de outro usuário |
 | `CONFLICT` | 409 | Estado inconsistente (ex.: finalizar sessão já finalizada) |
 | `IDEMPOTENCY_KEY_REUSED` | 409 | Chave repetida com payload diferente |
-| `EMAIL_ALREADY_IN_USE` | 409 | E-mail já cadastrado |
-| `INVALID_CREDENTIALS` | 401 | E-mail ou senha inválidos |
-| `INVALID_REFRESH_TOKEN` | 401 | Refresh token expirado, revogado ou reutilizado |
-| `INVALID_RESET_TOKEN` | 401 | Token de recuperação inválido, usado ou expirado |
 | `RATE_LIMITED` | 429 | Limite de requisições excedido |
 | `AI_UNAVAILABLE` | 503 | Provedor de IA indisponível ou timeout |
 | `AI_INVALID_RESPONSE` | 502 | Resposta da IA fora do esquema |
@@ -1787,32 +1592,41 @@ Resposta de login:
 1. `git init` + `.gitignore` + `.env.example`.
 2. `backend/` — `pom.xml`, classe principal, `application.yml` com profiles
    `local` e `test`.
-3. `infra/docker-compose.yml` com `postgres` (porta 5432) e `redis` (opcional).
-4. Migração Flyway `V1__baseline.sql` com o schema da
-   [seção 10](#10-modelo-de-dados) + seed de exercícios.
+3. `infra/docker-compose.yml` com `mongo` (replica set `rs0`), `mongo-init`,
+   `api` e `tests`.
+4. Seed do catálogo em `backend/src/main/resources/catalog/exercises.json`,
+   inserido de forma idempotente por nome.
 5. `mobile/` — `npx create-expo-app` + TypeScript + Expo Router.
-6. `docs/API.md`, `docs/DATA-MODEL.md`, `docs/SECURITY.md`.
-7. CI: build backend, testes backend, testes mobile, lint.
+6. `docs/API.md`, `docs/DATA-MODEL.md`, `docs/SECURITY.md`,
+   `docs/AUTH-INTEGRATION.md` e `tests/integration/`.
+7. CI: build backend, testes unitários, suíte de contrato em Python, testes
+   mobile e lint.
 
 ### B.2 Variáveis de ambiente (`.env.example`)
 
 ```text
 # Backend
-DB_URL=jdbc:postgresql://localhost:5432/ironmind
-DB_USER=ironmind
-DB_PASSWORD=changeme
-JWT_SECRET=change-me-32-bytes-minimum
-JWT_TTL_SECONDS=900
+MONGODB_URI=mongodb://ironmind:changeme@localhost:27017/ironmind?authSource=admin&replicaSet=rs0
+USER_UUID_HEADER=X-User-UUID
+CORS_ALLOWED_ORIGINS=http://localhost:8081,http://localhost:19006
+LLM_PROVIDER=mock
 LLM_API_KEY=
 LLM_MODEL=
 LLM_TIMEOUT_MS=15000
+
+# Compose (credenciais de desenvolvimento)
+MONGO_INITDB_ROOT_USERNAME=ironmind
+MONGO_INITDB_ROOT_PASSWORD=changeme
+MONGO_PORT=27017
+BACKEND_PORT=8080
 
 # Mobile (publicado no bundle — apenas valores não secretos)
 EXPO_PUBLIC_API_URL=http://localhost:8080/api/v1
 ```
 
-> `JWT_SECRET` e `LLM_API_KEY` nunca são reais no repositório. O backend falha
-> no boot se `JWT_SECRET` estiver no valor padrão.
+> `MONGO_INITDB_ROOT_PASSWORD` e `LLM_API_KEY` nunca são reais no repositório.
+> Use `MONGO_PORT=27018` se a porta 27017 já estiver ocupada por um MongoDB
+> local.
 
 ### B.3 `.gitignore` mínimo
 

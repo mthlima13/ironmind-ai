@@ -55,6 +55,9 @@ desktop.ini
 coverage/
 .nyc_output/
 target/site/
+__pycache__/
+*.pyc
+.pytest_cache/
 
 # ===== Dados locais =====
 /data/

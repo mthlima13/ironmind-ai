@@ -9,7 +9,7 @@ import java.util.UUID;
  * exercises. When {@code programDayId} is informed, the exercises of the day are copied into the
  * session, in the same order, with the targets of the program (SPEC.md section 7.8).
  *
- * <p>The owner is never read from the payload: it always comes from the access token
+ * <p>The owner is never read from the payload: it always comes from the identity header
  * (SPEC.md section 11.7).
  *
  * @param programId    program the session belongs to, {@code null} for a free workout

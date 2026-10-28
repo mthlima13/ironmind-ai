@@ -1,17 +1,12 @@
 package com.ironmind.exercise.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 /**
  * Exercise of the catalog.
@@ -20,47 +15,36 @@ import org.hibernate.type.SqlTypes;
  * global catalog: it is readable by everyone and editable only by an administrator. An exercise
  * with {@code isSystem = false} belongs to a single user and is only visible to its owner.
  */
-@Entity
-@Table(name = "exercises")
+@Document(collection = "exercises")
 public class Exercise {
 
     @Id
     private UUID id;
 
-    @Column(name = "name", nullable = false, length = 120)
     private String name;
 
-    @Column(name = "description", columnDefinition = "text")
     private String description;
 
-    @Column(name = "primary_muscle_group", nullable = false, length = 60)
     private String primaryMuscleGroup;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "secondary_muscle_groups", nullable = false)
     private List<String> secondaryMuscleGroups = new ArrayList<>();
 
-    @Column(name = "equipment", nullable = false, length = 60)
     private String equipment;
 
-    @Column(name = "instructions", columnDefinition = "text")
     private String instructions;
 
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Enumerated(EnumType.STRING)
-    @Column(name = "movement_type", nullable = false)
     private MovementType movementType;
 
-    @Column(name = "is_system", nullable = false)
     private boolean system;
 
-    @Column(name = "created_by_user_id")
+    /**
+     * Owner of a personal exercise, {@code null} for the global catalog.
+     */
+    @Indexed
     private UUID createdByUserId;
 
-    @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-    @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
     protected Exercise() {

@@ -6,19 +6,10 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.ironmind.exercise.entity.Exercise;
-import com.ironmind.exercise.entity.MovementType;
-import com.ironmind.exercise.repository.ExerciseRepository;
 import com.ironmind.record.entity.PersonalRecord;
 import com.ironmind.record.entity.RecordType;
 import com.ironmind.record.repository.PersonalRecordRepository;
-import com.ironmind.user.entity.User;
-import com.ironmind.user.entity.UserRole;
-import com.ironmind.user.repository.UserRepository;
 import com.ironmind.workout.entity.ExerciseSet;
-import com.ironmind.workout.entity.SessionExercise;
-import com.ironmind.workout.entity.SessionStatus;
-import com.ironmind.workout.entity.WorkoutSession;
 import com.ironmind.workout.repository.ExerciseSetRepository;
 import com.ironmind.workout.service.OneRepMaxCalculator;
 import java.math.BigDecimal;
@@ -47,11 +38,6 @@ class PersonalRecordServiceTest {
     @Mock
     private ExerciseSetRepository exerciseSetRepository;
     @Mock
-    private UserRepository userRepository;
-    @Mock
-    private ExerciseRepository exerciseRepository;
-
-    @Mock
     private OneRepMaxCalculator oneRepMaxCalculator;
 
     @InjectMocks
@@ -60,20 +46,12 @@ class PersonalRecordServiceTest {
     @Test
     @DisplayName("creates records from sets using Brzycki and the documented rules")
     void createsRecordsFromSetsUsingBrzyckiAndTheDocumentedRules() {
-        User user = new User(USER_ID, "Ana", "ana@example.com", "hash", UserRole.USER, "America/Sao_Paulo");
-        Exercise exercise = new Exercise(EXERCISE_ID, "Agachamento", null, "PERNAS", List.of(), "Barra",
-                null, MovementType.COMPOUND);
-        WorkoutSession session = new WorkoutSession(SESSION_ID, user, null, null, Instant.parse("2026-10-19T10:00:00Z"),
-                SessionStatus.COMPLETED);
-        SessionExercise sessionExercise = new SessionExercise(SESSION_EXERCISE_ID, session, exercise, 1);
-        ExerciseSet set = new ExerciseSet(UUID.randomUUID(), sessionExercise, 1, new BigDecimal("100.00"), 5,
-                null, null, null, null, null);
+        ExerciseSet set = set(1, new BigDecimal("100.00"), 5);
 
-        when(exerciseSetRepository.findByUserIdAndExerciseId(USER_ID, EXERCISE_ID)).thenReturn(List.of(set));
+        when(exerciseSetRepository.findByUserIdAndExerciseIdOrderByCompletedAtAscIdAsc(USER_ID, EXERCISE_ID))
+                .thenReturn(List.of(set));
         when(recordRepository.findByUserIdAndExerciseIdAndRecordType(eq(USER_ID), eq(EXERCISE_ID),
                 any(RecordType.class))).thenReturn(Optional.empty());
-        when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
-        when(exerciseRepository.getReferenceById(EXERCISE_ID)).thenReturn(exercise);
         when(oneRepMaxCalculator.estimate(set.getWeightKg(), set.getRepetitions()))
                 .thenReturn(Optional.of(new BigDecimal("117.65")));
 
@@ -94,23 +72,13 @@ class PersonalRecordServiceTest {
     @Test
     @DisplayName("does not estimate 1RM outside 1 to 10 repetitions and does not create load records for bodyweight sets")
     void doesNotEstimateOutsideRangeAndIgnoresBodyweightLoadRecords() {
-        User user = new User(USER_ID, "Ana", "ana@example.com", "hash", UserRole.USER, "America/Sao_Paulo");
-        Exercise exercise = new Exercise(EXERCISE_ID, "Barra Fixa", null, "COSTAS", List.of(), "Corporal",
-                null, MovementType.COMPOUND);
-        WorkoutSession session = new WorkoutSession(SESSION_ID, user, null, null, Instant.parse("2026-10-19T10:00:00Z"),
-                SessionStatus.COMPLETED);
-        SessionExercise sessionExercise = new SessionExercise(SESSION_EXERCISE_ID, session, exercise, 1);
-        ExerciseSet highReps = new ExerciseSet(UUID.randomUUID(), sessionExercise, 1, new BigDecimal("80.00"), 12,
-                null, null, null, null, null);
-        ExerciseSet bodyweight = new ExerciseSet(UUID.randomUUID(), sessionExercise, 2, null, 8, null, null, null,
-                null, null);
+        ExerciseSet highReps = set(1, new BigDecimal("80.00"), 12);
+        ExerciseSet bodyweight = set(2, null, 8);
 
-        when(exerciseSetRepository.findByUserIdAndExerciseId(USER_ID, EXERCISE_ID))
+        when(exerciseSetRepository.findByUserIdAndExerciseIdOrderByCompletedAtAscIdAsc(USER_ID, EXERCISE_ID))
                 .thenReturn(List.of(highReps, bodyweight));
         when(recordRepository.findByUserIdAndExerciseIdAndRecordType(eq(USER_ID), eq(EXERCISE_ID),
                 any(RecordType.class))).thenReturn(Optional.empty());
-        when(userRepository.getReferenceById(USER_ID)).thenReturn(user);
-        when(exerciseRepository.getReferenceById(EXERCISE_ID)).thenReturn(exercise);
         when(oneRepMaxCalculator.estimate(any(), any(int.class)))
                 .thenReturn(Optional.empty());
 
@@ -128,14 +96,12 @@ class PersonalRecordServiceTest {
     @Test
     @DisplayName("removes records when no valid sets remain")
     void removesRecordsWhenNoValidSetsRemain() {
-        User user = new User(USER_ID, "Ana", "ana@example.com", "hash", UserRole.USER, "America/Sao_Paulo");
-        Exercise exercise = new Exercise(EXERCISE_ID, "Barra Fixa", null, "COSTAS", List.of(), "Corporal",
-                null, MovementType.COMPOUND);
-        PersonalRecord existing = new PersonalRecord(UUID.randomUUID(), user, exercise,
+        PersonalRecord existing = new PersonalRecord(UUID.randomUUID(), USER_ID, EXERCISE_ID,
                 RecordType.MAX_REPS_AT_WEIGHT, new BigDecimal("10"), "reps", null,
                 Instant.parse("2026-10-19T10:00:00Z"));
 
-        when(exerciseSetRepository.findByUserIdAndExerciseId(USER_ID, EXERCISE_ID)).thenReturn(List.of());
+        when(exerciseSetRepository.findByUserIdAndExerciseIdOrderByCompletedAtAscIdAsc(USER_ID, EXERCISE_ID))
+                .thenReturn(List.of());
         when(recordRepository.findByUserIdAndExerciseIdAndRecordType(USER_ID, EXERCISE_ID,
                 RecordType.MAX_WEIGHT)).thenReturn(Optional.empty());
         when(recordRepository.findByUserIdAndExerciseIdAndRecordType(USER_ID, EXERCISE_ID,
@@ -146,5 +112,36 @@ class PersonalRecordServiceTest {
         personalRecordService.recalculate(USER_ID, EXERCISE_ID);
 
         verify(recordRepository).delete(existing);
+    }
+
+    @Test
+    @DisplayName("updates an existing record of the same type instead of creating a second one")
+    void updatesTheExistingRecordOfTheSameType() {
+        ExerciseSet set = set(1, new BigDecimal("105.00"), 5);
+        PersonalRecord existing = new PersonalRecord(UUID.randomUUID(), USER_ID, EXERCISE_ID,
+                RecordType.MAX_WEIGHT, new BigDecimal("100.00"), "kg", null,
+                Instant.parse("2026-10-19T10:00:00Z"));
+
+        when(exerciseSetRepository.findByUserIdAndExerciseIdOrderByCompletedAtAscIdAsc(USER_ID, EXERCISE_ID))
+                .thenReturn(List.of(set));
+        when(recordRepository.findByUserIdAndExerciseIdAndRecordType(eq(USER_ID), eq(EXERCISE_ID),
+                any(RecordType.class)))
+                .thenAnswer(invocation -> invocation.getArgument(2) == RecordType.MAX_WEIGHT
+                        ? Optional.of(existing)
+                        : Optional.empty());
+        when(oneRepMaxCalculator.estimate(set.getWeightKg(), set.getRepetitions()))
+                .thenReturn(Optional.empty());
+
+        personalRecordService.recalculate(USER_ID, EXERCISE_ID);
+
+        // The entity is not dirty checked: the update only reaches the database through save.
+        verify(recordRepository).save(existing);
+        assertThat(existing.getValue()).isEqualByComparingTo("105.00");
+        assertThat(existing.getSourceSetId()).isEqualTo(set.getId());
+    }
+
+    private static ExerciseSet set(int setNumber, BigDecimal weight, int repetitions) {
+        return new ExerciseSet(UUID.randomUUID(), USER_ID, SESSION_ID, SESSION_EXERCISE_ID, EXERCISE_ID,
+                setNumber, weight, repetitions, null, null, null, null, null);
     }
 }

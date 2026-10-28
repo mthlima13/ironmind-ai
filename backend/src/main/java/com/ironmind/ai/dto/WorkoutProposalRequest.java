@@ -10,7 +10,7 @@ import jakarta.validation.constraints.Size;
 /**
  * Request of a workout proposal (SPEC.md section 11.6).
  *
- * <p>The owner is never read from the body: it always comes from the access token. The prompt is
+ * <p>The owner is never read from the body: it always comes from the identity header. The prompt is
  * natural language and is not persisted.
  *
  * @param prompt       what the user wants, in natural language

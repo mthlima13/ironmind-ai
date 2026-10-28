@@ -3,7 +3,7 @@ package com.ironmind.common.exception;
 import com.ironmind.common.ErrorCode;
 
 /**
- * Raised when the authenticated principal is not allowed to perform an operation.
+ * Raised when the user of the request is not allowed to perform an operation.
  */
 public class ForbiddenException extends ApiException {
 

@@ -6,11 +6,13 @@ Este documento é o checklist **real** da decisão 13 da
 repositório** do que **depende de ação humana fora dele** (conta, keystore,
 URL pública, revisão jurídica).
 
-> **Estado em 22 de outubro de 2026.** A exclusão de conta in-app está
-> implementada e testada. Política de privacidade e termos de uso existem apenas
-> como rascunho em [`PRIVACY.md`](PRIVACY.md) e [`TERMS.md`](TERMS.md): **não
-> foram revisados juridicamente nem publicados**. Não há keystore, conta de
-> desenvolvedor verificada nem AAB gerado neste ambiente.
+> **Estado em 28 de outubro de 2026.** O backend não autentica ninguém: recebe a
+> identidade pelo header `X-User-UUID` e não tem endpoint de conta. A exclusão de
+> conta é responsabilidade do provedor de identidade. Política de privacidade e
+> termos de uso existem apenas como rascunho em [`PRIVACY.md`](PRIVACY.md) e
+> [`TERMS.md`](TERMS.md): **não foram revisados juridicamente nem publicados**.
+> Não há keystore, conta de desenvolvedor verificada nem AAB gerado neste
+> ambiente.
 
 ---
 
@@ -18,8 +20,8 @@ URL pública, revisão jurídica).
 
 | Item | Situação | Onde |
 |---|---|---|
-| Exclusão de conta in-app, com senha | **Feito** — `DELETE /api/v1/users/me`, hard delete em cascata, tela em Perfil | `UserController`, `UserService`, `mobile/app/(tabs)/perfil.tsx` |
-| Testes da exclusão (API real + mock) | **Feito** — 7 testes de integração e 5 testes mobile | `AccountDeletionIntegrationTest`, `accountDeletion.test.ts` |
+| Exclusão de conta | **Fora do backend** — o backend não tem endpoint de conta; o encerramento é do provedor de identidade e a remoção dos dados de treino é do edge/rotina administrativa | [`DATA-MODEL.md` §8](DATA-MODEL.md#8-exclusão-dos-dados-do-titular) |
+| Identidade delegada no backend | **Feito** — header `X-User-UUID`, autorização por proprietário, `404` para recurso alheio | `IdentityHeaderFilter`, `SecurityUtils`, `tests/integration/` |
 | Rascunho da política de privacidade | **Feito, não publicado** | [`PRIVACY.md`](PRIVACY.md) |
 | Rascunho dos termos de uso | **Feito, não publicado** | [`TERMS.md`](TERMS.md) |
 | Links legais no app | **Feito, desligados por padrão** — só aparecem com `EXPO_PUBLIC_PRIVACY_URL` e `EXPO_PUBLIC_TERMS_URL` | `mobile/app/(tabs)/perfil.tsx` |
@@ -167,8 +169,8 @@ Pontos de atenção:
 
 - **Exclusão de conta:** o Play exige que o app ofereça exclusão **e** que o
   formulário informe uma **URL web** para solicitar a exclusão sem instalar o
-  app. Hoje existe apenas a exclusão in-app (`Perfil → Excluir conta`). Criar a
-  página/URL é pendência humana.
+  app. O backend não tem endpoint de conta: o encerramento é do provedor de
+  identidade. Faltam o fluxo no app e a página/URL — pendência humana.
 - **Dados sensíveis:** restrições por lesão precisam estar declaradas.
 - **Provedor de LLM:** se estiver ativo, o formulário deve declarar o
   compartilhamento com prestador de serviço e a transferência internacional,

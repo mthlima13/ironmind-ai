@@ -9,10 +9,7 @@ import com.ironmind.program.entity.SplitType;
 import com.ironmind.user.entity.InjuryRestriction;
 import com.ironmind.user.entity.TrainingExperience;
 import com.ironmind.user.entity.TrainingGoal;
-import com.ironmind.user.entity.UserPreferences;
 import com.ironmind.user.repository.InjuryRestrictionRepository;
-import com.ironmind.user.repository.UserPreferencesRepository;
-import java.text.Normalizer;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -27,9 +24,13 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Builds the minimum context sent to the model (SPEC.md section 12.2, step 3).
  *
- * <p>The context carries the preferences, the body regions of the active restrictions and the
- * exercises the user can perform. The free text of a restriction is <strong>not</strong> sent:
- * it is health data that the model does not need to avoid a contraindicated movement.
+ * <p>The context carries the body regions of the active restrictions and the exercises the user
+ * can perform. The free text of a restriction is <strong>not</strong> sent: it is health data that
+ * the model does not need to avoid a contraindicated movement.
+ *
+ * <p>The service stores no profile of the user: the account belongs to the identity provider, so
+ * the goal, the experience and the number of training days come from the request or from the
+ * documented defaults.
  *
  * <p>An exercise blocked by an active restriction never reaches the catalog, so neither the model
  * nor the validator can accept it: the rule is applied before the answer exists.
@@ -38,20 +39,16 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class AiContextBuilder {
 
-    private static final String BODYWEIGHT_EQUIPMENT = "corpo do peso";
     private static final int DEFAULT_TRAINING_DAYS = 3;
     private static final int MAX_TRAINING_DAYS = 7;
 
-    private final UserPreferencesRepository preferencesRepository;
     private final InjuryRestrictionRepository restrictionRepository;
     private final ExerciseRepository exerciseRepository;
     private final AiProperties properties;
 
-    public AiContextBuilder(UserPreferencesRepository preferencesRepository,
-            InjuryRestrictionRepository restrictionRepository,
+    public AiContextBuilder(InjuryRestrictionRepository restrictionRepository,
             ExerciseRepository exerciseRepository,
             AiProperties properties) {
-        this.preferencesRepository = preferencesRepository;
         this.restrictionRepository = restrictionRepository;
         this.exerciseRepository = exerciseRepository;
         this.properties = properties;
@@ -62,9 +59,9 @@ public class AiContextBuilder {
      *
      * @param userId                owner of the context
      * @param requestedTrainingDays number of days asked in the request, {@code null} to use the
-     *                              preferences
-     * @param requestedGoal         goal asked in the request, {@code null} to use the preferences
-     * @return context with the catalog already filtered by restriction and equipment
+     *                              default
+     * @param requestedGoal         goal asked in the request, {@code null} to use the default
+     * @return context with the catalog already filtered by restriction
      */
     public AiContext build(UUID userId, Integer requestedTrainingDays, TrainingGoal requestedGoal) {
         return build(userId, requestedTrainingDays, requestedGoal, null);
@@ -73,18 +70,16 @@ public class AiContextBuilder {
     /**
      * Builds the context of the user.
      *
-     * @param userId                 owner of the context
-     * @param requestedTrainingDays  number of days asked in the request, {@code null} to use the
-     *                               preferences
-     * @param requestedGoal          goal asked in the request, {@code null} to use the preferences
-     * @param requestedSplit         division asked in the request, {@code null} to let the model
-     *                               choose
-     * @return context with the catalog already filtered by restriction and equipment
+     * @param userId                owner of the context
+     * @param requestedTrainingDays number of days asked in the request, {@code null} to use the
+     *                              default
+     * @param requestedGoal         goal asked in the request, {@code null} to use the default
+     * @param requestedSplit        division asked in the request, {@code null} to let the model
+     *                              choose
+     * @return context with the catalog already filtered by restriction
      */
     public AiContext build(UUID userId, Integer requestedTrainingDays, TrainingGoal requestedGoal,
             SplitType requestedSplit) {
-        UserPreferences preferences = preferencesRepository.findByUserId(userId).orElse(null);
-
         List<InjuryRestriction> activeRestrictions = restrictionRepository.findByUserId(userId).stream()
                 .filter(InjuryRestriction::isActive)
                 .toList();
@@ -98,31 +93,21 @@ public class AiContextBuilder {
             }
         }
 
-        List<String> equipment = preferences == null ? List.of() : preferences.getAvailableEquipment();
-        Set<String> normalizedEquipment = new HashSet<>();
-        for (String item : equipment) {
-            if (item != null && !item.isBlank()) {
-                normalizedEquipment.add(normalize(item));
-            }
-        }
-        boolean filterByEquipment = !normalizedEquipment.isEmpty();
-
         List<Exercise> visibleExercises = new ArrayList<>(exerciseRepository.findByCreatedByUserIdIsNull());
         visibleExercises.addAll(exerciseRepository.findByCreatedByUserId(userId));
 
         List<AiContext.CatalogExercise> catalog = visibleExercises.stream()
                 .filter(exercise -> !blockedExerciseIds.contains(exercise.getId()))
-                .filter(exercise -> !filterByEquipment || isAvailable(exercise, normalizedEquipment))
                 .sorted(catalogOrder())
                 .limit(properties.limits().maxCatalogExercises())
                 .map(AiContextBuilder::toCatalogExercise)
                 .toList();
 
         return new AiContext(
-                goalOf(preferences, requestedGoal),
-                experienceOf(preferences),
-                trainingDaysOf(preferences, requestedTrainingDays),
-                equipment,
+                requestedGoal == null ? TrainingGoal.GENERAL : requestedGoal,
+                TrainingExperience.BEGINNER,
+                trainingDaysOf(requestedTrainingDays),
+                List.of(),
                 restrictionRegions,
                 catalog,
                 requestedSplit);
@@ -146,17 +131,6 @@ public class AiContextBuilder {
         return summary;
     }
 
-    private static boolean isAvailable(Exercise exercise, Set<String> normalizedEquipment) {
-        String equipment = exercise.getEquipment();
-        if (equipment == null || equipment.isBlank()) {
-            return false;
-        }
-        if (BODYWEIGHT_EQUIPMENT.equals(normalize(equipment))) {
-            return true;
-        }
-        return normalizedEquipment.contains(normalize(equipment));
-    }
-
     private static AiContext.CatalogExercise toCatalogExercise(Exercise exercise) {
         return new AiContext.CatalogExercise(
                 exercise.getId(),
@@ -173,36 +147,11 @@ public class AiContextBuilder {
                 .thenComparing(exercise -> nullToEmpty(exercise.getName()));
     }
 
-    private static TrainingGoal goalOf(UserPreferences preferences, TrainingGoal requested) {
-        if (requested != null) {
-            return requested;
-        }
-        if (preferences != null && preferences.getGoal() != null) {
-            return preferences.getGoal();
-        }
-        return TrainingGoal.GENERAL;
-    }
-
-    private static TrainingExperience experienceOf(UserPreferences preferences) {
-        if (preferences != null && preferences.getTrainingExperience() != null) {
-            return preferences.getTrainingExperience();
-        }
-        return TrainingExperience.BEGINNER;
-    }
-
-    private static int trainingDaysOf(UserPreferences preferences, Integer requested) {
+    private static int trainingDaysOf(Integer requested) {
         if (requested != null && requested > 0) {
-            return requested;
-        }
-        if (preferences != null && preferences.getTrainingDays() != null && preferences.getTrainingDays() > 0) {
-            return Math.min(preferences.getTrainingDays(), MAX_TRAINING_DAYS);
+            return Math.min(requested, MAX_TRAINING_DAYS);
         }
         return DEFAULT_TRAINING_DAYS;
-    }
-
-    private static String normalize(String value) {
-        String decomposed = Normalizer.normalize(value, Normalizer.Form.NFD);
-        return decomposed.replaceAll("\\p{M}+", "").strip().toLowerCase(Locale.ROOT);
     }
 
     private static String nullToEmpty(String value) {

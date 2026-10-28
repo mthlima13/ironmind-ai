@@ -1,75 +1,93 @@
 package com.ironmind.workout.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
 
 /**
  * Set registered for an exercise of a session.
  *
  * <p>The load is stored in kilograms, the canonical unit of the product. It is {@code null} for
  * bodyweight movements.
+ *
+ * <p>The document keeps the owner and the identifiers of the session and of the exercise of the
+ * catalog, so the queries of the history and of the records never have to walk a chain of
+ * references.
  */
-@Entity
-@Table(name = "exercise_sets")
+@Document(collection = "exercise_sets")
+@CompoundIndex(name = "user_exercise_completed", def = "{'userId': 1, 'exerciseId': 1, 'completedAt': 1}")
+@CompoundIndex(name = "session_set", def = "{'sessionId': 1, 'sessionExerciseId': 1, 'setNumber': 1}")
 public class ExerciseSet {
 
     @Id
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "session_exercise_id", nullable = false)
-    private SessionExercise sessionExercise;
+    /**
+     * Owner of the set, always taken from the gateway header.
+     */
+    private UUID userId;
 
-    @Column(name = "set_number", nullable = false)
+    @Indexed
+    private UUID sessionId;
+
+    @Indexed
+    private UUID sessionExerciseId;
+
+    @Indexed
+    private UUID exerciseId;
+
     private int setNumber;
 
-    @Column(name = "weight_kg", precision = 6, scale = 2)
     private BigDecimal weightKg;
 
-    @Column(name = "repetitions", nullable = false)
     private int repetitions;
 
-    @Column(name = "duration_seconds")
     private Integer durationSeconds;
 
-    @Column(name = "distance_meters")
     private Integer distanceMeters;
 
-    @Column(name = "perceived_exertion")
     private Short perceivedExertion;
 
-    @Column(name = "rest_after_seconds")
     private Integer restAfterSeconds;
 
-    @Column(name = "completed_at", nullable = false)
     private Instant completedAt;
 
-    @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
-    @Column(name = "idempotency_key", length = 120, unique = true)
+    /**
+     * Durable idempotency key of the registration, unique across the collection.
+     *
+     * <p>The field is only written when the client sent a key: the index is sparse, and a document
+     * with the field present but {@code null} would still be indexed and collide with every other
+     * set registered without a key. {@link Field.Write#NON_NULL} keeps the field out of the
+     * document in that case.
+     */
+    @Indexed(unique = true, sparse = true)
+    @Field(write = Field.Write.NON_NULL)
     private String idempotencyKey;
 
     protected ExerciseSet() {
     }
 
-    public ExerciseSet(UUID id, SessionExercise sessionExercise, int setNumber, BigDecimal weightKg, int repetitions) {
-        this(id, sessionExercise, setNumber, weightKg, repetitions, null, null, null, null, null);
+    public ExerciseSet(UUID id, UUID userId, UUID sessionId, UUID sessionExerciseId, UUID exerciseId,
+            int setNumber, BigDecimal weightKg, int repetitions) {
+        this(id, userId, sessionId, sessionExerciseId, exerciseId, setNumber, weightKg, repetitions,
+                null, null, null, null, null);
     }
 
     /**
      * Creates the set with every value the API accepts.
      *
      * @param id                identifier of the set
-     * @param sessionExercise   exercise of the session the set belongs to
+     * @param userId            owner of the session the set belongs to
+     * @param sessionId         identifier of the session
+     * @param sessionExerciseId identifier of the exercise of the session
+     * @param exerciseId        identifier of the exercise of the catalog
      * @param setNumber         position of the set inside the exercise, starting at one
      * @param weightKg          load in kilograms, {@code null} for bodyweight movements
      * @param repetitions       number of repetitions
@@ -79,11 +97,15 @@ public class ExerciseSet {
      * @param restAfterSeconds  rest taken after the set
      * @param idempotencyKey    durable idempotency key of the registration
      */
-    public ExerciseSet(UUID id, SessionExercise sessionExercise, int setNumber, BigDecimal weightKg, int repetitions,
-            Integer durationSeconds, Integer distanceMeters, Short perceivedExertion, Integer restAfterSeconds,
+    public ExerciseSet(UUID id, UUID userId, UUID sessionId, UUID sessionExerciseId, UUID exerciseId,
+            int setNumber, BigDecimal weightKg, int repetitions, Integer durationSeconds,
+            Integer distanceMeters, Short perceivedExertion, Integer restAfterSeconds,
             String idempotencyKey) {
         this.id = id;
-        this.sessionExercise = sessionExercise;
+        this.userId = userId;
+        this.sessionId = sessionId;
+        this.sessionExerciseId = sessionExerciseId;
+        this.exerciseId = exerciseId;
         this.setNumber = setNumber;
         this.weightKg = weightKg;
         this.repetitions = repetitions;
@@ -100,8 +122,20 @@ public class ExerciseSet {
         return id;
     }
 
-    public SessionExercise getSessionExercise() {
-        return sessionExercise;
+    public UUID getUserId() {
+        return userId;
+    }
+
+    public UUID getSessionId() {
+        return sessionId;
+    }
+
+    public UUID getSessionExerciseId() {
+        return sessionExerciseId;
+    }
+
+    public UUID getExerciseId() {
+        return exerciseId;
     }
 
     public int getSetNumber() {

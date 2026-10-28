@@ -29,7 +29,7 @@ public record ProgramDayResponse(
     public static ProgramDayResponse from(ProgramDay day, List<ProgramExerciseResponse> exercises) {
         return new ProgramDayResponse(
                 day.getId(),
-                day.getProgram().getId(),
+                day.getProgramId(),
                 day.getName(),
                 day.getPosition(),
                 exercises);

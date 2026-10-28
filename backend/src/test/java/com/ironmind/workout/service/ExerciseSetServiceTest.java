@@ -15,11 +15,7 @@ import com.fasterxml.jackson.databind.node.NullNode;
 import com.ironmind.common.exception.ConflictException;
 import com.ironmind.common.exception.IdempotencyKeyReusedException;
 import com.ironmind.common.exception.ResourceNotFoundException;
-import com.ironmind.exercise.entity.Exercise;
-import com.ironmind.exercise.entity.MovementType;
 import com.ironmind.record.service.PersonalRecordService;
-import com.ironmind.user.entity.User;
-import com.ironmind.user.entity.UserRole;
 import com.ironmind.workout.dto.RegisterSetRequest;
 import com.ironmind.workout.dto.UpdateSetRequest;
 import com.ironmind.workout.entity.ExerciseSet;
@@ -30,7 +26,6 @@ import com.ironmind.workout.repository.ExerciseSetRepository;
 import com.ironmind.workout.repository.SessionExerciseRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -73,7 +68,8 @@ class ExerciseSetServiceTest {
                 .thenReturn(session(SessionStatus.IN_PROGRESS));
         when(sessionExerciseRepository.findByIdAndSessionId(SESSION_EXERCISE_ID, SESSION_ID))
                 .thenReturn(Optional.of(sessionExercise()));
-        when(exerciseSetRepository.findMaxSetNumber(SESSION_EXERCISE_ID)).thenReturn(1);
+        when(exerciseSetRepository.findFirstBySessionExerciseIdOrderBySetNumberDesc(SESSION_EXERCISE_ID))
+                .thenReturn(Optional.of(registeredSet()));
         when(exerciseSetRepository.save(any(ExerciseSet.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         RegisterSetRequest request = new RegisterSetRequest(SESSION_EXERCISE_ID, new BigDecimal("80.00"), 10,
@@ -161,7 +157,9 @@ class ExerciseSetServiceTest {
     @DisplayName("corrects a series keeping its identifier and its number")
     void correctsASeriesKeepingItsIdentifierAndItsNumber() {
         ExerciseSet set = registeredSet();
-        when(exerciseSetRepository.findOwnedById(set.getId(), OWNER_ID)).thenReturn(Optional.of(set));
+        when(exerciseSetRepository.findByIdAndUserId(set.getId(), OWNER_ID)).thenReturn(Optional.of(set));
+        when(workoutSessionService.requireOwnedSession(SESSION_ID, OWNER_ID))
+                .thenReturn(session(SessionStatus.IN_PROGRESS));
         when(exerciseSetRepository.save(any(ExerciseSet.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         var response = exerciseSetService.update(set.getId(),
@@ -178,7 +176,9 @@ class ExerciseSetServiceTest {
     @DisplayName("clears the load of a series when the correction sends null")
     void clearsTheLoadOfASeriesWhenTheCorrectionSendsNull() {
         ExerciseSet set = registeredSet();
-        when(exerciseSetRepository.findOwnedById(set.getId(), OWNER_ID)).thenReturn(Optional.of(set));
+        when(exerciseSetRepository.findByIdAndUserId(set.getId(), OWNER_ID)).thenReturn(Optional.of(set));
+        when(workoutSessionService.requireOwnedSession(SESSION_ID, OWNER_ID))
+                .thenReturn(session(SessionStatus.IN_PROGRESS));
         when(exerciseSetRepository.save(any(ExerciseSet.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         var response = exerciseSetService.update(set.getId(),
@@ -192,7 +192,7 @@ class ExerciseSetServiceTest {
     @Test
     @DisplayName("reports a series of another user as not found")
     void reportsASeriesOfAnotherUserAsNotFound() {
-        when(exerciseSetRepository.findOwnedById(any(UUID.class), eq(OWNER_ID))).thenReturn(Optional.empty());
+        when(exerciseSetRepository.findByIdAndUserId(any(UUID.class), eq(OWNER_ID))).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> exerciseSetService.update(UUID.randomUUID(),
                 new UpdateSetRequest(weight(82.50), 8, null, null, null, null), OWNER_ID))
@@ -206,25 +206,16 @@ class ExerciseSetServiceTest {
         return DecimalNode.valueOf(BigDecimal.valueOf(value));
     }
 
-    private static User owner() {
-        return new User(OWNER_ID, "Ana Souza", "ana@example.com", "hash", UserRole.USER, "America/Sao_Paulo");
-    }
-
     private static WorkoutSession session(SessionStatus status) {
-        return new WorkoutSession(SESSION_ID, owner(), null, null, Instant.now(), status);
-    }
-
-    private static Exercise catalogExercise() {
-        return new Exercise(EXERCISE_ID, "Supino reto com barra", null, "Peito", List.of(), "Barra", null,
-                MovementType.COMPOUND);
+        return new WorkoutSession(SESSION_ID, OWNER_ID, null, null, Instant.now(), status);
     }
 
     private static SessionExercise sessionExercise() {
-        return new SessionExercise(SESSION_EXERCISE_ID, session(SessionStatus.IN_PROGRESS), catalogExercise(), 1);
+        return new SessionExercise(SESSION_EXERCISE_ID, SESSION_ID, EXERCISE_ID, 1);
     }
 
     private static ExerciseSet registeredSet() {
-        return new ExerciseSet(UUID.randomUUID(), sessionExercise(), 1, new BigDecimal("80.00"), 10,
-                null, null, null, 90, null);
+        return new ExerciseSet(UUID.randomUUID(), OWNER_ID, SESSION_ID, SESSION_EXERCISE_ID, EXERCISE_ID, 1,
+                new BigDecimal("80.00"), 10, null, null, null, 90, null);
     }
 }

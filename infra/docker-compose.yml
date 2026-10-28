@@ -1,79 +1,120 @@
 name: ironmind-ai
 
-# Uso:
-#   docker compose up -d postgres        # so o banco (desenvolvimento)
-#   docker compose --profile app up -d   # banco + redis + backend
+# Ambiente de desenvolvimento e de testes de integracao.
 #
-# O Postgres e o Redis nao sobem automaticamente com `up` para evitar
-# conflito com servicos ja instalados na maquina.
+#   docker compose up -d --build                 # MongoDB + replica set + API
+#   docker compose --profile test run --rm tests # suite de integracao em Python
+#   docker compose logs -f api                   # acompanha o log da API
+#   docker compose down -v                       # derruba tudo e apaga os dados
+#
+# O MongoDB sobe como replica set de um no porque o recalculo dos recordes usa
+# transacao de multiplos documentos. O `mongo-init` inicia o replica set uma
+# unica vez e espera o no aceitar escritas antes de liberar a API.
+#
+# A API nao autentica ninguem: ela confia no cabecalho X-User-UUID injetado
+# pelo gateway. Nunca exponha a porta da API diretamente na internet.
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: ironmind-postgres
+  mongo:
+    image: mongo:7
+    container_name: ironmind-mongo
     restart: unless-stopped
+    # O MongoDB recusa um replica set com autorizacao habilitada sem keyfile de
+    # autenticacao interna. O arquivo e gerado uma unica vez no volume, com as
+    # permissoes que o mongod exige, e nunca entra no repositorio.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        if [ ! -s /data/keyfile ]; then
+          head -c 756 /dev/urandom | base64 > /data/keyfile
+          chown mongodb:mongodb /data/keyfile
+          chmod 400 /data/keyfile
+        fi
+        exec /usr/local/bin/docker-entrypoint.sh mongod --replSet rs0 --bind_ip_all --keyFile /data/keyfile
     environment:
-      POSTGRES_DB: ${DB_NAME:?DB_NAME is required}
-      POSTGRES_USER: ${DB_USER:?DB_USER is required}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
-      # Locale deterministico: evita erro de collation em comparacoes de texto
-      POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-ironmind}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-changeme}
+    # A porta publicada e apenas conveniencia de inspecao: a API e os testes
+    # usam a rede interna do compose. Troque MONGO_PORT se 27017 ja estiver
+    # ocupado por um MongoDB local.
     ports:
-      - "127.0.0.1:${DB_PORT:-5432}:5432"
+      - "127.0.0.1:${MONGO_PORT:-27017}:27017"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
-      - ./init:/docker-entrypoint-initdb.d:ro
+      - mongo-data:/data/db
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-ironmind} -d ${DB_NAME:-ironmind}"]
+      test:
+        - "CMD-SHELL"
+        - "mongosh --quiet --username $$MONGO_INITDB_ROOT_USERNAME --password $$MONGO_INITDB_ROOT_PASSWORD --authenticationDatabase admin --eval 'db.adminCommand({ ping: 1 }).ok' | grep -q 1"
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
       start_period: 10s
 
-  redis:
-    image: redis:7-alpine
-    container_name: ironmind-redis
-    restart: unless-stopped
-    profiles: ["app"]
-    command: ["redis-server", "--appendonly", "yes"]
-    ports:
-      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+  mongo-init:
+    image: mongo:7
+    container_name: ironmind-mongo-init
+    restart: "no"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-ironmind}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-changeme}
     volumes:
-      - redis-data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
+      - ./mongo:/scripts:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >-
+        mongosh --quiet --host mongo:27017
+        --username "$$MONGO_INITDB_ROOT_USERNAME"
+        --password "$$MONGO_INITDB_ROOT_PASSWORD"
+        --authenticationDatabase admin
+        --file /scripts/init-replica-set.js
 
-  backend:
+  api:
     build:
       context: ../backend
       dockerfile: Dockerfile
-    container_name: ironmind-backend
+    container_name: ironmind-api
     restart: unless-stopped
-    profiles: ["app"]
     depends_on:
-      postgres:
-        condition: service_healthy
+      mongo-init:
+        condition: service_completed_successfully
     environment:
-      DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:?DB_NAME is required}
-      DB_USER: ${DB_USER:?DB_USER is required}
-      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
-      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      # O URI carrega o replica set: a API precisa do primario para escrever.
+      MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-ironmind}:${MONGO_INITDB_ROOT_PASSWORD:-changeme}@mongo:27017/ironmind?authSource=admin&replicaSet=rs0
+      # `production` exige origens de CORS reais; o compose e um ambiente local.
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-local}
+      # Nome do cabecalho com o UUID do usuario autenticado pelo gateway.
+      USER_UUID_HEADER: ${USER_UUID_HEADER:-X-User-UUID}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8081,http://localhost:19006,http://localhost:19007}
+      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_MODEL: ${LLM_MODEL:-}
-      SPRING_PROFILES_ACTIVE: production
-      MAIL_PROVIDER: ${MAIL_PROVIDER:?MAIL_PROVIDER is required}
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8080}:8080"
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/api/v1/health"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/v1/health"]
       interval: 15s
       timeout: 5s
-      retries: 5
-      start_period: 30s
+      retries: 10
+      start_period: 60s
+
+  # Suite de integracao: fala com a API pela rede interna do compose.
+  tests:
+    image: python:3.12-slim
+    profiles: ["test"]
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      BASE_URL: http://api:8080
+      USER_UUID_HEADER: ${USER_UUID_HEADER:-X-User-UUID}
+    volumes:
+      - ../tests/integration:/tests:ro
+    working_dir: /tests
+    command: ["sh", "-c", "pip install --quiet --no-cache-dir -r requirements.txt && pytest -q"]
 
 volumes:
-  postgres-data:
-  redis-data:
+  mongo-data:

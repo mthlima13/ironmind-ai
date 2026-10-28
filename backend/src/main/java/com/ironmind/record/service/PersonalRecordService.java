@@ -7,17 +7,19 @@ import com.ironmind.record.dto.PersonalRecordResponse;
 import com.ironmind.record.entity.PersonalRecord;
 import com.ironmind.record.entity.RecordType;
 import com.ironmind.record.repository.PersonalRecordRepository;
-import com.ironmind.user.repository.UserRepository;
 import com.ironmind.workout.entity.ExerciseSet;
 import com.ironmind.workout.repository.ExerciseSetRepository;
 import com.ironmind.workout.service.OneRepMaxCalculator;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -64,16 +66,14 @@ public class PersonalRecordService {
 
     private final PersonalRecordRepository recordRepository;
     private final ExerciseSetRepository exerciseSetRepository;
-    private final UserRepository userRepository;
     private final ExerciseRepository exerciseRepository;
     private final OneRepMaxCalculator oneRepMaxCalculator;
 
     public PersonalRecordService(PersonalRecordRepository recordRepository,
-            ExerciseSetRepository exerciseSetRepository, UserRepository userRepository,
-            ExerciseRepository exerciseRepository, OneRepMaxCalculator oneRepMaxCalculator) {
+            ExerciseSetRepository exerciseSetRepository, ExerciseRepository exerciseRepository,
+            OneRepMaxCalculator oneRepMaxCalculator) {
         this.recordRepository = recordRepository;
         this.exerciseSetRepository = exerciseSetRepository;
-        this.userRepository = userRepository;
         this.exerciseRepository = exerciseRepository;
         this.oneRepMaxCalculator = oneRepMaxCalculator;
     }
@@ -84,8 +84,10 @@ public class PersonalRecordService {
     @Transactional(readOnly = true)
     public PageResponse<PersonalRecordResponse> list(UUID userId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "achievedAt"));
-        Page<PersonalRecord> records = recordRepository.findPageByUserId(userId, pageable);
-        return PageResponse.of(records, PersonalRecordResponse::from);
+        Page<PersonalRecord> records = recordRepository.findByUserId(userId, pageable);
+        Map<UUID, Exercise> exercises = exercisesOf(records.getContent());
+        return PageResponse.of(records, record -> PersonalRecordResponse.from(record,
+                exercises.get(record.getExerciseId())));
     }
 
     /**
@@ -94,12 +96,13 @@ public class PersonalRecordService {
      * <p>The method runs inside the transaction of the change of the set, so a failure to evaluate
      * the records rolls the change back (SPEC.md section 7.4).
      *
-     * @param userId     owner of the data, always taken from the access token
+     * @param userId     owner of the data, always taken from the gateway header
      * @param exerciseId exercise whose records are recalculated
      */
     @Transactional
     public void recalculate(UUID userId, UUID exerciseId) {
-        List<ExerciseSet> sets = exerciseSetRepository.findByUserIdAndExerciseId(userId, exerciseId);
+        List<ExerciseSet> sets = exerciseSetRepository
+                .findByUserIdAndExerciseIdOrderByCompletedAtAscIdAsc(userId, exerciseId);
         Map<RecordType, Achievement> best = new EnumMap<>(RecordType.class);
 
         for (ExerciseSet set : sets) {
@@ -120,17 +123,21 @@ public class PersonalRecordService {
             if (achievement == null) {
                 current.ifPresent(recordRepository::delete);
             } else if (current.isPresent()) {
-                current.get().update(achievement.value(), achievement.unit(),
-                        achievement.sourceSet(), achievement.achievedAt());
+                PersonalRecord record = current.get();
+                record.update(achievement.value(), achievement.unit(),
+                        achievement.sourceSetId(), achievement.achievedAt());
+                // Spring Data Mongo does not dirty-check the entity: an update only reaches the
+                // database when the document is saved explicitly.
+                recordRepository.save(record);
             } else {
                 recordRepository.save(new PersonalRecord(
                         UUID.randomUUID(),
-                        userRepository.getReferenceById(userId),
-                        exerciseRepository.getReferenceById(exerciseId),
+                        userId,
+                        exerciseId,
                         type,
                         achievement.value(),
                         achievement.unit(),
-                        achievement.sourceSet(),
+                        achievement.sourceSetId(),
                         achievement.achievedAt()));
             }
         }
@@ -149,7 +156,7 @@ public class PersonalRecordService {
         }
         Achievement current = best.get(type);
         if (current == null || value.compareTo(current.value()) > 0) {
-            best.put(type, new Achievement(value, unit, set, set.getCompletedAt()));
+            best.put(type, new Achievement(value, unit, set.getId(), set.getCompletedAt()));
         }
     }
 
@@ -173,8 +180,24 @@ public class PersonalRecordService {
     }
 
     /**
+     * Loads the exercises of the records in a single round trip.
+     */
+    private Map<UUID, Exercise> exercisesOf(List<PersonalRecord> records) {
+        Set<UUID> exerciseIds = records.stream().map(PersonalRecord::getExerciseId)
+                .collect(Collectors.toSet());
+        if (exerciseIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, Exercise> exercises = new HashMap<>();
+        for (Exercise exercise : exerciseRepository.findAllById(exerciseIds)) {
+            exercises.put(exercise.getId(), exercise);
+        }
+        return exercises;
+    }
+
+    /**
      * Achievement of a record type before it is persisted.
      */
-    private record Achievement(BigDecimal value, String unit, ExerciseSet sourceSet, Instant achievedAt) {
+    private record Achievement(BigDecimal value, String unit, UUID sourceSetId, Instant achievedAt) {
     }
 }

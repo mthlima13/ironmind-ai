@@ -6,21 +6,19 @@ em `/swagger-ui.html` com o backend em execução.
 
 - **Base URL:** `http://localhost:8080/api/v1`
 - **Formato:** JSON (`application/json`)
-- **Autenticação:** `Authorization: Bearer <accessToken>`
+- **Identidade:** `X-User-UUID: <uuid-do-titular>` — injetado pelo gateway
+- **Banco:** MongoDB 7 em replica set (`rs0`)
+- **Fuso das análises:** UTC
 
-> **O que existe hoje.** Sprints 1 a 5 entregues: autenticação, perfil e
-> preferências, catálogo de exercícios, programas e o fluxo completo de sessão
-> (início, pausa/retomada, registro e correção de séries, conclusão), analytics,
-> recordes, restrições e a IA inicial (proposta de treino, sugestão de carga,
-> coaching e interpretação de voz).
->
-> O app continua funcionando sem backend: com
-> `EXPO_PUBLIC_USE_MOCK_API=true` todas as telas rodam contra o adaptador de mock
-> (`mobile/src/services/mockAdapter.ts`), que segue o mesmo contrato.
+> **O que existe hoje.** Backend sem autenticação própria: o gateway autentica o
+> usuário e injeta o UUID do titular no header `X-User-UUID`. O serviço usa esse
+> UUID para autorizar cada leitura e cada escrita; recurso de outro usuário
+> responde sempre `404`. Não existe cadastro, login, perfil nem exclusão de
+> conta nesta API — esses fluxos pertencem ao provedor de identidade e ao edge.
 
 | Status | Endpoints |
 |---|---|
-| **Implementado** | `GET /health`; `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/forgot-password`, `/auth/reset-password`; `GET/PATCH/DELETE /users/me`; `GET/POST /exercises`, `GET/PATCH /exercises/{id}`; `GET/POST /programs`, `GET/PUT/DELETE /programs/{id}`; `GET/POST /workout-sessions`, `GET/PATCH /workout-sessions/{id}`, `POST /workout-sessions/{id}/exercises`, `POST /workout-sessions/{id}/sets`, `POST /workout-sessions/{id}/complete`, `PATCH/DELETE /sets/{id}`; `GET /analytics/overview`, `GET /analytics/exercises/{id}`, `GET /records`, `GET/PUT /restrictions`; `POST /ai/workout-proposals`, `/ai/load-suggestions`, `/ai/coach`, `/ai/voice-interpretation`, `/ai/recommendations/{id}/decision` |
+| **Implementado** | `GET /health`; `GET/POST /exercises`, `GET/PATCH /exercises/{id}`; `GET/POST /programs`, `GET/PUT/DELETE /programs/{id}`; `GET/POST /workout-sessions`, `GET/PATCH /workout-sessions/{id}`, `POST /workout-sessions/{id}/exercises`, `POST /workout-sessions/{id}/sets`, `POST /workout-sessions/{id}/complete`, `PATCH/DELETE /sets/{id}`; `GET /analytics/overview`, `GET /analytics/exercises/{id}`, `GET /records`, `GET/PUT /restrictions`; `POST /ai/workout-proposals`, `/ai/load-suggestions`, `/ai/coach`, `/ai/voice-interpretation`, `/ai/recommendations/{id}/decision` |
 
 ---
 
@@ -30,18 +28,13 @@ em `/swagger-ui.html` com o backend em execução.
 |---|---|
 | Versionamento | Prefixo `/api/v1` na URL. Mudança incompatível → `/api/v2`. |
 | Identificadores | UUID v4 em todo recurso. Não sequencial, não adivinhável. |
-| DTOs | Entidades JPA nunca são serializadas. Entrada e saída têm DTO próprio. |
+| Serialização | Entidades de persistência nunca são serializadas. Entrada e saída têm DTO próprio. |
 | Validação | Bean Validation na entrada **e** regras de domínio no serviço. |
-| Datas | ISO-8601 com offset UTC, ex. `2026-10-21T19:43:06Z`. |
+| Datas | ISO-8601 em UTC, ex. `2026-10-21T19:43:06Z`. Dias de análise são datas UTC. |
 | Paginação | Todo endpoint de listagem é paginado. `size` máximo 100. |
 | Erros | Formato único em [`ApiError`](#4-formato-de-erro). |
 | Idempotência | Header `Idempotency-Key` em escrita que cria registro. |
-| Owner | `user_id` **nunca** vem do corpo da requisição — vem do token. |
-
-> **Proposta (não implementada):** quando a autenticação passar a ser
-> delegada, o owner virá da identidade verificada pelo gateway, nunca do
-> corpo, da query ou de um header escrito pelo cliente. O comportamento atual
-> continua sendo o do token.
+| Owner | O UUID do titular vem **sempre** do header `X-User-UUID`; nunca do corpo, da query ou da URL. |
 
 ### Paginação
 
@@ -75,282 +68,49 @@ Idempotency-Key: 3f8c1d2e-9b7a-4c1e-8f2b-0a1c3d5e7f90
 | Repetida com a mesma chave e mesmo corpo | `200 OK` + **o mesmo** recurso, sem duplicar |
 | Repetida com a mesma chave e corpo diferente | `409 Conflict` / `IDEMPOTENCY_KEY_REUSED` |
 
+No registro de série a chave é **durável**: ela fica gravada no documento da
+série, sob índice único. Nas demais rotas de criação a chave é guardada em
+memória pelo processo que atendeu a primeira chamada.
+
 ---
 
-## 2. Autenticação
+## 2. Identidade
+
+O backend **não autentica** o chamador. Ele confia no header escrito pelo
+gateway depois de validar a sessão no provedor de identidade:
 
 ```http
-POST /api/v1/auth/login
-Content-Type: application/json
-
-{
-  "email": "atleta@exemplo.com",
-  "password": "..."
-}
+GET /api/v1/programs
+X-User-UUID: 3f8c1d2e-9b7a-4c1e-8f2b-0a1c3d5e7f90
 ```
 
-```json
-{
-  "accessToken": "eyJhbGciOi...",
-  "refreshToken": "d3f1a...",
-  "tokenType": "Bearer",
-  "expiresIn": 900,
-  "user": { "id": "…", "name": "…", "email": "…", "role": "USER" }
-}
-```
-
-| Token | Validade | Armazenamento (mobile) |
-|---|---|---|
-| Access | 15 min (configurável) | memória + `expo-secure-store` |
-| Refresh | 30 dias, rotativo | `expo-secure-store` |
-
-Revogação de refresh token no logout invalida a sessão. Tokens nunca são
-registrados em log.
-
-### Identidade delegada à infraestrutura — **PROPOSTA**
-
-> **Não implementado.** Hoje toda rota privada exige
-> `Authorization: Bearer <accessToken>`. O texto abaixo descreve apenas o
-> contrato proposto; ver [`AUTH-INTEGRATION.md`](AUTH-INTEGRATION.md).
-
-No modelo proposto, o gateway autentica o usuário no provedor de identidade e
-injeta a identidade já validada em um header. O backend não lê tokens de
-acesso do cliente.
-
-| Item | Proposta |
+| Item | Regra implementada |
 |---|---|
-| Header de identidade | `X-IronMind-User-Id` (configurável; nome a confirmar) |
-| Valor | UUID canônico, exatamente um valor |
-| Prova de canal | fora do escopo do backend; premissa da infraestrutura (gateway remove o header do cliente e o backend não é exposto) |
-| Header ausente, duplicado, concatenado, vazio ou malformado em rota privada | `401 UNAUTHENTICATED` |
-| Rotas públicas | header inválido é ignorado; a requisição segue anônima |
-| Identidade de outro usuário no recurso | continua `404 NOT_FOUND` |
+| Header | `X-User-UUID` por padrão; o nome é configurável em `app.security.identity.user-uuid-header` (`USER_UUID_HEADER`) |
+| Valor | exatamente um UUID canônico (36 caracteres, com hífens) |
+| Header ausente, vazio, duplicado, concatenado, malformado ou UUID nulo | rota privada → `401 UNAUTHENTICATED`; rota pública → a requisição segue anônima |
+| Identidade sem dados | listagens vazias e `GET` de recurso inexistente → `404`; nunca `401` |
+| Recurso de outro usuário | `404 NOT_FOUND` (nunca `403`) |
+| Rotas públicas | `GET /health`, `GET /exercises` e `GET /exercises/{id}`; o catálogo do sistema aparece sem header |
+| `onlyMine=true` sem header | `401 UNAUTHENTICATED` |
 
-O backend não autentica o canal: confia no header por premissa. A garantia
-depende de a infraestrutura remover o cabeçalho enviado pelo cliente, injetar o
-`sub` validado e manter o backend fora da exposição pública. A autorização por
-proprietário continua sendo aplicada em toda consulta.
+O header só é confiável porque a infraestrutura garante três premissas: remove
+qualquer `X-User-UUID` enviado pelo cliente, injeta o UUID validado e mantém a
+porta da API fora da internet. Se a API for exposta diretamente, qualquer pessoa
+pode escolher a identidade. Ver [`SECURITY.md`](SECURITY.md).
+
+**Fora do escopo desta API:** cadastro, login, senha, refresh token,
+recuperação de senha, perfil, preferências, `GET/PATCH /users/me` e exclusão de
+conta. Apagar os dados de um titular é responsabilidade do provedor de
+identidade e do edge, que também decidem quando o UUID deixa de existir.
 
 ---
 
 ## 3. Endpoints
 
-### Autenticação e usuário
-
-| Método | Endpoint | Auth | Descrição |
-|---|---|---|---|
-| `POST` | `/auth/register` | — | Criar conta |
-| `POST` | `/auth/login` | — | Autenticar |
-| `POST` | `/auth/refresh` | — | Renovar access token |
-| `POST` | `/auth/logout` | — | Revogar refresh token |
-| `POST` | `/auth/forgot-password` | — | Iniciar recuperação de acesso |
-| `POST` | `/auth/reset-password` | — | Concluir recuperação de acesso |
-| `GET` | `/users/me` | ✔ | Perfil e preferências |
-| `PATCH` | `/users/me` | ✔ | Atualizar perfil e preferências |
-| `DELETE` | `/users/me` | ✔ | Excluir a conta e todos os dados |
-
-#### Cadastro
-
-```http
-POST /api/v1/auth/register
-Content-Type: application/json
-Idempotency-Key: 3f8c1d2e-9b7a-4c1e-8f2b-0a1c3d5e7f90
-
-{
-  "name": "Ana Souza",
-  "email": "ana@example.com",
-  "password": "treino123",
-  "timezone": "America/Sao_Paulo"
-}
-```
-
-`201` com o corpo de `AuthResponse`. Reenviar a mesma requisição com a mesma
-`Idempotency-Key` e o mesmo corpo devolve a **mesma conta**, sem criar duas.
-
-**Regras de validação** (as mesmas do aplicativo):
-
-| Campo | Regra |
-|---|---|
-| `name` | 2 a 120 caracteres |
-| `email` | formato válido, máximo 255, normalizado para minúsculas |
-| `password` | 8 a 72 caracteres, **pelo menos uma letra e pelo menos um número** |
-| `timezone` | opcional, padrão `America/Sao_Paulo` |
-
-E-mail já cadastrado responde `409` com `EMAIL_ALREADY_IN_USE`.
-
-#### Login
-
-```http
-POST /api/v1/auth/login
-Content-Type: application/json
-
-{ "email": "ana@example.com", "password": "treino123" }
-```
-
-`200` com `AuthResponse`. E-mail inexistente e senha errada devolvem **a mesma**
-resposta `401` com `INVALID_CREDENTIALS` — a API não revela se o e-mail existe.
-
-#### Renovação
-
-```http
-POST /api/v1/auth/refresh
-Content-Type: application/json
-
-{ "refreshToken": "c29tZS1yZWZyZXNoLXRva2Vu" }
-```
-
-`200` com um **novo** `AuthResponse`: o refresh token é rotativo, o anterior é
-revogado. Apresentar um token **já revogado** é tratado como reuso: toda a
-família de tokens da sessão é revogada e a resposta é `401`
-`INVALID_REFRESH_TOKEN`.
-
-#### Logout
-
-```http
-POST /api/v1/auth/logout
-Content-Type: application/json
-
-{ "refreshToken": "c29tZS1yZWZyZXNoLXRva2Vu" }
-```
-
-`204`. Revoga o token apresentado. É idempotente: revogar um token já revogado
-não é erro.
-
-#### Recuperação de acesso
-
-```http
-POST /api/v1/auth/forgot-password
-Content-Type: application/json
-
-{ "email": "ana@example.com" }
-```
-
-`202` **sempre**, exista ou não a conta:
-
-```json
-{ "message": "Se o e-mail estiver cadastrado, você receberá as instruções em instantes." }
-```
-
-```http
-POST /api/v1/auth/reset-password
-Content-Type: application/json
-
-{ "token": "token-recebido-por-email", "newPassword": "novasenha123" }
-```
-
-`204`. O token é de uso único, vale 30 minutos e **revoga todas as sessões
-abertas** do usuário. Token inválido, usado ou expirado responde `401` com
-`INVALID_RESET_TOKEN`.
-
-#### Perfil
-
-```http
-GET /api/v1/users/me
-Authorization: Bearer <accessToken>
-```
-
-```json
-{
-  "user": {
-    "id": "…",
-    "name": "Ana Souza",
-    "email": "ana@example.com",
-    "role": "USER"
-  },
-  "preferences": {
-    "preferredUnits": "KG",
-    "trainingExperience": "INTERMEDIATE",
-    "goal": "HYPERTROPHY",
-    "availableEquipment": ["Barra", "Halteres"],
-    "trainingDays": 4,
-    "privacySettings": {
-      "publicProfile": false,
-      "showRecords": true,
-      "allowSharing": false
-    }
-  },
-  "timezone": "America/Sao_Paulo"
-}
-```
-
-O perfil é **aninhado**: `user`, `preferences` e `timezone` no mesmo nível.
-
-```http
-PATCH /api/v1/users/me
-Authorization: Bearer <accessToken>
-Content-Type: application/json
-
-{
-  "name": "Ana Souza",
-  "timezone": "America/Sao_Paulo",
-  "preferences": { "goal": "STRENGTH", "trainingDays": 5 }
-}
-```
-
-`200` com o mesmo corpo do `GET`. Regras:
-
-| Campo | Regra |
-|---|---|
-| `name` | 2 a 120 caracteres |
-| `timezone` | identificador IANA válido (`America/Sao_Paulo`); inválido devolve `422` |
-| `preferences.preferredUnits` | `KG` \| `LB` |
-| `preferences.trainingExperience` | `BEGINNER` \| `INTERMEDIATE` \| `ADVANCED` |
-| `preferences.goal` | `HYPERTROPHY` \| `STRENGTH` \| `ENDURANCE` \| `GENERAL` |
-| `preferences.availableEquipment` | lista de strings |
-| `preferences.trainingDays` | inteiro de 1 a 7 |
-| `preferences.privacySettings` | `publicProfile`, `showRecords`, `allowSharing` (booleanos) |
-
-- **Atualização parcial e mesclada.** Um campo omitido mantém o valor atual.
-  Enviar só `preferences.goal` não apaga `availableEquipment`.
-- **`email` e `role` não são alteráveis** por este endpoint.
-- **`privacySettings` é sempre devolvido completo**, com os padrões
-  `publicProfile=false`, `showRecords=true`, `allowSharing=false`. Um valor
-  malformado no banco é sanitizado, não derruba a resposta.
-- O `user_id` **nunca** vem do corpo nem da query: vem do token. Um `userId`
-  enviado no corpo é **ignorado**, não rejeitado.
-- Recurso de outro usuário responde **404**, nunca 403.
-
-#### Exclusão da conta
-
-```http
-DELETE /api/v1/users/me
-Authorization: Bearer <accessToken>
-Content-Type: application/json
-
-{
-  "password": "senha-atual"
-}
-```
-
-`204` sem corpo. A senha é exigida como segunda prova de titularidade: um token
-roubado sozinho não apaga a conta. Senha ausente ou incorreta responde `422`
-`VALIDATION_ERROR` com `fieldErrors[0].field = "password"` e **não altera nada**.
-
-| Aspecto | Comportamento |
-|---|---|
-| Tipo de exclusão | **Hard delete** da linha de `users`; a cascata do banco remove preferências, refresh tokens, tokens de recuperação, programas, dias, exercícios de programa, sessões, exercícios de sessão, séries, recordes, restrições e recomendações de IA |
-| Exercícios personalizados | Removidos; o catálogo do sistema (`is_system = true`) permanece |
-| E-mail | Fica livre para um novo cadastro |
-| Access token em circulação | Deixa de autenticar de fato: os endpoints que carregam o usuário respondem `404` até o token expirar (15 min) |
-| Refresh token | Apagado em cascata; `POST /auth/refresh` responde `401` `INVALID_REFRESH_TOKEN` |
-| Login | Responde `401` `INVALID_CREDENTIALS`, como qualquer conta inexistente |
-| Outro usuário | Não é afetado: o titular vem sempre do token, nunca do corpo |
-
-> **Proposta (não implementada):** com a autenticação delegada, a senha deixa
-> de existir. A prova de titularidade passa a ser uma **confirmação explícita**
-> no corpo e no app, reforçada por **autenticação recente** (step-up, via
-> `auth_time` do provedor) quando o gateway enviar esse header. Sem confirmação,
-> a resposta é `422`; se o step-up estiver configurado e falhar, a resposta é
-> `401 REAUTH_REQUIRED` e o app refaz o login. Um **tombstone** por `subject`
-> impede que a próxima requisição recrie a conta. Detalhes e alternativas em
-> [`AUTH-INTEGRATION.md`](AUTH-INTEGRATION.md#7-exclusão-segura-de-conta).
-
-> A operação **não** é reversível e não mantém cópia de arquivo. O app pede
-> confirmação em duas etapas e exige a senha antes de chamar este endpoint.
-
 ### Exercícios
 
-| Método | Endpoint | Auth | Descrição |
+| Método | Endpoint | Identidade | Descrição |
 |---|---|---|---|
 | `GET` | `/exercises` | — | Listar e filtrar |
 | `GET` | `/exercises/{id}` | — | Consultar |
@@ -358,7 +118,7 @@ roubado sozinho não apaga a conta. Senha ausente ou incorreta responde `422`
 | `PATCH` | `/exercises/{id}` | ✔ | Editar exercício próprio |
 
 Filtros: `q` (nome), `muscleGroup`, `equipment`, `movementType`, `onlyMine`
-(exercícios criados pelo usuário autenticado), `page`, `size`.
+(exercícios criados pelo titular da requisição), `page`, `size`.
 
 > `POST /exercises` exige o header `Idempotency-Key`. A primeira chamada
 > responde `201`; a repetição com a mesma chave e o mesmo corpo responde `200`
@@ -367,7 +127,7 @@ Filtros: `q` (nome), `muscleGroup`, `equipment`, `movementType`, `onlyMine`
 
 ### Programas
 
-| Método | Endpoint | Auth | Descrição |
+| Método | Endpoint | Identidade | Descrição |
 |---|---|---|---|
 | `GET` | `/programs` | ✔ | Listar programas do usuário |
 | `POST` | `/programs` | ✔ | Criar programa |
@@ -377,7 +137,7 @@ Filtros: `q` (nome), `muscleGroup`, `equipment`, `movementType`, `onlyMine`
 
 ```http
 POST /api/v1/programs
-Authorization: Bearer <accessToken>
+X-User-UUID: 3f8c1d2e-9b7a-4c1e-8f2b-0a1c3d5e7f90
 Content-Type: application/json
 
 {
@@ -442,7 +202,7 @@ Regras:
 
 | Item | Regra |
 |---|---|
-| Dono | vem do token; `userId` no corpo é ignorado |
+| Dono | vem do header `X-User-UUID`; `userId` no corpo é ignorado |
 | Programa alheio | **404**, nunca 403 |
 | `POST` e `PUT` | **substituem** a estrutura inteira; a ordem do corpo define `position` |
 | `exerciseId` inexistente | `422` com `fieldErrors` apontando `days[0].exercises[1].exerciseId` |
@@ -453,7 +213,7 @@ Regras:
 
 ### Sessões e séries
 
-| Método | Endpoint | Auth | Descrição |
+| Método | Endpoint | Identidade | Descrição |
 |---|---|---|---|
 | `POST` | `/workout-sessions` | ✔ | Iniciar sessão |
 | `GET` | `/workout-sessions` | ✔ | Histórico paginado |
@@ -467,7 +227,7 @@ Regras:
 
 ```http
 POST /api/v1/workout-sessions
-Authorization: Bearer <accessToken>
+X-User-UUID: 3f8c1d2e-9b7a-4c1e-8f2b-0a1c3d5e7f90
 Content-Type: application/json
 
 { "programId": null, "programDayId": null }
@@ -534,7 +294,7 @@ mudanças de estado. Tentar isso devolve `409` `CONFLICT`.
 
 ```http
 POST /api/v1/workout-sessions/{id}/sets
-Authorization: Bearer <accessToken>
+X-User-UUID: 3f8c1d2e-9b7a-4c1e-8f2b-0a1c3d5e7f90
 Content-Type: application/json
 Idempotency-Key: 3f8c1d2e-9b7a-4c1e-8f2b-0a1c3d5e7f90
 
@@ -577,7 +337,7 @@ transacional.
 
 ### Analytics, recordes e restrições
 
-| Método | Endpoint | Auth | Descrição |
+| Método | Endpoint | Identidade | Descrição |
 |---|---|---|---|
 | `GET` | `/analytics/overview` | ✔ | Resumo da semana atual (segunda a domingo), com comparação com a semana anterior |
 | `GET` | `/analytics/exercises/{id}` | ✔ | Evolução por exercício, agrupada por dia (melhor carga, melhor 1RM estimado Brzycki e volume) |
@@ -596,7 +356,7 @@ transacional.
 > toda resposta é validada pelo backend e nada vira programa sem a revisão do
 > usuário.
 
-| Método | Endpoint | Auth | Descrição |
+| Método | Endpoint | Identidade | Descrição |
 |---|---|---|---|
 | `POST` | `/ai/workout-proposals` | ✔ | Gerar proposta de treino (idempotente) |
 | `POST` | `/ai/load-suggestions` | ✔ | Sugerir carga e repetições (idempotente) |
@@ -608,7 +368,7 @@ transacional.
 
 ```http
 POST /api/v1/ai/workout-proposals
-Authorization: Bearer <accessToken>
+X-User-UUID: 3f8c1d2e-9b7a-4c1e-8f2b-0a1c3d5e7f90
 Idempotency-Key: <uuid>
 Content-Type: application/json
 
@@ -621,7 +381,9 @@ Content-Type: application/json
 ```
 
 `trainingDays` (1 a 7), `goal` e `splitType` são opcionais; quando ausentes
-valem as preferências do usuário (dias e objetivo) e a IA escolhe a divisão.
+valem os padrões documentados (3 dias e `GENERAL`) e a IA escolhe a divisão. O
+serviço não guarda objetivo nem experiência do usuário: esses dados pertencem à
+conta no provedor de identidade.
 `splitType` aceita `PPL`, `UPPER_LOWER`, `FULL_BODY`, `ABCDE`, `ABC`,
 `ARNOLD_SPLIT`, `PHUL` e `HYBRID_PPL_UPPER_LOWER`. Não existe modo aleatório: a
 divisão informada prevalece sobre a sugestão do modelo.
@@ -675,7 +437,7 @@ Regras:
 
 ```http
 POST /api/v1/ai/load-suggestions
-Authorization: Bearer <accessToken>
+X-User-UUID: 3f8c1d2e-9b7a-4c1e-8f2b-0a1c3d5e7f90
 Idempotency-Key: <uuid>
 Content-Type: application/json
 
@@ -726,7 +488,7 @@ restrição ativa responde `422`.
 
 ```http
 POST /api/v1/ai/coach
-Authorization: Bearer <accessToken>
+X-User-UUID: 3f8c1d2e-9b7a-4c1e-8f2b-0a1c3d5e7f90
 Content-Type: application/json
 
 { "message": "Como estou indo esta semana?" }
@@ -753,7 +515,7 @@ movimento e procurar um profissional. A conversa **não** é armazenada.
 
 ```http
 POST /api/v1/ai/voice-interpretation
-Authorization: Bearer <accessToken>
+X-User-UUID: 3f8c1d2e-9b7a-4c1e-8f2b-0a1c3d5e7f90
 Content-Type: application/json
 
 { "transcript": "80 kg 10 repetições" }
@@ -781,7 +543,7 @@ usuário confirma cada valor antes do registro.
 
 ```http
 POST /api/v1/ai/recommendations/{id}/decision
-Authorization: Bearer <accessToken>
+X-User-UUID: 3f8c1d2e-9b7a-4c1e-8f2b-0a1c3d5e7f90
 Content-Type: application/json
 
 { "status": "EDITED", "programId": "…" }
@@ -819,7 +581,7 @@ Uma recomendação já revisada responde `409`. Recurso de outro usuário respon
 Por padrão cada usuário pode fazer 10 chamadas de IA por janela de 60 s
 (`AI_RATE_LIMIT_REQUESTS` / `AI_RATE_LIMIT_WINDOW_SECONDS`) e 50 por dia
 (`LLM_DAILY_QUOTA_PER_USER`). A verificação acontece antes da chamada ao
-provedor: uma requisição recusada não gasta token.
+provedor: uma requisição recusada não consome cota.
 
 ---
 
@@ -851,16 +613,11 @@ tabela. `traceId` correlaciona a requisição com os logs do servidor.
 | Código | HTTP | Significado |
 |---|---|---|
 | `VALIDATION_ERROR` | 422 | Entrada inválida |
-| `UNAUTHENTICATED` | 401 | Token ausente, expirado ou inválido |
-| `FORBIDDEN` | 403 | Operação proibida ao papel do usuário |
+| `UNAUTHENTICATED` | 401 | Header de identidade ausente ou inválido em rota privada |
+| `FORBIDDEN` | 403 | Operação proibida (reservado: recurso de outro usuário responde `404`) |
 | `NOT_FOUND` | 404 | Recurso inexistente **ou** pertencente a outro usuário |
 | `CONFLICT` | 409 | Estado inconsistente (ex.: finalizar sessão já finalizada) |
 | `IDEMPOTENCY_KEY_REUSED` | 409 | Chave repetida com payload diferente |
-| `EMAIL_ALREADY_IN_USE` | 409 | E-mail já cadastrado |
-| `INVALID_CREDENTIALS` | 401 | E-mail ou senha inválidos |
-| `INVALID_REFRESH_TOKEN` | 401 | Refresh token expirado, revogado ou reutilizado |
-| `INVALID_RESET_TOKEN` | 401 | Token de recuperação inválido, usado ou expirado |
-| `REAUTH_REQUIRED` (**proposta**) | 401 | Autenticação recente exigida para operação sensível; não implementado |
 | `RATE_LIMITED` | 429 | Limite de requisições excedido |
 | `AI_UNAVAILABLE` | 503 | Provedor de IA indisponível ou timeout |
 | `AI_INVALID_RESPONSE` | 502 | Resposta da IA fora do esquema |
@@ -876,7 +633,7 @@ tabela. `traceId` correlaciona a requisição com os logs do servidor.
 
 ```http
 POST /api/v1/workout-sessions/{sessionId}/sets
-Authorization: Bearer <accessToken>
+X-User-UUID: 3f8c1d2e-9b7a-4c1e-8f2b-0a1c3d5e7f90
 Content-Type: application/json
 Idempotency-Key: 3f8c1d2e-9b7a-4c1e-8f2b-0a1c3d5e7f90
 
@@ -906,7 +663,7 @@ Idempotency-Key: 3f8c1d2e-9b7a-4c1e-8f2b-0a1c3d5e7f90
 
 ```http
 POST /api/v1/ai/workout-proposals
-Authorization: Bearer <accessToken>
+X-User-UUID: 3f8c1d2e-9b7a-4c1e-8f2b-0a1c3d5e7f90
 Content-Type: application/json
 
 {

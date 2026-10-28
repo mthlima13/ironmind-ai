@@ -39,11 +39,11 @@ public class RecordsController {
 
     @GetMapping
     @Operation(summary = "Lista os recordes pessoais",
-            description = "Retorna os recordes do usuário autenticado, do mais recente para o mais antigo. "
+            description = "Retorna os recordes do titular da requisição, do mais recente para o mais antigo. "
                     + "Cada recorde traz o nome do exercício e a unidade canônica do tipo.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Página de recordes"),
-            @ApiResponse(responseCode = "401", description = "Token ausente ou inválido", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Header de identidade ausente ou inválido", content = @Content),
             @ApiResponse(responseCode = "422", description = "Parâmetros de paginação inválidos", content = @Content)
     })
     public PageResponse<PersonalRecordResponse> list(

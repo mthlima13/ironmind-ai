@@ -1,6 +1,7 @@
 package com.ironmind.program.dto;
 
 import com.ironmind.exercise.dto.ExerciseResponse;
+import com.ironmind.exercise.entity.Exercise;
 import com.ironmind.program.entity.ProgramExercise;
 import java.util.UUID;
 
@@ -31,11 +32,11 @@ public record ProgramExerciseResponse(
     /**
      * Maps the entity into the API representation.
      */
-    public static ProgramExerciseResponse from(ProgramExercise programExercise) {
+    public static ProgramExerciseResponse from(ProgramExercise programExercise, Exercise exercise) {
         return new ProgramExerciseResponse(
                 programExercise.getId(),
-                programExercise.getExercise().getId(),
-                ExerciseResponse.from(programExercise.getExercise()),
+                programExercise.getExerciseId(),
+                ExerciseResponse.from(exercise),
                 programExercise.getPosition(),
                 programExercise.getTargetSets(),
                 programExercise.getTargetRepsMin(),

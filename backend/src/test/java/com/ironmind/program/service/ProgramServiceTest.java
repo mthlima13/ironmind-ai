@@ -28,9 +28,6 @@ import com.ironmind.program.repository.ProgramDayRepository;
 import com.ironmind.program.repository.ProgramExerciseRepository;
 import com.ironmind.program.repository.WorkoutProgramRepository;
 import com.ironmind.user.entity.TrainingGoal;
-import com.ironmind.user.entity.User;
-import com.ironmind.user.entity.UserRole;
-import com.ironmind.user.repository.UserRepository;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -67,9 +64,6 @@ class ProgramServiceTest {
     private ExerciseRepository exerciseRepository;
 
     @Mock
-    private UserRepository userRepository;
-
-    @Mock
     private IdempotencyService idempotencyService;
 
     @InjectMocks
@@ -79,8 +73,8 @@ class ProgramServiceTest {
     @DisplayName("creates the program with the days and the exercises in the order of the request")
     @SuppressWarnings("unchecked")
     void createsTheProgramWithTheDaysAndTheExercisesInTheOrderOfTheRequest() {
-        when(userRepository.findById(OWNER_ID)).thenReturn(Optional.of(owner(OWNER_ID)));
         when(exerciseRepository.findById(EXERCISE_ID)).thenReturn(Optional.of(catalogExercise()));
+        when(exerciseRepository.findAllById(any())).thenReturn(List.of(catalogExercise()));
         when(programRepository.save(any(WorkoutProgram.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(programDayRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
         when(programExerciseRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -103,8 +97,8 @@ class ProgramServiceTest {
         assertThat(exercises.get(0).getPosition()).isEqualTo(1);
         assertThat(exercises.get(1).getPosition()).isEqualTo(2);
         assertThat(exercises.get(2).getPosition()).isEqualTo(1);
-        assertThat(exercises.get(0).getExercise().getId()).isEqualTo(EXERCISE_ID);
-        assertThat(exercises.get(0).getDay().getId()).isEqualTo(days.get(0).getId());
+        assertThat(exercises.get(0).getExerciseId()).isEqualTo(EXERCISE_ID);
+        assertThat(exercises.get(0).getDayId()).isEqualTo(days.get(0).getId());
 
         assertThat(result.created()).isTrue();
         assertThat(result.program().name()).isEqualTo("Push / Pull / Legs");
@@ -122,14 +116,15 @@ class ProgramServiceTest {
     void replacesTheStructureOfTheProgramOnUpdate() {
         when(programRepository.findById(PROGRAM_ID)).thenReturn(Optional.of(program(OWNER_ID)));
         when(exerciseRepository.findById(EXERCISE_ID)).thenReturn(Optional.of(catalogExercise()));
+        when(exerciseRepository.findAllById(any())).thenReturn(List.of(catalogExercise()));
         when(programRepository.save(any(WorkoutProgram.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(programDayRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
         when(programExerciseRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
 
         ProgramResponse response = programService.update(PROGRAM_ID, requestWithASingleDay(), OWNER_ID);
 
-        verify(programExerciseRepository).deleteAllByProgramId(PROGRAM_ID);
-        verify(programDayRepository).deleteAllByProgramId(PROGRAM_ID);
+        verify(programExerciseRepository).deleteByProgramId(PROGRAM_ID);
+        verify(programDayRepository).deleteByProgramId(PROGRAM_ID);
 
         ArgumentCaptor<List<ProgramDay>> daysCaptor = ArgumentCaptor.forClass(List.class);
         verify(programDayRepository).saveAll(daysCaptor.capture());
@@ -147,7 +142,6 @@ class ProgramServiceTest {
     @Test
     @DisplayName("refuses an exercise that does not exist in the catalog")
     void refusesAnExerciseThatDoesNotExistInTheCatalog() {
-        when(userRepository.findById(OWNER_ID)).thenReturn(Optional.of(owner(OWNER_ID)));
         when(exerciseRepository.findById(EXERCISE_ID)).thenReturn(Optional.of(catalogExercise()));
         when(exerciseRepository.findById(MISSING_EXERCISE_ID)).thenReturn(Optional.empty());
 
@@ -162,8 +156,6 @@ class ProgramServiceTest {
     @Test
     @DisplayName("refuses a repetition range that ends before it starts")
     void refusesARepetitionRangeThatEndsBeforeItStarts() {
-        when(userRepository.findById(OWNER_ID)).thenReturn(Optional.of(owner(OWNER_ID)));
-
         assertThatThrownBy(() -> programService.create(requestWithAnInvertedRepetitionRange(), OWNER_ID, null))
                 .isInstanceOf(FieldValidationException.class)
                 .satisfies(exception -> assertThat(((FieldValidationException) exception).getFieldErrors())
@@ -188,15 +180,15 @@ class ProgramServiceTest {
     @Test
     @DisplayName("leaves the archived programs out of the default listing")
     void leavesTheArchivedProgramsOutOfTheDefaultListing() {
-        when(programRepository.findActiveByUser(eq(OWNER_ID), any(Pageable.class)))
+        when(programRepository.findByUserIdAndArchivedFalse(eq(OWNER_ID), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
 
         PageResponse<ProgramResponse> page = programService.list(0, 20, null, false, OWNER_ID);
 
         assertThat(page.content()).isEmpty();
         assertThat(page.totalElements()).isZero();
-        verify(programRepository).findActiveByUser(eq(OWNER_ID), any(Pageable.class));
-        verify(programRepository, never()).findAllByUser(any(UUID.class), any(Pageable.class));
+        verify(programRepository).findByUserIdAndArchivedFalse(eq(OWNER_ID), any(Pageable.class));
+        verify(programRepository, never()).findByUserId(any(UUID.class), any(Pageable.class));
     }
 
     @Test
@@ -262,12 +254,8 @@ class ProgramServiceTest {
     }
 
     private static WorkoutProgram program(UUID ownerId) {
-        return new WorkoutProgram(PROGRAM_ID, owner(ownerId), "Push / Pull / Legs", "Divisão de 3 dias",
+        return new WorkoutProgram(PROGRAM_ID, ownerId, "Push / Pull / Legs", "Divisão de 3 dias",
                 TrainingGoal.HYPERTROPHY, SplitType.PPL);
-    }
-
-    private static User owner(UUID id) {
-        return new User(id, "Ana Souza", "ana@example.com", "hash", UserRole.USER, "America/Sao_Paulo");
     }
 
     private static Exercise catalogExercise() {

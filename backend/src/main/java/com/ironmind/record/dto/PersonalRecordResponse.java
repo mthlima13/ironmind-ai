@@ -1,5 +1,6 @@
 package com.ironmind.record.dto;
 
+import com.ironmind.exercise.entity.Exercise;
 import com.ironmind.record.entity.PersonalRecord;
 import com.ironmind.record.entity.RecordType;
 import java.math.BigDecimal;
@@ -29,11 +30,11 @@ public record PersonalRecordResponse(
     /**
      * Maps the entity into the API representation.
      */
-    public static PersonalRecordResponse from(PersonalRecord record) {
+    public static PersonalRecordResponse from(PersonalRecord record, Exercise exercise) {
         return new PersonalRecordResponse(
                 record.getId(),
-                record.getExercise().getId(),
-                record.getExercise().getName(),
+                record.getExerciseId(),
+                exercise.getName(),
                 record.getRecordType(),
                 record.getValue(),
                 record.getUnit(),

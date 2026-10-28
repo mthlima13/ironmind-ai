@@ -25,10 +25,10 @@ qualquer pressuposto herdado de conversa anterior esteja errado.
 | 2 | **Nunca** commitar `.env`, chave de API, token ou senha. Use `.env.example`. |
 | 3 | Cálculos de volume, 1RM e recordes ficam **no backend**. |
 | 4 | A IA **nunca** grava no banco e **nunca** inventa ID de exercício. |
-| 5 | `user_id` vem do token, **nunca** do corpo da requisição. |
+| 5 | `user_id` vem do header de identidade, **nunca** do corpo da requisição. |
 | 6 | Recurso de outro usuário responde **404**, não 403. |
 | 7 | Toda escrita que cria registro aceita `Idempotency-Key`. |
-| 8 | Migration Flyway publicada é **imutável**. |
+| 8 | Não há migration versionada. O modelo é MongoDB (`@Document`); mudança de campo/índice vai no código e em `docs/DATA-MODEL.md`. |
 | 9 | Toda regra de domínio nova vem com teste. |
 | 10 | Não escreva no README que algo está implementado sem estar. |
 | 11 | O alvo do primeiro lançamento é **Android**. Não introduza dependência de iOS, mas mantenha o código agnóstico de plataforma. |
@@ -41,7 +41,7 @@ qualquer pressuposto herdado de conversa anterior esteja errado.
 |---|---|
 | Novo endpoint | `backend/.../<dominio>/` + `docs/API.md` + teste |
 | Nova regra de negócio | `backend/.../<dominio>/` + teste unitário |
-| Mudança de schema | `backend/src/main/resources/db/migration/V<n+1>__.sql` + `docs/DATA-MODEL.md` |
+| Mudança de schema | `backend/.../<dominio>/entity/` (índices no documento) + `docs/DATA-MODEL.md` |
 | Nova tela | `mobile/app/` + `mobile/src/features/<feature>/` + `src/theme.ts` |
 | Mudança de regra de IA | `backend/.../ai/` + `docs/SPEC.md` §12 |
 | Mudança de requisito | `docs/SPEC.md` primeiro, código depois |
@@ -51,7 +51,8 @@ qualquer pressuposto herdado de conversa anterior esteja errado.
 ## Checklist antes de declarar pronto
 
 - [ ] `cd backend && mvn clean verify` passa
-- [ ] `cd mobile && npx tsc --noEmit && npx jest` passa
+- [ ] `cd infra && docker compose --profile test run --rm tests` passa
+- [ ] `cd mobile && npx tsc --noEmit && npx jest` passa (quando o mobile for tocado)
 - [ ] Nenhum `console.log` ou `System.out.println` esquecido
 - [ ] Nenhum segredo no código ou em arquivo novo
 - [ ] Nenhum TODO sem issue referenciada

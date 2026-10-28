@@ -5,7 +5,6 @@ import com.ironmind.user.dto.InjuryRestrictionResponse;
 import com.ironmind.user.dto.UpdateRestrictionsRequest;
 import com.ironmind.user.entity.InjuryRestriction;
 import com.ironmind.user.repository.InjuryRestrictionRepository;
-import com.ironmind.user.repository.UserRepository;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -23,12 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class RestrictionService {
 
     private final InjuryRestrictionRepository restrictionRepository;
-    private final UserRepository userRepository;
 
-    public RestrictionService(InjuryRestrictionRepository restrictionRepository,
-            UserRepository userRepository) {
+    public RestrictionService(InjuryRestrictionRepository restrictionRepository) {
         this.restrictionRepository = restrictionRepository;
-        this.userRepository = userRepository;
     }
 
     /**
@@ -67,7 +63,7 @@ public class RestrictionService {
             List<UUID> exerciseIds = restriction.exerciseIds() == null ? List.of() : new ArrayList<>(restriction.exerciseIds());
             InjuryRestriction saved = restrictionRepository.save(new InjuryRestriction(
                     UUID.randomUUID(),
-                    userRepository.getReferenceById(userId),
+                    userId,
                     bodyRegion,
                     description,
                     active,

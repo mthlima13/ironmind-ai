@@ -1,22 +1,11 @@
 package com.ironmind.record.entity;
 
-import com.ironmind.exercise.entity.Exercise;
-import com.ironmind.user.entity.User;
-import com.ironmind.workout.entity.ExerciseSet;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 /**
  * Personal record of a user for an exercise.
@@ -25,51 +14,43 @@ import org.hibernate.type.SqlTypes;
  * transactionally whenever a set changes, so an edited set can invalidate a record (SPEC.md
  * section 7.4).
  */
-@Entity
-@Table(name = "personal_records")
+@Document(collection = "personal_records")
+@CompoundIndex(name = "user_exercise_type", def = "{'userId': 1, 'exerciseId': 1, 'recordType': 1}",
+        unique = true)
 public class PersonalRecord {
 
     @Id
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    private UUID userId;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "exercise_id", nullable = false)
-    private Exercise exercise;
+    private UUID exerciseId;
 
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Enumerated(EnumType.STRING)
-    @Column(name = "record_type", nullable = false)
     private RecordType recordType;
 
-    @Column(name = "value", nullable = false, precision = 8, scale = 2)
     private BigDecimal value;
 
-    @Column(name = "unit", nullable = false, length = 16)
     private String unit;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "source_set_id")
-    private ExerciseSet sourceSet;
+    /**
+     * Set that achieved the record, {@code null} when the source set no longer exists.
+     */
+    private UUID sourceSetId;
 
-    @Column(name = "achieved_at", nullable = false)
     private Instant achievedAt;
 
     protected PersonalRecord() {
     }
 
-    public PersonalRecord(UUID id, User user, Exercise exercise, RecordType recordType, BigDecimal value, String unit,
-            ExerciseSet sourceSet, Instant achievedAt) {
+    public PersonalRecord(UUID id, UUID userId, UUID exerciseId, RecordType recordType, BigDecimal value,
+            String unit, UUID sourceSetId, Instant achievedAt) {
         this.id = id;
-        this.user = user;
-        this.exercise = exercise;
+        this.userId = userId;
+        this.exerciseId = exerciseId;
         this.recordType = recordType;
         this.value = value;
         this.unit = unit;
-        this.sourceSet = sourceSet;
+        this.sourceSetId = sourceSetId;
         this.achievedAt = achievedAt == null ? Instant.now() : achievedAt;
     }
 
@@ -77,12 +58,12 @@ public class PersonalRecord {
         return id;
     }
 
-    public User getUser() {
-        return user;
+    public UUID getUserId() {
+        return userId;
     }
 
-    public Exercise getExercise() {
-        return exercise;
+    public UUID getExerciseId() {
+        return exerciseId;
     }
 
     public RecordType getRecordType() {
@@ -97,8 +78,8 @@ public class PersonalRecord {
         return unit;
     }
 
-    public ExerciseSet getSourceSet() {
-        return sourceSet;
+    public UUID getSourceSetId() {
+        return sourceSetId;
     }
 
     public Instant getAchievedAt() {
@@ -111,15 +92,15 @@ public class PersonalRecord {
      * <p>The recalculation happens inside the transaction of the change of the set, so a record
      * that no longer holds is deleted instead of being left stale (SPEC.md section 7.4).
      *
-     * @param value      value in the canonical unit of the record type
-     * @param unit       unit of the value
-     * @param sourceSet  set that achieved the record, when it still exists
-     * @param achievedAt moment the value was first achieved
+     * @param value       value in the canonical unit of the record type
+     * @param unit        unit of the value
+     * @param sourceSetId set that achieved the record, when it still exists
+     * @param achievedAt  moment the value was first achieved
      */
-    public void update(BigDecimal value, String unit, ExerciseSet sourceSet, Instant achievedAt) {
+    public void update(BigDecimal value, String unit, UUID sourceSetId, Instant achievedAt) {
         this.value = value;
         this.unit = unit;
-        this.sourceSet = sourceSet;
+        this.sourceSetId = sourceSetId;
         this.achievedAt = achievedAt;
     }
 }

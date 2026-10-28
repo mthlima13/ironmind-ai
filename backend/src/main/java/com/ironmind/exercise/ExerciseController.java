@@ -45,7 +45,7 @@ public class ExerciseController {
 
     @GetMapping
     @Operation(summary = "Lista e filtra exercícios",
-            description = "Retorna os exercícios do catálogo global e os exercícios pessoais do usuário autenticado.")
+            description = "Retorna os exercícios do catálogo global e os exercícios pessoais do titular da requisição.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Página de exercícios")
     })
@@ -66,7 +66,7 @@ public class ExerciseController {
             boolean onlyMine) {
         UUID userId = SecurityUtils.currentUserId().orElse(null);
         if (onlyMine && userId == null) {
-            throw new UnauthenticatedException("Autenticação necessária para listar os exercícios pessoais.");
+            throw new UnauthenticatedException("Identidade necessária para listar os exercícios pessoais.");
         }
         ExerciseQuery query = new ExerciseQuery(page, size, sort, muscleGroup, equipment, search, onlyMine);
         return exerciseService.list(query, userId);
@@ -85,11 +85,11 @@ public class ExerciseController {
 
     @PostMapping
     @Operation(summary = "Cria um exercício personalizado",
-            description = "O dono do exercício é sempre o usuário autenticado. Aceita o header Idempotency-Key.")
+            description = "O dono do exercício é sempre o titular da requisição. Aceita o header Idempotency-Key.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Exercício criado"),
             @ApiResponse(responseCode = "200", description = "Exercício criado por uma requisição anterior com a mesma chave"),
-            @ApiResponse(responseCode = "401", description = "Token ausente ou inválido", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Header de identidade ausente ou inválido", content = @Content),
             @ApiResponse(responseCode = "409", description = "Chave de idempotência reutilizada com outro conteúdo", content = @Content),
             @ApiResponse(responseCode = "422", description = "Dados inválidos", content = @Content)
     })

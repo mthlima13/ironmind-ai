@@ -23,9 +23,6 @@ import com.ironmind.program.repository.ProgramDayRepository;
 import com.ironmind.program.repository.ProgramExerciseRepository;
 import com.ironmind.program.repository.WorkoutProgramRepository;
 import com.ironmind.user.entity.TrainingGoal;
-import com.ironmind.user.entity.User;
-import com.ironmind.user.entity.UserRole;
-import com.ironmind.user.repository.UserRepository;
 import com.ironmind.workout.dto.AddSessionExerciseRequest;
 import com.ironmind.workout.dto.SessionResponse;
 import com.ironmind.workout.dto.StartSessionRequest;
@@ -83,9 +80,6 @@ class WorkoutSessionServiceTest {
     private ExerciseRepository exerciseRepository;
 
     @Mock
-    private UserRepository userRepository;
-
-    @Mock
     private IdempotencyService idempotencyService;
 
     @InjectMocks
@@ -95,15 +89,14 @@ class WorkoutSessionServiceTest {
     @DisplayName("copies the exercises of the program day into the session, in the same order")
     @SuppressWarnings("unchecked")
     void copiesTheExercisesOfTheProgramDayInTheSameOrder() {
-        when(userRepository.findById(OWNER_ID)).thenReturn(Optional.of(owner(OWNER_ID)));
         when(programDayRepository.findById(DAY_ID)).thenReturn(Optional.of(day()));
         when(programRepository.findById(PROGRAM_ID)).thenReturn(Optional.of(program(OWNER_ID)));
-        when(programExerciseRepository.findByProgramId(PROGRAM_ID)).thenReturn(List.of(
-                new ProgramExercise(UUID.randomUUID(), day(), catalogExercise(EXERCISE_ID), 1, 4, 6, 8, 150, "Supino"),
-                new ProgramExercise(UUID.randomUUID(), day(), catalogExercise(OTHER_EXERCISE_ID), 2, 3, 8, 12, 120, null)));
+        when(programExerciseRepository.findByDayIdOrderByPositionAsc(DAY_ID)).thenReturn(List.of(
+                new ProgramExercise(UUID.randomUUID(), PROGRAM_ID, DAY_ID, EXERCISE_ID, 1, 4, 6, 8, 150, "Supino"),
+                new ProgramExercise(UUID.randomUUID(), PROGRAM_ID, DAY_ID, OTHER_EXERCISE_ID, 2, 3, 8, 12, 120, null)));
         when(sessionRepository.save(any(WorkoutSession.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(sessionExerciseRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
-        when(sessionExerciseRepository.findBySessionIdOrderByPosition(any(UUID.class)))
+        when(sessionExerciseRepository.findBySessionIdOrderByPositionAsc(any(UUID.class)))
                 .thenReturn(List.of());
 
         WorkoutSessionService.CreationResult result =
@@ -115,10 +108,10 @@ class WorkoutSessionServiceTest {
 
         assertThat(copies).hasSize(2);
         assertThat(copies.get(0).getPosition()).isEqualTo(1);
-        assertThat(copies.get(0).getExercise().getId()).isEqualTo(EXERCISE_ID);
+        assertThat(copies.get(0).getExerciseId()).isEqualTo(EXERCISE_ID);
         assertThat(copies.get(0).getNotes()).contains("4x6-8").contains("150s").contains("Supino");
         assertThat(copies.get(1).getPosition()).isEqualTo(2);
-        assertThat(copies.get(1).getExercise().getId()).isEqualTo(OTHER_EXERCISE_ID);
+        assertThat(copies.get(1).getExerciseId()).isEqualTo(OTHER_EXERCISE_ID);
         assertThat(copies.get(1).getNotes()).contains("3x8-12").contains("120s");
 
         assertThat(result.created()).isTrue();
@@ -130,9 +123,8 @@ class WorkoutSessionServiceTest {
     @Test
     @DisplayName("starts a session without exercises when the request has no program day")
     void startsASessionWithoutExercisesWhenTheRequestHasNoProgramDay() {
-        when(userRepository.findById(OWNER_ID)).thenReturn(Optional.of(owner(OWNER_ID)));
         when(sessionRepository.save(any(WorkoutSession.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(sessionExerciseRepository.findBySessionIdOrderByPosition(any(UUID.class)))
+        when(sessionExerciseRepository.findBySessionIdOrderByPositionAsc(any(UUID.class)))
                 .thenReturn(List.of());
 
         WorkoutSessionService.CreationResult result =
@@ -147,7 +139,6 @@ class WorkoutSessionServiceTest {
     @Test
     @DisplayName("reports a program day of another user as not found")
     void reportsAProgramDayOfAnotherUserAsNotFound() {
-        when(userRepository.findById(OWNER_ID)).thenReturn(Optional.of(owner(OWNER_ID)));
         when(programDayRepository.findById(DAY_ID)).thenReturn(Optional.of(day()));
         when(programRepository.findById(PROGRAM_ID)).thenReturn(Optional.of(program(OTHER_USER_ID)));
 
@@ -158,7 +149,7 @@ class WorkoutSessionServiceTest {
     @Test
     @DisplayName("reports a session of another user as not found")
     void reportsASessionOfAnotherUserAsNotFound() {
-        when(sessionRepository.findOwnedById(SESSION_ID, OWNER_ID)).thenReturn(Optional.empty());
+        when(sessionRepository.findByIdAndUserId(SESSION_ID, OWNER_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> workoutSessionService.findById(SESSION_ID, OWNER_ID))
                 .isInstanceOf(ResourceNotFoundException.class);
@@ -170,7 +161,7 @@ class WorkoutSessionServiceTest {
     @DisplayName("refuses to complete a session that is already finished")
     void refusesToCompleteASessionThatIsAlreadyFinished() {
         WorkoutSession finished = session(SessionStatus.COMPLETED);
-        when(sessionRepository.findOwnedById(SESSION_ID, OWNER_ID)).thenReturn(Optional.of(finished));
+        when(sessionRepository.findByIdAndUserId(SESSION_ID, OWNER_ID)).thenReturn(Optional.of(finished));
 
         assertThatThrownBy(() -> workoutSessionService.complete(SESSION_ID, OWNER_ID))
                 .isInstanceOf(ConflictException.class);
@@ -180,7 +171,7 @@ class WorkoutSessionServiceTest {
     @DisplayName("refuses to change the state of a session that is already finished")
     void refusesToChangeTheStateOfASessionThatIsAlreadyFinished() {
         WorkoutSession finished = session(SessionStatus.ABANDONED);
-        when(sessionRepository.findOwnedById(SESSION_ID, OWNER_ID)).thenReturn(Optional.of(finished));
+        when(sessionRepository.findByIdAndUserId(SESSION_ID, OWNER_ID)).thenReturn(Optional.of(finished));
 
         assertThatThrownBy(() -> workoutSessionService.updateStatus(SESSION_ID,
                 new UpdateSessionStatusRequest(SessionStatus.IN_PROGRESS, null), OWNER_ID))
@@ -191,9 +182,9 @@ class WorkoutSessionServiceTest {
     @DisplayName("pauses and resumes a running session")
     void pausesAndResumesARunningSession() {
         WorkoutSession running = session(SessionStatus.IN_PROGRESS);
-        when(sessionRepository.findOwnedById(SESSION_ID, OWNER_ID)).thenReturn(Optional.of(running));
+        when(sessionRepository.findByIdAndUserId(SESSION_ID, OWNER_ID)).thenReturn(Optional.of(running));
         when(sessionRepository.save(any(WorkoutSession.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(sessionExerciseRepository.findBySessionIdOrderByPosition(SESSION_ID)).thenReturn(List.of());
+        when(sessionExerciseRepository.findBySessionIdOrderByPositionAsc(SESSION_ID)).thenReturn(List.of());
 
         SessionResponse paused = workoutSessionService.updateStatus(SESSION_ID,
                 new UpdateSessionStatusRequest(SessionStatus.PAUSED, null), OWNER_ID);
@@ -208,9 +199,9 @@ class WorkoutSessionServiceTest {
     @DisplayName("completes a running session and stamps the moment it ended")
     void completesARunningSessionAndStampsTheMomentItEnded() {
         WorkoutSession running = session(SessionStatus.IN_PROGRESS);
-        when(sessionRepository.findOwnedById(SESSION_ID, OWNER_ID)).thenReturn(Optional.of(running));
+        when(sessionRepository.findByIdAndUserId(SESSION_ID, OWNER_ID)).thenReturn(Optional.of(running));
         when(sessionRepository.save(any(WorkoutSession.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(sessionExerciseRepository.findBySessionIdOrderByPosition(SESSION_ID)).thenReturn(List.of());
+        when(sessionExerciseRepository.findBySessionIdOrderByPositionAsc(SESSION_ID)).thenReturn(List.of());
 
         SessionResponse completed = workoutSessionService.complete(SESSION_ID, OWNER_ID);
 
@@ -219,10 +210,33 @@ class WorkoutSessionServiceTest {
     }
 
     @Test
+    @DisplayName("replays the addition of an exercise with the same idempotency key without creating another")
+    void replaysTheAdditionOfAnExerciseWithTheSameKey() {
+        UUID sessionExerciseId = UUID.randomUUID();
+        WorkoutSession running = session(SessionStatus.IN_PROGRESS);
+        SessionExercise replayed = new SessionExercise(sessionExerciseId, SESSION_ID, EXERCISE_ID, 1, null);
+        Exercise exercise = new Exercise(EXERCISE_ID, "Supino", null, "PEITO", List.of(), "Barra", null,
+                MovementType.COMPOUND);
+
+        when(sessionRepository.findByIdAndUserId(SESSION_ID, OWNER_ID)).thenReturn(Optional.of(running));
+        when(idempotencyService.findExistingResource(any(), eq("replay-key"), eq(OWNER_ID), any()))
+                .thenReturn(Optional.of(sessionExerciseId));
+        when(sessionExerciseRepository.findById(sessionExerciseId)).thenReturn(Optional.of(replayed));
+        when(exerciseRepository.findById(EXERCISE_ID)).thenReturn(Optional.of(exercise));
+
+        WorkoutSessionService.ExerciseAddition addition = workoutSessionService.addExercise(SESSION_ID,
+                new AddSessionExerciseRequest(EXERCISE_ID, null, null), OWNER_ID, "replay-key");
+
+        assertThat(addition.created()).isFalse();
+        assertThat(addition.exercise().id()).isEqualTo(sessionExerciseId);
+        verify(sessionExerciseRepository, never()).save(any(SessionExercise.class));
+    }
+
+    @Test
     @DisplayName("refuses to add an exercise to a session that is already finished")
     void refusesToAddAnExerciseToASessionThatIsAlreadyFinished() {
         WorkoutSession finished = session(SessionStatus.COMPLETED);
-        when(sessionRepository.findOwnedById(SESSION_ID, OWNER_ID)).thenReturn(Optional.of(finished));
+        when(sessionRepository.findByIdAndUserId(SESSION_ID, OWNER_ID)).thenReturn(Optional.of(finished));
 
         assertThatThrownBy(() -> workoutSessionService.addExercise(SESSION_ID,
                 new AddSessionExerciseRequest(EXERCISE_ID, null, null), OWNER_ID, null))
@@ -233,7 +247,7 @@ class WorkoutSessionServiceTest {
     @DisplayName("refuses an exercise that does not exist in the catalog")
     void refusesAnExerciseThatDoesNotExistInTheCatalog() {
         WorkoutSession running = session(SessionStatus.IN_PROGRESS);
-        when(sessionRepository.findOwnedById(SESSION_ID, OWNER_ID)).thenReturn(Optional.of(running));
+        when(sessionRepository.findByIdAndUserId(SESSION_ID, OWNER_ID)).thenReturn(Optional.of(running));
         when(exerciseRepository.findById(EXERCISE_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> workoutSessionService.addExercise(SESSION_ID,
@@ -251,25 +265,16 @@ class WorkoutSessionServiceTest {
         verify(sessionRepository).findByUserId(eq(OWNER_ID), any(Pageable.class));
     }
 
-    private static User owner(UUID id) {
-        return new User(id, "Ana Souza", "ana@example.com", "hash", UserRole.USER, "America/Sao_Paulo");
-    }
-
     private static WorkoutProgram program(UUID ownerId) {
-        return new WorkoutProgram(PROGRAM_ID, owner(ownerId), "Push / Pull / Legs", "Divisão de 3 dias",
+        return new WorkoutProgram(PROGRAM_ID, ownerId, "Push / Pull / Legs", "Divisão de 3 dias",
                 TrainingGoal.HYPERTROPHY, SplitType.PPL);
     }
 
     private static ProgramDay day() {
-        return new ProgramDay(DAY_ID, program(OWNER_ID), "Peito e tríceps", 1);
-    }
-
-    private static Exercise catalogExercise(UUID id) {
-        return new Exercise(id, "Supino reto com barra", null, "Peito", List.of(), "Barra", null,
-                MovementType.COMPOUND);
+        return new ProgramDay(DAY_ID, PROGRAM_ID, "Peito e tríceps", 1);
     }
 
     private static WorkoutSession session(SessionStatus status) {
-        return new WorkoutSession(SESSION_ID, owner(OWNER_ID), null, null, java.time.Instant.now(), status);
+        return new WorkoutSession(SESSION_ID, OWNER_ID, null, null, java.time.Instant.now(), status);
     }
 }

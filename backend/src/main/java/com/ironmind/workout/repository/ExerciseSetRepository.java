@@ -5,45 +5,33 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
+import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
 /**
  * Repository of the sets registered in the sessions.
  *
- * <p>The idempotency key lives in the set itself, in a column with a unique index: the
- * mechanism is durable and survives a restart of the server (SPEC.md section 7.8 and appendix
- * A.3).
+ * <p>The idempotency key lives in the set itself, in a field with a unique index: the mechanism
+ * is durable and survives a restart of the server (SPEC.md section 7.8 and appendix A.3).
  */
 @Repository
-public interface ExerciseSetRepository extends JpaRepository<ExerciseSet, UUID> {
+public interface ExerciseSetRepository extends MongoRepository<ExerciseSet, UUID> {
 
     /**
      * Lists the sets of a session exercise, ordered by the number of the set.
      */
-    List<ExerciseSet> findBySessionExerciseIdOrderBySetNumber(UUID sessionExerciseId);
+    List<ExerciseSet> findBySessionExerciseIdOrderBySetNumberAsc(UUID sessionExerciseId);
 
     /**
      * Lists the sets of many session exercises, ordered by exercise and by number of the set.
-     *
-     * <p>The history brings the sets of the whole page in a single round trip, so the answer of
-     * the API never triggers a lazy load per exercise.
      */
-    @Query("select s from ExerciseSet s join fetch s.sessionExercise se where se.id in :sessionExerciseIds "
-            + "order by se.id, s.setNumber")
-    List<ExerciseSet> findBySessionExerciseIds(@Param("sessionExerciseIds") Collection<UUID> sessionExerciseIds);
+    List<ExerciseSet> findBySessionExerciseIdInOrderBySessionExerciseIdAscSetNumberAsc(
+            Collection<UUID> sessionExerciseIds);
 
     /**
      * Finds a set by its idempotency key.
-     *
-     * <p>The exercise of the session travels with the set, because the answer of the API carries
-     * the series of every exercise of the session.
      */
-    @Query("select s from ExerciseSet s join fetch s.sessionExercise se join fetch se.session sess "
-            + "where s.idempotencyKey = :idempotencyKey")
-    Optional<ExerciseSet> findByIdempotencyKey(@Param("idempotencyKey") String idempotencyKey);
+    Optional<ExerciseSet> findByIdempotencyKey(String idempotencyKey);
 
     /**
      * Finds a set that belongs to a session of the given user.
@@ -51,39 +39,20 @@ public interface ExerciseSetRepository extends JpaRepository<ExerciseSet, UUID> 
      * <p>The owner is part of the filter: a set of another user is reported as not found, so the
      * API never reveals the existence of foreign data (SPEC.md appendix A).
      */
-    @Query("select s from ExerciseSet s join fetch s.sessionExercise se join fetch se.session sess "
-            + "where s.id = :id and sess.user.id = :userId")
-    Optional<ExerciseSet> findOwnedById(@Param("id") UUID id, @Param("userId") UUID userId);
+    Optional<ExerciseSet> findByIdAndUserId(UUID id, UUID userId);
 
     /**
      * Lists every set of the user for an exercise, in chronological order.
-     *
-     * <p>The query feeds the recalculation of the records: it brings the session that owns the
-     * set, because the owner of the data is the owner of the session (SPEC.md section 7.4).
      */
-    @Query("select s from ExerciseSet s join fetch s.sessionExercise se join fetch se.exercise e "
-            + "join fetch se.session sess where sess.user.id = :userId and e.id = :exerciseId "
-            + "order by s.completedAt, s.id")
-    List<ExerciseSet> findByUserIdAndExerciseId(@Param("userId") UUID userId,
-            @Param("exerciseId") UUID exerciseId);
+    List<ExerciseSet> findByUserIdAndExerciseIdOrderByCompletedAtAscIdAsc(UUID userId, UUID exerciseId);
 
     /**
      * Lists the sets of many sessions in a single round trip.
-     *
-     * <p>Used by the analytics aggregation of a period, so the answer never triggers a lazy load
-     * per set.
      */
-    @Query("select s from ExerciseSet s join fetch s.sessionExercise se join fetch se.exercise e "
-            + "join fetch se.session sess where sess.id in :sessionIds")
-    List<ExerciseSet> findBySessionIds(@Param("sessionIds") Collection<UUID> sessionIds);
+    List<ExerciseSet> findBySessionIdIn(Collection<UUID> sessionIds);
 
     /**
-     * Returns the biggest number of the set used by the exercise of the session.
-     *
-     * <p>The number of the set is the position of the series inside the exercise, so it is
-     * assigned by the server and never comes from the body of the request.
+     * Returns the set with the biggest number of the exercise of the session.
      */
-    @Query("select coalesce(max(s.setNumber), 0) from ExerciseSet s "
-            + "where s.sessionExercise.id = :sessionExerciseId")
-    int findMaxSetNumber(@Param("sessionExerciseId") UUID sessionExerciseId);
+    Optional<ExerciseSet> findFirstBySessionExerciseIdOrderBySetNumberDesc(UUID sessionExerciseId);
 }

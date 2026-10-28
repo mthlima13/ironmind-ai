@@ -7,8 +7,6 @@ spring:
       on-profile: production
 
 app:
-  mail:
-    provider: ${MAIL_PROVIDER}
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS}
 

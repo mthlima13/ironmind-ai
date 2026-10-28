@@ -26,14 +26,11 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Query;
 
 @ExtendWith(MockitoExtension.class)
 class ExerciseServiceTest {
@@ -43,6 +40,9 @@ class ExerciseServiceTest {
 
     @Mock
     private ExerciseRepository exerciseRepository;
+
+    @Mock
+    private MongoTemplate mongoTemplate;
 
     @Mock
     private IdempotencyService idempotencyService;
@@ -110,9 +110,9 @@ class ExerciseServiceTest {
         Exercise system = new Exercise(UUID.randomUUID(), "Agachamento livre com barra", null, "Quadríceps",
                 List.of(), "Barra", null, MovementType.COMPOUND);
         Exercise personal = personalExercise(UUID.randomUUID(), OWNER_ID);
-        when(exerciseRepository.findAll(ArgumentMatchers.<Specification<Exercise>>any(),
-                ArgumentMatchers.<Pageable>any()))
-                .thenReturn(new PageImpl<>(List.of(system, personal), PageRequest.of(0, 20), 2));
+        when(mongoTemplate.find(any(Query.class), eq(Exercise.class)))
+                .thenReturn(List.of(system, personal));
+        when(mongoTemplate.count(any(Query.class), eq(Exercise.class))).thenReturn(2L);
 
         PageResponse<ExerciseResponse> page = exerciseService.list(
                 new ExerciseQuery(0, 20, "name", null, null, null, false), OWNER_ID);

@@ -72,14 +72,14 @@ public class AiController {
     @PostMapping("/workout-proposals")
     @Operation(summary = "Gera uma proposta de treino",
             description = "Monta um programa a partir do objetivo, das preferências, do equipamento e das "
-                    + "restrições ativas do usuário autenticado. A resposta é validada pelo servidor: "
+                    + "restrições ativas do titular da requisição. A resposta é validada pelo servidor: "
                     + "exercícios fora do catálogo visível e valores fora dos limites são descartados ou "
                     + "ajustados, com aviso. Nada é salvo como programa até a revisão do usuário. "
                     + "Aceita o header Idempotency-Key.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Proposta gerada ou devolvida por uma "
                     + "requisição anterior com a mesma chave"),
-            @ApiResponse(responseCode = "401", description = "Token ausente ou inválido", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Header de identidade ausente ou inválido", content = @Content),
             @ApiResponse(responseCode = "409", description = "Chave de idempotência reutilizada com outro conteúdo",
                     content = @Content),
             @ApiResponse(responseCode = "422", description = "Pedido inválido ou sem exercício compatível",
@@ -108,7 +108,7 @@ public class AiController {
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Sugestão gerada ou devolvida por uma "
                     + "requisição anterior com a mesma chave"),
-            @ApiResponse(responseCode = "401", description = "Token ausente ou inválido", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Header de identidade ausente ou inválido", content = @Content),
             @ApiResponse(responseCode = "404", description = "Exercício inexistente ou de outro usuário",
                     content = @Content),
             @ApiResponse(responseCode = "409", description = "Chave de idempotência reutilizada com outro conteúdo",
@@ -134,7 +134,7 @@ public class AiController {
                     + "tratamento e não recomenda substâncias. A conversa não é armazenada.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Resposta do coaching"),
-            @ApiResponse(responseCode = "401", description = "Token ausente ou inválido", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Header de identidade ausente ou inválido", content = @Content),
             @ApiResponse(responseCode = "422", description = "Mensagem inválida", content = @Content),
             @ApiResponse(responseCode = "429", description = "Limite de chamadas de IA excedido", content = @Content),
             @ApiResponse(responseCode = "502", description = "Resposta da IA fora do formato esperado",
@@ -153,7 +153,7 @@ public class AiController {
                     + "transcrito no dispositivo: o backend recebe texto. Nada é registrado nem armazenado.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Transcrição interpretada"),
-            @ApiResponse(responseCode = "401", description = "Token ausente ou inválido", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Header de identidade ausente ou inválido", content = @Content),
             @ApiResponse(responseCode = "422", description = "Transcrição inválida", content = @Content),
             @ApiResponse(responseCode = "429", description = "Limite de chamadas de IA excedido", content = @Content),
             @ApiResponse(responseCode = "502", description = "Transcrição não interpretável ou resposta fora "
@@ -168,12 +168,12 @@ public class AiController {
 
     @PostMapping("/recommendations/{id}/decision")
     @Operation(summary = "Registra a decisão sobre uma recomendação",
-            description = "Marca a recomendação como aceita, editada ou rejeitada pelo usuário autenticado. "
+            description = "Marca a recomendação como aceita, editada ou rejeitada pelo titular da requisição. "
                     + "Uma recomendação já revisada responde 409. O programa salvo a partir da proposta pode "
                     + "ser vinculado pelo campo programId, que precisa pertencer ao mesmo usuário.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Decisão registrada"),
-            @ApiResponse(responseCode = "401", description = "Token ausente ou inválido", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Header de identidade ausente ou inválido", content = @Content),
             @ApiResponse(responseCode = "404", description = "Recomendação ou programa inexistente ou de outro "
                     + "usuário", content = @Content),
             @ApiResponse(responseCode = "409", description = "Recomendação já revisada", content = @Content),

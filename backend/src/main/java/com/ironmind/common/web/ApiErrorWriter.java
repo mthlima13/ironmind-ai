@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
  * Writes the standard error payload outside of the controller pipeline.
  *
  * <p>It is used by the Spring Security entry point and access denied handler so the answers of
- * the authentication layer follow the same contract of the business endpoints.
+ * the identity layer follow the same contract of the business endpoints.
  */
 @Component
 public class ApiErrorWriter {

@@ -11,10 +11,10 @@ import org.springframework.stereotype.Component;
  * In memory implementation of {@link IdempotencyStore}.
  *
  * <p><strong>Known limitation:</strong> the entries live in the heap of a single instance, so they
- * are lost on restart and are not shared between instances. This is acceptable for the current
- * scaffold (the exercise catalog changes rarely and a lost entry only means a duplicated custom
- * exercise after a redeploy). The durable replacement — a table owned by Flyway — must be
- * introduced together with the session endpoints, where idempotency is a hard requirement.
+ * are lost on restart and are not shared between the instances of the API. The registration of a
+ * set is the only flow that cannot rely on this limitation, so it keeps the key in the document
+ * itself, under a unique index (see
+ * {@link com.ironmind.workout.service.ExerciseSetService}).
  */
 @Component
 public class InMemoryIdempotencyStore implements IdempotencyStore {

@@ -33,37 +33,30 @@ O IronMind AI resolve isso em duas frentes:
 
 ## Status do projeto
 
-> **Estágio atual: Sprints 1 a 5 concluídas; Sprint 6 em andamento.** Autenticação,
-> catálogo, sessões, séries, analytics, recordes, restrições e a proposta de treino
-> da IA funcionam de ponta a ponta contra a API real. Programas podem ser criados
-> pela proposta de IA revisada ou manualmente, e a edição de um dia persiste pela
-> API. Na Sprint 6, a exclusão de conta in-app (exigência do Google Play) está
-> implementada, assim como pausar/retomar/abandonar a sessão, corrigir e excluir
-> séries e criar exercícios personalizados no app. A política de privacidade e os
-> termos de uso existem apenas como rascunho, e o AAB assinado ainda não foi gerado.
+> **Estágio atual: backend com identidade delegada e MongoDB; app Android na
+> Sprint 6.** O backend não autentica ninguém: recebe o UUID do usuário no header
+> `X-User-UUID`, injetado pelo gateway, e usa esse UUID como dono de cada
+> recurso. Catálogo, programas, sessões, séries, analytics, recordes, restrições
+> e IA funcionam de ponta a ponta contra a API real. O aplicativo mobile **ainda
+> não foi migrado** para esse contrato: ele continua chamando `/auth/*` e
+> `/users/me`, que não existem mais, e por isso precisa ser ajustado antes de
+> voltar a falar com esta API.
 
 | Área | Situação |
 |---|---|
-| Schema do banco (15 tabelas, migrações Flyway, seed de 59 exercícios) | Implementado |
-| Backend: health, catálogo de exercícios, perfil e preferências | Implementado |
-| Autenticação completa: cadastro, login, refresh rotativo, logout, recuperação | Implementado |
-| Programas de treino (API): criar, listar, substituir, arquivar | Implementado, com edição manual de dia persistida pelo app |
+| Identidade delegada: header `X-User-UUID`, autorização por proprietário, `404` para recurso alheio | Implementado |
+| Autenticação local (JWT, senha, refresh, recuperação, `/auth/*`, `/users/me`) | **Removida** do backend |
+| Persistência: MongoDB 7 em replica set de 1 nó, transações nos recordes | Implementado |
+| Catálogo seed de 59 exercícios, idempotente por nome | Implementado |
+| Programas de treino (API): criar, listar, substituir, arquivar | Implementado |
 | Sessões (API): iniciar, pausar, retomar, concluir, histórico paginado | Implementado |
 | Séries (API): registrar, corrigir, excluir, com idempotência durável | Implementado |
-| Sessão offline: fila local com reenvio automático, idempotência e contagem de pendências | Implementado |
-| Contrato de erro da API, trace ID, tratamento global de exceções | Implementado |
-| Calculadoras de volume e 1RM expostas por `/analytics/*` | Implementado |
-| Detecção transacional de recordes pessoais | Implementado |
-| App Android: 5 abas, autenticação, catálogo, programa com edição de dia, sessão com pausa/retomada/abandono, séries com correção e exclusão, exercício personalizado, histórico, perfil e tema claro/escuro | Implementado |
-| Dashboard e evolução por exercício no app | Implementado |
-| IA inicial: proposta de treino validada, sugestão de carga por regras, coaching e voz | Implementado no backend — provedor `mock` por padrão; no app, só a proposta de treino tem tela |
-| Tela de revisão e salvamento da proposta de IA | Implementado |
-| Adaptações Android: back do sistema, edge-to-edge, permissões em runtime, safe area | Implementado |
-| Testes | 191 testes no backend + 130 casos no mobile (mais 17 de contrato contra a API real, opcionais) |
-| Teste de contrato mobile x API real, no CI | Implementado |
-| App rodando em emulador Android 15 contra API e banco reais | Verificado |
+| Analytics, volume, 1RM (Brzycki) e recordes transacionais | Implementado |
+| Restrições de lesão e proposta de treino / sugestão de carga / coaching por IA | Implementado no backend — provedor `mock` por padrão |
+| Backend: testes unitários JUnit (113 casos) | Passando |
+| Suíte de contrato da API em Python contra `docker compose` | Passando |
+| App Android: 5 abas, autenticação própria, catálogo, programa, sessão, séries, histórico, perfil e tema | Implementado, **mas ainda no contrato antigo da API** |
 | Recursos sociais e gamificação | Planejado — Fase 3 |
-| Exclusão de conta in-app | Implementado — `DELETE /users/me` exige a senha, apaga todos os dados em cascata e libera o e-mail; tela em Perfil com confirmação em duas etapas |
 | Política de privacidade e termos de uso | Rascunho — [`docs/PRIVACY.md`](docs/PRIVACY.md) e [`docs/TERMS.md`](docs/TERMS.md); falta revisão jurídica e publicação em URL pública |
 | Publicação no Google Play (conta, keystore, AAB) | Pendente — checklist em [`docs/PLAY-RELEASE.md`](docs/PLAY-RELEASE.md) |
 
@@ -77,9 +70,9 @@ Consulte [`docs/SPEC.md`](docs/SPEC.md) para a visão completa e honesta.
 | Camada | Tecnologias |
 |---|---|
 | Mobile | React Native · Expo · TypeScript · Expo Router · TanStack Query · Zustand · Expo SQLite · expo-secure-store — **alvo: Android** |
-| Backend | Java 25 · Spring Boot 3.5 · Spring Security · Spring Data JPA · Bean Validation |
-| API | REST `/api/v1` · OpenAPI 3 (springdoc) · JWT com access + refresh token |
-| Dados | PostgreSQL 16 · Flyway · Testcontainers |
+| Backend | Java 25 · Spring Boot 3.5 · Spring Security (autorização) · Spring Data MongoDB · Bean Validation |
+| API | REST `/api/v1` · OpenAPI 3 (springdoc) · identidade por header injetado pelo gateway |
+| Dados | MongoDB 7 · replica set de 1 nó (transações) · índices criados a partir dos documentos |
 | Infra | Docker · Docker Compose · GitHub Actions |
 | IA | API de LLM consumida **exclusivamente pelo backend**, com saída estruturada e validação |
 
@@ -91,32 +84,56 @@ Consulte [`docs/SPEC.md`](docs/SPEC.md) para a visão completa e honesta.
 
 - Java 25 (JDK)
 - Maven 3.10+
-- Node.js 24+ e npm 11+
-- Docker Desktop (para PostgreSQL e para os testes de integração)
+- Node.js 24+ e npm 11+ (apenas para o app)
+- Docker Desktop
 
-### 1. Infraestrutura
+### 1. Stack completa (MongoDB + API)
 
 ```bash
 cd infra
-docker compose up -d postgres     # so o banco
-docker compose --profile app up -d # banco + redis + backend
+docker compose up -d --build
 ```
 
-Copie as variáveis de ambiente antes:
+O `docker compose` sobe:
+
+| Serviço | Papel |
+|---|---|
+| `mongo` | MongoDB 7 como replica set `rs0`, com autenticação e keyfile gerado no volume |
+| `mongo-init` | Inicia o replica set uma única vez e só então libera a API |
+| `api` | Backend em `http://localhost:8080` |
+
+Acompanhe o log com `docker compose logs -f api` e derrube tudo (apagando os
+dados) com `docker compose down -v`.
+
+> **A porta 27017 já está ocupada nesta máquina?** O serviço local do MongoDB no
+> Windows escuta `127.0.0.1:27017`. Publique o container em outra porta:
+>
+> ```powershell
+> $env:MONGO_PORT = "27018"
+> docker compose up -d --build
+> ```
+>
+> A API e os testes usam a rede interna do compose; `MONGO_PORT` afeta apenas a
+> inspeção do banco a partir do host.
+
+### 2. Backend fora do container (opcional)
 
 ```bash
-cp .env.example .env
+cd infra && docker compose up -d mongo mongo-init
+cd ../backend
+mvn spring-boot:run
 ```
 
-### 2. Backend
+O backend lê `MONGODB_URI` (padrão
+`mongodb://ironmind:changeme@localhost:27017/ironmind?authSource=admin&replicaSet=rs0`).
+Se você publicou o Mongo em outra porta, ajuste o URI:
 
-```bash
-cd backend
-mvn spring-boot:run -Dspring-boot.run.profiles=local
+```powershell
+$env:MONGODB_URI = "mongodb://ironmind:changeme@localhost:27018/ironmind?authSource=admin&replicaSet=rs0"
+mvn spring-boot:run
 ```
 
-No Windows, use o script, que evita o jar ficar travado no `target/` e impede
-que o `mvn clean` falhe:
+No Windows, o script evita o jar travar o `target/`:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\backend.ps1 start
@@ -130,14 +147,30 @@ powershell -ExecutionPolicy Bypass -File scripts\backend.ps1 stop
 - Health: <http://localhost:8080/api/v1/health>
 - OpenAPI: <http://localhost:8080/v3/api-docs>
 
-> O Postgres precisa estar no ar antes: `cd infra && docker compose up -d postgres`.
-> O Flyway cria o schema, mas não cria o banco.
->
 > A IA sobe com `LLM_PROVIDER=mock`, que responde sem rede e sem credenciais.
 > Para usar um provedor real, defina `LLM_PROVIDER=openai`, `LLM_API_KEY` e
 > `LLM_MODEL`; sem esses valores o backend falha rápido na inicialização.
 
-### 3. Aplicativo mobile
+### 3. Identidade nas chamadas
+
+Não existe login. Toda rota privada exige o header que o gateway injeta:
+
+```bash
+curl http://localhost:8080/api/v1/programs \
+  -H "X-User-UUID: 3f8c1d2e-9b7a-4c1e-8f2b-0a1c3d5e7f90"
+```
+
+Um UUID válido, mas sem dados, recebe listas vazias — nunca `401`. Header
+ausente, duplicado, concatenado ou malformado em rota privada responde
+`401 UNAUTHENTICATED`. O nome do header é configurável por
+`USER_UUID_HEADER`.
+
+> **Nunca exponha a porta da API diretamente na internet.** O serviço confia no
+> header: quem alcança a porta pode se declarar outro usuário. A remoção do
+> header enviado pelo cliente e a injeção do UUID validado são
+> responsabilidade do gateway. Ver [`docs/SECURITY.md`](docs/SECURITY.md).
+
+### 4. Aplicativo mobile
 
 ```bash
 cd mobile
@@ -157,6 +190,10 @@ EXPO_PUBLIC_API_URL=http://localhost:8080/api/v1
 EXPO_PUBLIC_USE_MOCK_API=false
 ```
 
+> O fluxo de autenticação do app ainda pertence ao contrato antigo
+> (`/auth/*`, `/users/me`). Até a adaptação do mobile, use o modo mock para
+> navegar pelo aplicativo.
+
 > No emulador Android o host é `10.0.2.2`; num aparelho físico, use o IP da LAN
 > da máquina (ex.: `http://192.168.1.27:8080/api/v1`) — `localhost` no celular
 > aponta para o próprio aparelho.
@@ -174,54 +211,63 @@ cd android && ./gradlew bundleRelease
 > [`docs/PLAY-RELEASE.md`](docs/PLAY-RELEASE.md) (conta, keystore, versionCode,
 > *Data Safety* e URL web de exclusão).
 
-### 4. Testes
+### 5. Testes
+
+**Backend — apenas testes unitários, sem banco:**
 
 ```bash
-# backend — 191 testes
-cd backend && mvn test
+cd backend && mvn clean verify
+```
 
-# mobile — typecheck + 130 casos (mais 17 de contrato contra a API real, opt-in)
+**Contrato da API — suíte Python contra a stack do compose:**
+
+```bash
+cd infra
+docker compose up -d --build
+docker compose --profile test run --rm tests
+```
+
+A suíte em [`tests/integration/`](tests/integration/) fala somente com a API
+pública: cria dados com identidades próprias, verifica isolamento entre
+usuários, paginação, idempotência, recordes, analytics e IA. Ela não importa
+código do backend nem acessa o MongoDB diretamente. Instruções em
+[`tests/integration/README.md`](tests/integration/README.md).
+
+> No PowerShell, `docker compose ... run` pode retornar exit code 1 por causa de
+> avisos escritos em stderr (por exemplo, containers órfãos). Confira o resumo
+> do `pytest` para saber se a suíte passou.
+
+**Mobile — typecheck e testes unitários:**
+
+```bash
 cd mobile && npx tsc --noEmit && npx jest
 ```
-
-Os testes de integração do backend precisam de um PostgreSQL. Ele é resolvido
-nesta ordem: a variável `IT_JDBC_URL` (Postgres já em execução) ou um container
-Testcontainers. Sem nenhum dos dois, a integração é pulada e os testes unitários
-continuam valendo.
-
-```bash
-# com o Postgres do compose no ar
-$env:IT_JDBC_URL="jdbc:postgresql://localhost:5432/ironmind"
-cd backend && mvn test
-```
-
-> No Windows com Docker Desktop, o Testcontainers não consegue negociar a API do
-> Docker 29 e a integração seria pulada mesmo com o Docker no ar — por isso o
-> modo externo. No CI, onde a API do Docker responde normalmente, o caminho
-> padrão (Testcontainers) é o usado.
 
 ---
 
 ## Arquitetura
 
 ```text
-Aplicativo React Native / Expo
-            |
-            | HTTPS / JSON
-            v
+Cliente
+   |
+   | HTTPS / JSON
+   v
+Gateway (autentica a sessão e injeta X-User-UUID)
+   |
+   v
 API REST — Spring Boot  (/api/v1)
-            |
-            +---- Auth & autorização
-            +---- Usuários, preferências e restrições
-            +---- Exercícios
-            +---- Programas e dias
-            +---- Sessões, exercícios e séries
-            +---- Analytics e recordes
-            +---- Serviço de IA  ---> API externa de LLM
-            +---- Comunidade (Fase 3)
-            |
-            v
-        PostgreSQL  (+ Flyway)
+   |
+   +---- Identidade e autorização por proprietário
+   +---- Exercícios
+   +---- Programas e dias
+   +---- Sessões, exercícios e séries
+   +---- Analytics e recordes
+   +---- Restrições de lesão
+   +---- Serviço de IA  ---> API externa de LLM
+   +---- Comunidade (Fase 3)
+   |
+   v
+MongoDB 7 (replica set, transações)
 ```
 
 Princípios que a arquitetura não negocia:
@@ -229,7 +275,9 @@ Princípios que a arquitetura não negocia:
 - Regras de negócio moram no serviço, nunca no controller.
 - O cliente **nunca** é fonte de verdade para cálculo: volume, 1RM e recordes
   são calculados no backend.
-- O `user_id` vem do token, nunca do corpo da requisição.
+- O `user_id` vem do header de identidade, nunca do corpo da requisição.
+- O serviço não guarda conta, perfil, senha ou token: esses dados são do
+  provedor de identidade.
 - Cálculos determinísticos nunca passam pelo modelo de linguagem.
 - A IA nunca inventa referência de dado e nunca grava direto no banco.
 
@@ -239,12 +287,16 @@ Princípios que a arquitetura não negocia:
 
 ```text
 ironmind-ai/
-├── mobile/            # App Expo + TypeScript
-├── backend/           # API Spring Boot
-├── infra/             # Docker Compose e scripts de inicialização do banco
-├── docs/              # SPEC, API, modelo de dados, segurança
-│   └── archive/       # Rascunhos anteriores de especificação
-├── .github/workflows/ # CI
+├── mobile/                 # App Expo + TypeScript
+├── backend/                # API Spring Boot
+│   └── src/main/resources/catalog/exercises.json
+├── infra/                  # Docker Compose e bootstrap do replica set
+│   └── mongo/init-replica-set.js
+├── tests/integration/      # Contrato da API em Python (pytest)
+├── docs/                   # SPEC, API, modelo de dados, segurança
+│   └── archive/            # Rascunhos anteriores de especificação
+├── scripts/                # Utilitários de desenvolvimento
+├── .github/workflows/      # CI
 ├── .env.example
 └── README.md
 ```
@@ -257,9 +309,9 @@ ironmind-ai/
 |---|---|
 | [`docs/SPEC.md`](docs/SPEC.md) | Especificação canônica: visão, requisitos, modelo de dados, API, IA, roadmap |
 | [`docs/API.md`](docs/API.md) | Contrato da API, convenções, códigos de erro |
-| [`docs/DATA-MODEL.md`](docs/DATA-MODEL.md) | Modelo relacional e regras de integridade |
-| [`docs/SECURITY.md`](docs/SECURITY.md) | Threat model, controles implementados e pendências |
-| [`docs/AUTH-INTEGRATION.md`](docs/AUTH-INTEGRATION.md) | Contrato proposto para receber a identidade da infraestrutura (não implementado) |
+| [`docs/DATA-MODEL.md`](docs/DATA-MODEL.md) | Coleções, índices e regras de integridade no MongoDB |
+| [`docs/SECURITY.md`](docs/SECURITY.md) | Modelo de ameaça, identidade delegada e controles implementados |
+| [`docs/AUTH-INTEGRATION.md`](docs/AUTH-INTEGRATION.md) | Contrato da identidade delegada: header, premissas do gateway e autorização |
 | [`docs/PRIVACY.md`](docs/PRIVACY.md) | Rascunho da política de privacidade — não publicado |
 | [`docs/TERMS.md`](docs/TERMS.md) | Rascunho dos termos de uso — não publicado |
 | [`docs/PLAY-RELEASE.md`](docs/PLAY-RELEASE.md) | Checklist de publicação no Google Play (conta, keystore, AAB, Data Safety) |
@@ -270,7 +322,7 @@ ironmind-ai/
 
 | Fase | Conteúdo | Sprint |
 |---|---|---|
-| 1 — MVP | Auth, preferências, catálogo, programas, sessões, séries, histórico, volume, 1RM, recordes, dashboard | 1 a 4 |
+| 1 — MVP | Identidade, catálogo, programas, sessões, séries, histórico, volume, 1RM, recordes, dashboard | 1 a 4 |
 | 2 — IA | Geração de treino por texto, sugestão de carga, chat de coaching, registro por voz | 5 |
 | 3 — Social | Perfil público, crews, publicações, XP, desafios, rankings, moderação | — |
 | 4 — Avançado | Saúde e wearables, resolução de conflitos offline, medidas e fotos, marketplace de criadores, cardio, análise visual | — |

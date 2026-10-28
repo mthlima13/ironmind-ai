@@ -1,77 +1,63 @@
 package com.ironmind.workout.entity;
 
-import com.ironmind.exercise.entity.Exercise;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
 import java.util.UUID;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 /**
  * Exercise performed inside a session, with the sets registered for it.
+ *
+ * <p>The entry keeps the identifier of the exercise of the catalog, so the catalog stays the
+ * single source of truth of the movement. The plan of the program day is a snapshot: it does not
+ * change when the program is edited later (SPEC.md section 7.6).
  */
-@Entity
-@Table(name = "session_exercises")
+@Document(collection = "session_exercises")
+@CompoundIndex(name = "session_position", def = "{'sessionId': 1, 'position': 1}")
 public class SessionExercise {
 
     @Id
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "session_id", nullable = false)
-    private WorkoutSession session;
+    @Indexed
+    private UUID sessionId;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "exercise_id", nullable = false)
-    private Exercise exercise;
+    @Indexed
+    private UUID exerciseId;
 
-    @Column(name = "position", nullable = false)
     private int position;
 
-    @Column(name = "notes", columnDefinition = "text")
     private String notes;
 
-    /**
-     * Plan of the exercise, when the session started from a program day.
-     *
-     * <p>The plan is a snapshot: it does not change when the program is edited later (SPEC 7.6).
-     * It is {@code null} for a free session, where the exercise was added without a plan.
-     */
-    @Column(name = "target_sets")
     private Integer targetSets;
 
-    @Column(name = "target_reps_min")
     private Integer targetRepsMin;
 
-    @Column(name = "target_reps_max")
     private Integer targetRepsMax;
 
-    @Column(name = "rest_seconds")
     private Integer restSeconds;
 
     protected SessionExercise() {
     }
 
-    public SessionExercise(UUID id, WorkoutSession session, Exercise exercise, int position) {
-        this(id, session, exercise, position, null);
+    public SessionExercise(UUID id, UUID sessionId, UUID exerciseId, int position) {
+        this(id, sessionId, exerciseId, position, null);
     }
 
     /**
      * Creates the exercise performed inside a session, with the observations of the user.
      *
-     * @param id       identifier of the entry
-     * @param session  session the exercise belongs to
-     * @param exercise exercise of the catalog
-     * @param position position of the exercise inside the session, starting at one
-     * @param notes    observations of the user
+     * @param id         identifier of the entry
+     * @param sessionId  identifier of the session the exercise belongs to
+     * @param exerciseId identifier of the exercise of the catalog
+     * @param position   position of the exercise inside the session, starting at one
+     * @param notes      observations of the user
      */
-    public SessionExercise(UUID id, WorkoutSession session, Exercise exercise, int position, String notes) {
+    public SessionExercise(UUID id, UUID sessionId, UUID exerciseId, int position, String notes) {
         this.id = id;
-        this.session = session;
-        this.exercise = exercise;
+        this.sessionId = sessionId;
+        this.exerciseId = exerciseId;
         this.position = position;
         this.notes = notes;
     }
@@ -80,8 +66,8 @@ public class SessionExercise {
      * Creates the exercise performed inside a session, with the plan of a program day.
      *
      * @param id            identifier of the entry
-     * @param session       session the exercise belongs to
-     * @param exercise      exercise of the catalog
+     * @param sessionId     identifier of the session the exercise belongs to
+     * @param exerciseId    identifier of the exercise of the catalog
      * @param position      position of the exercise inside the session, starting at one
      * @param notes         observations of the user
      * @param targetSets    number of sets planned
@@ -89,9 +75,9 @@ public class SessionExercise {
      * @param targetRepsMax upper bound of the planned repetitions
      * @param restSeconds   rest between the sets, in seconds
      */
-    public SessionExercise(UUID id, WorkoutSession session, Exercise exercise, int position, String notes,
+    public SessionExercise(UUID id, UUID sessionId, UUID exerciseId, int position, String notes,
             Integer targetSets, Integer targetRepsMin, Integer targetRepsMax, Integer restSeconds) {
-        this(id, session, exercise, position, notes);
+        this(id, sessionId, exerciseId, position, notes);
         this.targetSets = targetSets;
         this.targetRepsMin = targetRepsMin;
         this.targetRepsMax = targetRepsMax;
@@ -102,12 +88,12 @@ public class SessionExercise {
         return id;
     }
 
-    public WorkoutSession getSession() {
-        return session;
+    public UUID getSessionId() {
+        return sessionId;
     }
 
-    public Exercise getExercise() {
-        return exercise;
+    public UUID getExerciseId() {
+        return exerciseId;
     }
 
     public int getPosition() {

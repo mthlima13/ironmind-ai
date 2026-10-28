@@ -13,8 +13,6 @@ import com.ironmind.program.entity.WorkoutProgram;
 import com.ironmind.program.repository.ProgramDayRepository;
 import com.ironmind.program.repository.ProgramExerciseRepository;
 import com.ironmind.program.repository.WorkoutProgramRepository;
-import com.ironmind.user.entity.User;
-import com.ironmind.user.repository.UserRepository;
 import com.ironmind.workout.dto.AddSessionExerciseRequest;
 import com.ironmind.workout.dto.SessionExerciseResponse;
 import com.ironmind.workout.dto.SessionResponse;
@@ -30,11 +28,13 @@ import com.ironmind.workout.repository.WorkoutSessionRepository;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -47,7 +47,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>The service owns the ownership rule: a session of another user is reported as not found,
  * never as forbidden, so the API never reveals the existence of foreign data. The owner always
- * comes from the access token.
+ * comes from the header injected by the gateway.
  *
  * <p>The service also owns the copy of the program day: a session started from a day of a program
  * brings the exercises of the day in the same order, so the application does not have to build
@@ -86,14 +86,13 @@ public class WorkoutSessionService {
     private final ProgramExerciseRepository programExerciseRepository;
     private final WorkoutProgramRepository programRepository;
     private final ExerciseRepository exerciseRepository;
-    private final UserRepository userRepository;
     private final IdempotencyService idempotencyService;
 
     public WorkoutSessionService(WorkoutSessionRepository sessionRepository,
             SessionExerciseRepository sessionExerciseRepository, ExerciseSetRepository exerciseSetRepository,
             ProgramDayRepository programDayRepository, ProgramExerciseRepository programExerciseRepository,
             WorkoutProgramRepository programRepository, ExerciseRepository exerciseRepository,
-            UserRepository userRepository, IdempotencyService idempotencyService) {
+            IdempotencyService idempotencyService) {
         this.sessionRepository = sessionRepository;
         this.sessionExerciseRepository = sessionExerciseRepository;
         this.exerciseSetRepository = exerciseSetRepository;
@@ -101,7 +100,6 @@ public class WorkoutSessionService {
         this.programExerciseRepository = programExerciseRepository;
         this.programRepository = programRepository;
         this.exerciseRepository = exerciseRepository;
-        this.userRepository = userRepository;
         this.idempotencyService = idempotencyService;
     }
 
@@ -111,7 +109,7 @@ public class WorkoutSessionService {
      * <p>The default order is {@code startedAt} descending: the most recent session comes first
      * (SPEC.md section 7.8).
      *
-     * @param userId identifier of the authenticated user, always taken from the access token
+     * @param userId identifier of the user of the request, always taken from the gateway header
      */
     public PageResponse<SessionResponse> list(int page, int size, String sort, UUID userId) {
         Pageable pageable = PageRequest.of(page, size, sortOf(sort));
@@ -130,7 +128,7 @@ public class WorkoutSessionService {
     }
 
     /**
-     * Starts a session owned by the authenticated user.
+     * Starts a session owned by the user of the request.
      *
      * <p>When the request carries a {@code programDayId}, the exercises of the day are copied into
      * the session, in the same order, and the answer brings the session already with the
@@ -150,11 +148,10 @@ public class WorkoutSessionService {
             }
         }
 
-        User owner = requireUser(userId);
         ProgramDay day = resolveProgramDay(request, userId);
 
-        WorkoutSession session = sessionRepository.save(new WorkoutSession(UUID.randomUUID(), owner,
-                day == null ? request.programId() : day.getProgram().getId(),
+        WorkoutSession session = sessionRepository.save(new WorkoutSession(UUID.randomUUID(), userId,
+                day == null ? request.programId() : day.getProgramId(),
                 day == null ? null : day.getId(),
                 Instant.now(),
                 SessionStatus.IN_PROGRESS));
@@ -180,7 +177,7 @@ public class WorkoutSessionService {
      *                                    position is taken or when the session is finished
      */
     @Transactional
-    public SessionExerciseResponse addExercise(UUID sessionId, AddSessionExerciseRequest request, UUID userId,
+    public ExerciseAddition addExercise(UUID sessionId, AddSessionExerciseRequest request, UUID userId,
             String idempotencyKey) {
         WorkoutSession session = requireOwnedSession(sessionId, userId);
         String scope = ADD_EXERCISE_SCOPE.replace("{id}", sessionId.toString());
@@ -190,7 +187,9 @@ public class WorkoutSessionService {
             if (existing.isPresent()) {
                 SessionExercise replay = sessionExerciseRepository.findById(existing.get())
                         .orElseThrow(() -> new ResourceNotFoundException("exercício da sessão", existing.get()));
-                return SessionExerciseResponse.from(replay, List.of());
+                return new ExerciseAddition(
+                        SessionExerciseResponse.from(replay, requireExercise(replay.getExerciseId()), List.of()),
+                        false);
             }
         }
 
@@ -208,17 +207,17 @@ public class WorkoutSessionService {
         }
 
         int position = request.position() == null
-                ? sessionExerciseRepository.findMaxPosition(sessionId) + 1
+                ? maxPosition(sessionId) + 1
                 : request.position();
         if (sessionExerciseRepository.existsBySessionIdAndPosition(sessionId, position)) {
             throw new ConflictException("Já existe um exercício na posição " + position + " da sessão.");
         }
 
         SessionExercise sessionExercise = sessionExerciseRepository.save(
-                new SessionExercise(UUID.randomUUID(), session, exercise, position, request.notes()));
+                new SessionExercise(UUID.randomUUID(), sessionId, exercise.getId(), position, request.notes()));
 
         idempotencyService.rememberAfterCommit(scope, idempotencyKey, userId, fingerprint, sessionExercise.getId());
-        return SessionExerciseResponse.from(sessionExercise, List.of());
+        return new ExerciseAddition(SessionExerciseResponse.from(sessionExercise, exercise, List.of()), true);
     }
 
     /**
@@ -276,7 +275,7 @@ public class WorkoutSessionService {
      * Loads the session of the user, or fails when it does not exist or belongs to another user.
      */
     public WorkoutSession requireOwnedSession(UUID id, UUID userId) {
-        return sessionRepository.findOwnedById(id, userId)
+        return sessionRepository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("sessão", id));
     }
 
@@ -298,7 +297,7 @@ public class WorkoutSessionService {
 
         ProgramDay day = programDayRepository.findById(request.programDayId())
                 .orElseThrow(() -> new ResourceNotFoundException("dia de programa", request.programDayId()));
-        WorkoutProgram program = requireOwnedProgram(day.getProgram().getId(), userId);
+        WorkoutProgram program = requireOwnedProgram(day.getProgramId(), userId);
         if (request.programId() != null && !request.programId().equals(program.getId())) {
             throw new FieldValidationException("programDayId",
                     "O dia informado não pertence ao programa informado.");
@@ -321,22 +320,17 @@ public class WorkoutSessionService {
      * <p>The copy carries the snapshot of the plan: the observations of the program exercise and
      * the targets of sets and repetitions travel with the session, so editing or deleting the
      * program never changes a session that already happened (SPEC.md section 7.6).
-     *
-     * <p>The table of the session exercises has no column for the targets, so they travel in the
-     * observations, in the readable form {@code 4x6-8} (sets × repetitions from-to), followed by
-     * the rest between the sets when the program defines one.
      */
     private void copyDayExercises(ProgramDay day, WorkoutSession session) {
-        List<ProgramExercise> programExercises = programExerciseRepository.findByProgramId(day.getProgram().getId());
+        List<ProgramExercise> programExercises = programExerciseRepository
+                .findByDayIdOrderByPositionAsc(day.getId());
         List<SessionExercise> copies = new ArrayList<>();
         int position = 1;
         for (ProgramExercise programExercise : programExercises) {
-            if (!programExercise.getDay().getId().equals(day.getId())) {
-                continue;
-            }
-            copies.add(new SessionExercise(UUID.randomUUID(), session, programExercise.getExercise(), position,
-                    snapshotOf(programExercise), programExercise.getTargetSets(), programExercise.getTargetRepsMin(),
-                    programExercise.getTargetRepsMax(), programExercise.getRestSeconds()));
+            copies.add(new SessionExercise(UUID.randomUUID(), session.getId(), programExercise.getExerciseId(),
+                    position, snapshotOf(programExercise), programExercise.getTargetSets(),
+                    programExercise.getTargetRepsMin(), programExercise.getTargetRepsMax(),
+                    programExercise.getRestSeconds()));
             position++;
         }
         sessionExerciseRepository.saveAll(copies);
@@ -345,9 +339,8 @@ public class WorkoutSessionService {
     /**
      * Builds the readable summary of the plan of an exercise of the program day.
      *
-     * <p>The plan itself travels in the dedicated columns of the session
-     * exercise. This text is the version shown to the user, next to the numbers
-     * the exercise was performed with.
+     * <p>The plan itself travels in the dedicated fields of the session exercise. This text is the
+     * version shown to the user, next to the numbers the exercise was performed with.
      *
      * @param programExercise entry of the program day
      * @return the observations of the user with the targets of sets and repetitions
@@ -370,22 +363,15 @@ public class WorkoutSessionService {
     }
 
     /**
-     * Loads the account of the token.
-     */
-    private User requireUser(UUID userId) {
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("usuário", userId));
-    }
-
-    /**
      * Builds the answer of a session, with the exercises and the sets embedded.
      */
     private SessionResponse toResponse(WorkoutSession session) {
         List<SessionExercise> sessionExercises =
-                sessionExerciseRepository.findBySessionIdOrderByPosition(session.getId());
+                sessionExerciseRepository.findBySessionIdOrderByPositionAsc(session.getId());
+        Map<UUID, Exercise> exercises = exercisesOf(sessionExercises);
         Map<UUID, List<ExerciseSet>> setsByExercise = setsBySessionExercise(
                 sessionExercises.stream().map(SessionExercise::getId).toList());
-        return SessionResponse.from(session, toExerciseResponses(sessionExercises, setsByExercise));
+        return SessionResponse.from(session, toExerciseResponses(sessionExercises, exercises, setsByExercise));
     }
 
     /**
@@ -398,15 +384,17 @@ public class WorkoutSessionService {
                     page.getTotalPages(), page.hasNext());
         }
 
-        List<SessionExercise> sessionExercises = sessionExerciseRepository.findBySessionIds(
+        List<SessionExercise> sessionExercises = sessionExerciseRepository.findBySessionIdInOrderBySessionIdAscPositionAsc(
                 sessions.stream().map(WorkoutSession::getId).toList());
+        Map<UUID, Exercise> exercises = exercisesOf(sessionExercises);
         Map<UUID, List<ExerciseSet>> setsByExercise = setsBySessionExercise(
                 sessionExercises.stream().map(SessionExercise::getId).toList());
 
         Map<UUID, List<SessionExerciseResponse>> bySession = new LinkedHashMap<>();
         for (SessionExercise sessionExercise : sessionExercises) {
-            bySession.computeIfAbsent(sessionExercise.getSession().getId(), key -> new ArrayList<>())
+            bySession.computeIfAbsent(sessionExercise.getSessionId(), key -> new ArrayList<>())
                     .add(SessionExerciseResponse.from(sessionExercise,
+                            requireExercise(sessionExercise.getExerciseId(), exercises),
                             setsByExercise.getOrDefault(sessionExercise.getId(), List.of())));
         }
 
@@ -422,9 +410,10 @@ public class WorkoutSessionService {
      * Maps the exercises of a session into the API representation.
      */
     private static List<SessionExerciseResponse> toExerciseResponses(List<SessionExercise> sessionExercises,
-            Map<UUID, List<ExerciseSet>> setsByExercise) {
+            Map<UUID, Exercise> exercises, Map<UUID, List<ExerciseSet>> setsByExercise) {
         return sessionExercises.stream()
                 .map(sessionExercise -> SessionExerciseResponse.from(sessionExercise,
+                        requireExercise(sessionExercise.getExerciseId(), exercises),
                         setsByExercise.getOrDefault(sessionExercise.getId(), List.of())))
                 .toList();
     }
@@ -437,10 +426,52 @@ public class WorkoutSessionService {
         if (sessionExerciseIds.isEmpty()) {
             return setsByExercise;
         }
-        for (ExerciseSet set : exerciseSetRepository.findBySessionExerciseIds(sessionExerciseIds)) {
-            setsByExercise.computeIfAbsent(set.getSessionExercise().getId(), key -> new ArrayList<>()).add(set);
+        for (ExerciseSet set : exerciseSetRepository
+                .findBySessionExerciseIdInOrderBySessionExerciseIdAscSetNumberAsc(sessionExerciseIds)) {
+            setsByExercise.computeIfAbsent(set.getSessionExerciseId(), key -> new ArrayList<>()).add(set);
         }
         return setsByExercise;
+    }
+
+    /**
+     * Loads the exercises of the entries in a single round trip.
+     */
+    private Map<UUID, Exercise> exercisesOf(Collection<SessionExercise> sessionExercises) {
+        Set<UUID> exerciseIds = sessionExercises.stream().map(SessionExercise::getExerciseId)
+                .collect(Collectors.toSet());
+        if (exerciseIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, Exercise> exercises = new HashMap<>();
+        for (Exercise exercise : exerciseRepository.findAllById(exerciseIds)) {
+            exercises.put(exercise.getId(), exercise);
+        }
+        return exercises;
+    }
+
+    /**
+     * Returns the exercise of the catalog, or fails when it no longer exists.
+     */
+    private Exercise requireExercise(UUID exerciseId) {
+        return exerciseRepository.findById(exerciseId)
+                .orElseThrow(() -> new ResourceNotFoundException("exercício", exerciseId));
+    }
+
+    private static Exercise requireExercise(UUID exerciseId, Map<UUID, Exercise> exercises) {
+        Exercise exercise = exercises.get(exerciseId);
+        if (exercise == null) {
+            throw new ResourceNotFoundException("exercício", exerciseId);
+        }
+        return exercise;
+    }
+
+    /**
+     * Returns the biggest position used by the exercises of the session, zero when there is none.
+     */
+    private int maxPosition(UUID sessionId) {
+        return sessionExerciseRepository.findFirstBySessionIdOrderByPositionDesc(sessionId)
+                .map(SessionExercise::getPosition)
+                .orElse(0);
     }
 
     /**
@@ -470,5 +501,14 @@ public class WorkoutSessionService {
      * @param created {@code true} when the resource was created by this request
      */
     public record CreationResult(SessionResponse session, boolean created) {
+    }
+
+    /**
+     * Result of the addition of an exercise to a session.
+     *
+     * @param exercise the created (or replayed) exercise of the session
+     * @param created  {@code true} when the exercise was added by this request
+     */
+    public record ExerciseAddition(SessionExerciseResponse exercise, boolean created) {
     }
 }

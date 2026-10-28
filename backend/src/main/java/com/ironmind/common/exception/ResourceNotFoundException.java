@@ -3,7 +3,7 @@ package com.ironmind.common.exception;
 import com.ironmind.common.ErrorCode;
 
 /**
- * Raised when a resource does not exist or does not belong to the authenticated user.
+ * Raised when a resource does not exist or does not belong to the user of the request.
  *
  * <p>Per SPEC.md appendix A, resources owned by another user must answer {@code 404} and never
  * {@code 403}, so the existence of foreign data is never revealed.

@@ -17,7 +17,8 @@ produto.
    são calculados no backend. O cliente exibe; ele não decide.
 4. **A IA não escreve no banco.** Ela propõe; o backend valida; o usuário
    confirma.
-5. **`user_id` vem do token.** Nunca do corpo da requisição.
+5. **`user_id` vem do header de identidade.** `X-User-UUID` é injetado pelo
+   gateway e nunca é lido do corpo da requisição.
 6. **Histórico é imutável.** Editar programa não altera sessões passadas.
 7. **Não prometa o que não está pronto.** README, commit e PR descrevem o que
    existe, não o que está planejado.
@@ -40,7 +41,7 @@ produto.
 
 ```
 backend/src/main/java/com/ironmind/
-  <dominio>/          # auth, user, exercise, program, workout, record, analytics, ai, common
+  <dominio>/          # user (restrições), exercise, program, workout, record, analytics, ai, common
     <Dominio>Controller.java
     <Dominio>Service.java
     <Dominio>Repository.java
@@ -62,8 +63,10 @@ O controller **não** tem regra de negócio. A entity **não** vira JSON.
 - Erros usam as exceções de domínio já existentes — não lance `RuntimeException`
   genérica. O handler global traduz para o `ApiError` do Apêndice A.
 - Novas rotas exigem: método HTTP, prefixo `/api/v1`, doc no OpenAPI e teste.
-- Migrations Flyway são **imutáveis** depois de aplicadas. Para corrigir algo já
-  publicado, crie `V<n+1>`. Nunca edite uma migration existente.
+- Persistência em MongoDB (`@Document`, `MongoRepository`). Não há Flyway,
+  schema SQL nem migration versionada: a evolução do modelo é feita no código e
+  nos índices declarados nos documentos. Dados existentes são ajustados por
+  rotina de migração quando necessário.
 
 ## Mobile
 
@@ -73,7 +76,8 @@ O controller **não** tem regra de negócio. A entity **não** vira JSON.
   Regras obrigatórias de Android em `docs/SPEC.md` §15.5.
 - Estados obrigatórios em toda tela com dado: carregando, erro com retry, vazio
   com ação, offline/pendente.
-- Tokens em `expo-secure-store`. Nunca em `AsyncStorage`.
+- Tokens do provedor de identidade em `expo-secure-store`. Nunca em
+  `AsyncStorage`. A API do IronMind não recebe nem guarda credencial.
 - Chamadas de IA sempre pelo backend.
 - Gesto de back do sistema respeitado em toda tela empilhada.
 - Componentes de registro de série precisam de teste.
@@ -82,8 +86,9 @@ O controller **não** tem regra de negócio. A entity **não** vira JSON.
 
 - Regra de domínio sem teste é regra não implementada.
 - Caso de borda (peso corporal, reps zero, sessão de outro usuário) tem teste.
-- Teste de integração usa Testcontainers — o CI tem Docker, a máquina local
-  precisa do Docker Desktop rodando.
+- Teste de integração de backend **não** usa JUnit nem Testcontainers. A
+  integração é uma suíte de contrato em Python (`tests/integration/`) contra a
+  API real do `docker compose`.
 
 ---
 
@@ -109,8 +114,12 @@ Um commit = uma mudança coerente. PR descreve o **porquê**, não o **o quê**
 ## Antes de abrir PR
 
 ```bash
-# backend
+# backend (unitários)
 cd backend && mvn clean verify
+
+# contrato da API (Python, contra o compose)
+cd infra && docker compose up -d --build
+docker compose --profile test run --rm tests
 
 # mobile
 cd mobile && npx tsc --noEmit && npx jest

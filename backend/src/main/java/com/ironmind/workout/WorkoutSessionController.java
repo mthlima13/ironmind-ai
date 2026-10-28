@@ -35,7 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Endpoints of the training sessions (SPEC.md section 11.4).
  *
- * <p>The owner always comes from the access token: the body of the request never identifies the
+ * <p>The owner always comes from the identity header: the body of the request never identifies the
  * user, and a session of another user is answered with {@code 404}.
  */
 @RestController
@@ -52,11 +52,11 @@ public class WorkoutSessionController {
 
     @GetMapping
     @Operation(summary = "Lista as sessões do usuário",
-            description = "Retorna o histórico paginado das sessões do usuário autenticado, com os exercícios "
+            description = "Retorna o histórico paginado das sessões do titular da requisição, com os exercícios "
                     + "e as séries embutidos. A ordenação padrão é por início, do mais recente para o mais antigo.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Página de sessões"),
-            @ApiResponse(responseCode = "401", description = "Token ausente ou inválido", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Header de identidade ausente ou inválido", content = @Content),
             @ApiResponse(responseCode = "422", description = "Parâmetros de paginação inválidos", content = @Content)
     })
     public PageResponse<SessionResponse> list(
@@ -78,7 +78,7 @@ public class WorkoutSessionController {
             description = "Devolve a sessão com os exercícios e as séries embutidos.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Sessão encontrada"),
-            @ApiResponse(responseCode = "401", description = "Token ausente ou inválido", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Header de identidade ausente ou inválido", content = @Content),
             @ApiResponse(responseCode = "404", description = "Sessão inexistente ou de outro usuário",
                     content = @Content)
     })
@@ -89,14 +89,14 @@ public class WorkoutSessionController {
 
     @PostMapping
     @Operation(summary = "Inicia uma sessão",
-            description = "O dono da sessão é sempre o usuário autenticado. Quando um dia de programa é informado, "
+            description = "O dono da sessão é sempre o titular da requisição. Quando um dia de programa é informado, "
                     + "os exercícios do dia são copiados para a sessão, na mesma ordem, e a resposta já traz a "
                     + "sessão com os exercícios. Uma sessão sem dia começa sem exercícios. Aceita o header "
                     + "Idempotency-Key.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Sessão criada"),
             @ApiResponse(responseCode = "200", description = "Sessão criada por uma requisição anterior com a mesma chave"),
-            @ApiResponse(responseCode = "401", description = "Token ausente ou inválido", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Header de identidade ausente ou inválido", content = @Content),
             @ApiResponse(responseCode = "404", description = "Programa ou dia inexistente ou de outro usuário",
                     content = @Content),
             @ApiResponse(responseCode = "409", description = "Chave de idempotência reutilizada com outro conteúdo", content = @Content),
@@ -122,7 +122,7 @@ public class WorkoutSessionController {
                     + "não aceita mudanças de estado.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Sessão atualizada"),
-            @ApiResponse(responseCode = "401", description = "Token ausente ou inválido", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Header de identidade ausente ou inválido", content = @Content),
             @ApiResponse(responseCode = "404", description = "Sessão inexistente ou de outro usuário",
                     content = @Content),
             @ApiResponse(responseCode = "409", description = "A sessão já foi finalizada", content = @Content),
@@ -141,7 +141,7 @@ public class WorkoutSessionController {
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Exercício adicionado à sessão"),
             @ApiResponse(responseCode = "200", description = "Exercício adicionado por uma requisição anterior com a mesma chave"),
-            @ApiResponse(responseCode = "401", description = "Token ausente ou inválido", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Header de identidade ausente ou inválido", content = @Content),
             @ApiResponse(responseCode = "404", description = "Sessão inexistente ou de outro usuário",
                     content = @Content),
             @ApiResponse(responseCode = "409", description = "Exercício já presente na sessão ou sessão finalizada",
@@ -154,9 +154,13 @@ public class WorkoutSessionController {
                     description = "Chave de idempotência da operação.")
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
         UUID userId = SecurityUtils.requireCurrentUserId();
-        SessionExerciseResponse exercise = workoutSessionService.addExercise(id, request, userId, idempotencyKey);
-        URI location = URI.create("/api/v1/workout-sessions/" + id + "/exercises/" + exercise.id());
-        return ResponseEntity.created(location).body(exercise);
+        WorkoutSessionService.ExerciseAddition addition
+                = workoutSessionService.addExercise(id, request, userId, idempotencyKey);
+        if (!addition.created()) {
+            return ResponseEntity.ok(addition.exercise());
+        }
+        URI location = URI.create("/api/v1/workout-sessions/" + id + "/exercises/" + addition.exercise().id());
+        return ResponseEntity.created(location).body(addition.exercise());
     }
 
     @PostMapping("/{id}/complete")
@@ -165,7 +169,7 @@ public class WorkoutSessionController {
                     + "não pode ser concluída de novo.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Sessão concluída"),
-            @ApiResponse(responseCode = "401", description = "Token ausente ou inválido", content = @Content),
+            @ApiResponse(responseCode = "401", description = "Header de identidade ausente ou inválido", content = @Content),
             @ApiResponse(responseCode = "404", description = "Sessão inexistente ou de outro usuário",
                     content = @Content),
             @ApiResponse(responseCode = "409", description = "A sessão já foi finalizada", content = @Content)

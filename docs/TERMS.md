@@ -48,10 +48,12 @@ Treinar envolve risco de lesão. Você assume esse risco ao usar o app.
 ## 4. Elegibilidade e conta
 
 - O app é destinado a maiores de 18 anos `[PREENCHER: confirmar]`.
-- Você deve informar dados verdadeiros e manter a senha em sigilo.
+- A conta é criada e autenticada pelo provedor de identidade
+  `[PREENCHER: provedor]`; o IronMind não recebe nem armazena sua senha.
+- Você deve informar dados verdadeiros e manter a credencial da conta em sigilo.
 - Uma conta é pessoal e não deve ser compartilhada.
 - Você é responsável pelas atividades feitas com a sua conta. Se suspeitar de
-  acesso indevido, troque a senha e use **Esqueci minha senha**.
+  acesso indevido, redefina o acesso pelo provedor de identidade.
 - Podemos recusar, suspender ou encerrar contas que violem estes Termos, a lei
   ou que coloquem outros usuários em risco.
 
@@ -111,10 +113,11 @@ direito de propriedade intelectual para você.
 
 ## 10. Encerramento e exclusão da conta
 
-Você pode encerrar a conta a qualquer momento em **Perfil → Excluir conta**,
-informando a senha atual. A exclusão é **definitiva**: apaga a conta e, por
-cascata, preferências, programas, sessões, séries, recordes, restrições e
-recomendações de IA. O e-mail fica livre para um novo cadastro.
+Você pode encerrar a conta a qualquer momento pelo fluxo do provedor de
+identidade `[PREENCHER: caminho no app ou URL web]`. A exclusão é **definitiva**:
+o provedor encerra a conta e o IronMind apaga os dados de treino vinculados ao
+seu identificador — programas, sessões, séries, recordes, restrições e
+recomendações de IA. O e-mail fica livre para um novo cadastro no provedor.
 
 Podemos encerrar ou suspender a conta em caso de violação destes Termos, fraude
 ou determinação legal. `[PREENCHER: prazo de aviso prévio, quando aplicável.]`

@@ -1,12 +1,11 @@
 package com.ironmind.program.repository;
 
 import com.ironmind.program.entity.WorkoutProgram;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
+import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -16,19 +15,22 @@ import org.springframework.stereotype.Repository;
  * section 3.4.
  */
 @Repository
-public interface WorkoutProgramRepository extends JpaRepository<WorkoutProgram, UUID> {
+public interface WorkoutProgramRepository extends MongoRepository<WorkoutProgram, UUID> {
 
     /**
      * Lists the programs of the user that are not archived.
      */
-    @Query("select p from WorkoutProgram p where p.user.id = :userId and p.archived = false")
-    Page<WorkoutProgram> findActiveByUser(@Param("userId") UUID userId, Pageable pageable);
+    Page<WorkoutProgram> findByUserIdAndArchivedFalse(UUID userId, Pageable pageable);
 
     /**
      * Lists every program of the user, including the archived ones.
      */
-    @Query("select p from WorkoutProgram p where p.user.id = :userId")
-    Page<WorkoutProgram> findAllByUser(@Param("userId") UUID userId, Pageable pageable);
+    Page<WorkoutProgram> findByUserId(UUID userId, Pageable pageable);
+
+    /**
+     * Finds a program that belongs to the given user.
+     */
+    Optional<WorkoutProgram> findByIdAndUserId(UUID id, UUID userId);
 
     /**
      * Tells whether the program exists and belongs to the given user.
@@ -36,6 +38,5 @@ public interface WorkoutProgramRepository extends JpaRepository<WorkoutProgram, 
      * <p>Used to link a reviewed AI proposal to the program the user saved, without ever
      * revealing the program of another user.
      */
-    @Query("select count(p) > 0 from WorkoutProgram p where p.id = :id and p.user.id = :userId")
-    boolean existsOwnedBy(@Param("id") UUID id, @Param("userId") UUID userId);
+    boolean existsByIdAndUserId(UUID id, UUID userId);
 }

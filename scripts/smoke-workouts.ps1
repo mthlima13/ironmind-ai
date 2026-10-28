@@ -6,8 +6,12 @@
   Exercises the contract of SPEC.md section 7.8: programs, sessions and sets.
   Every check prints PASS or FAIL; the exit code is 1 when any check fails.
 
-  Requires the backend running (scripts\backend.ps1 start) and the PostgreSQL
-  of the docker compose stack.
+  The backend does not authenticate anyone: this script generates two random
+  UUIDs and sends them in the identity header, exactly like the gateway does.
+  Every user has its own data, so the isolation checks are real.
+
+  Requires the backend running (scripts\backend.ps1 start) and the MongoDB
+  replica set of the docker compose stack.
 
 .PARAMETER BaseUrl
   Base URL of the API. Defaults to http://localhost:8080/api/v1.
@@ -71,11 +75,7 @@ function Get-Json {
     try { return $Content | ConvertFrom-Json } catch { return $null }
 }
 
-$suffix = [guid]::NewGuid().ToString().Substring(0, 8)
-$email = "smoke-treino-$suffix@example.com"
-$password = 'treino123'
-
-# ---------------------------------------------------------------- conta
+# ---------------------------------------------------------------- identidade
 $health = Invoke-Api -Method GET -Path '/health'
 Write-Result 'API no ar' ($health.Status -eq 200) "status=$($health.Status)"
 if ($health.Status -ne 200) {
@@ -83,10 +83,13 @@ if ($health.Status -ne 200) {
     exit 1
 }
 
-$register = Invoke-Api -Method POST -Path '/auth/register' -Body @{ name = 'Teste Treino'; email = $email; password = $password }
-$registered = Get-Json $register.Content
-Write-Result 'Cadastro cria a conta' ($register.Status -eq 201) "status=$($register.Status)"
-$auth = @{ Authorization = "Bearer $($registered.accessToken)" }
+# O gateway injeta este header; aqui geramos dois titulares distintos.
+$userId = [guid]::NewGuid().ToString()
+$auth = @{ 'X-User-UUID' = $userId }
+Write-Result 'UUID valido sem dados enxerga lista vazia' `
+    ((Get-Json (Invoke-Api -Method GET -Path '/programs' -Headers $auth).Content).totalElements -eq 0)
+$anonymous = Invoke-Api -Method GET -Path '/programs'
+Write-Result 'Sem header responde 401' ($anonymous.Status -eq 401) "status=$($anonymous.Status)"
 
 # ---------------------------------------------------------------- catalogo
 $catalog = Invoke-Api -Method GET -Path '/exercises?size=3' -Headers $auth
@@ -188,9 +191,7 @@ Write-Result 'Historico traz os exercicios embutidos' ($historyBody.content[0].e
 Write-Result 'Historico traz as series embutidas' ($historyBody.content[0].exercises[0].sets.Count -eq 2) "series=$($historyBody.content[0].exercises[0].sets.Count)"
 
 # ---------------------------------------------------------------- isolamento
-$other = Invoke-Api -Method POST -Path '/auth/register' -Body @{ name = 'Outro Atleta'; email = "outro-$suffix@example.com"; password = $password }
-$otherToken = (Get-Json $other.Content).accessToken
-$otherAuth = @{ Authorization = "Bearer $otherToken" }
+$otherAuth = @{ 'X-User-UUID' = ([guid]::NewGuid().ToString()) }
 
 $foreignProgram = Invoke-Api -Method GET -Path "/programs/$($created.id)" -Headers $otherAuth
 Write-Result 'Programa de outro usuario responde 404' ($foreignProgram.Status -eq 404) "status=$($foreignProgram.Status)"
@@ -198,8 +199,6 @@ $foreignSession = Invoke-Api -Method GET -Path "/workout-sessions/$($started.id)
 Write-Result 'Sessao de outro usuario responde 404' ($foreignSession.Status -eq 404) "status=$($foreignSession.Status)"
 $otherHistory = Invoke-Api -Method GET -Path '/workout-sessions?page=0&size=20' -Headers $otherAuth
 Write-Result 'Historico alheio vem vazio' ((Get-Json $otherHistory.Content).totalElements -eq 0)
-$anonymous = Invoke-Api -Method GET -Path '/workout-sessions'
-Write-Result 'Sem token responde 401' ($anonymous.Status -eq 401) "status=$($anonymous.Status)"
 
 # ---------------------------------------------------------------- resumo
 Write-Host ""
