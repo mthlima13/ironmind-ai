@@ -27,6 +27,7 @@ import {
   type ThemeMode,
 } from '../../src/theme';
 import {
+  TRAINING_GOAL_LABELS,
   WEIGHT_UNITS,
   type TrainingExperience,
   type TrainingGoal,
@@ -37,13 +38,6 @@ const EXPERIENCE_LABELS: Record<TrainingExperience, string> = {
   BEGINNER: 'Iniciante',
   INTERMEDIATE: 'Intermediário',
   ADVANCED: 'Avançado',
-};
-
-const GOAL_LABELS: Record<TrainingGoal, string> = {
-  HYPERTROPHY: 'Hipertrofia',
-  STRENGTH: 'Força',
-  ENDURANCE: 'Resistência',
-  GENERAL: 'Geral',
 };
 
 /** Theme choices offered in Perfil (SPEC 15.2). */
@@ -206,9 +200,9 @@ export default function ProfileScreen() {
             label="Objetivo"
             testID="profile-goal"
             value={preferences.goal}
-            options={(Object.keys(GOAL_LABELS) as TrainingGoal[]).map((value) => ({
+            options={(Object.keys(TRAINING_GOAL_LABELS) as TrainingGoal[]).map((value) => ({
               value,
-              label: GOAL_LABELS[value],
+              label: TRAINING_GOAL_LABELS[value],
             }))}
             onChange={(goal) => savePreferences({ goal })}
           />

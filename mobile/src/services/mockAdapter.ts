@@ -33,33 +33,9 @@ import {
 import type { Exercise } from '../types/exercise';
 import type { RecommendationStatus, WorkoutProposal } from '../types/ai';
 import type { ProgramDay, SplitType, WorkoutProgram } from '../types/program';
+import { SPLIT_DAY_NAMES } from '../types/program';
 import type { InjuryRestriction, AuthUser, UserProfile } from '../types/user';
 import type { ExerciseSet, SessionExercise, WorkoutSession } from '../types/workout';
-
-/**
- * Day focus of each split used by the mock proposal, in the order the days
- * cycle. `CUSTOM` has no plan, so the day names fall back to "Dia N".
- */
-const MOCK_SPLIT_DAY_NAMES: Record<SplitType, string[]> = {
-  PPL: [
-    'Push (peito, ombros e tríceps)',
-    'Pull (costas e bíceps)',
-    'Legs (pernas e glúteos)',
-  ],
-  UPPER_LOWER: ['Superior', 'Inferior'],
-  FULL_BODY: ['Corpo inteiro'],
-  ABCDE: ['Peito', 'Costas', 'Pernas', 'Ombros', 'Braços'],
-  ABC: ['Peito e tríceps', 'Costas e bíceps', 'Pernas e ombros'],
-  ARNOLD_SPLIT: ['Peito e costas', 'Ombros e braços', 'Pernas'],
-  PHUL: [
-    'Superior (força)',
-    'Inferior (força)',
-    'Superior (hipertrofia)',
-    'Inferior (hipertrofia)',
-  ],
-  HYBRID_PPL_UPPER_LOWER: ['Push', 'Pull', 'Pernas', 'Superior', 'Inferior'],
-  CUSTOM: [],
-};
 
 const STATUS_TEXT: Record<number, string> = {
   200: 'OK',
@@ -1496,7 +1472,7 @@ function buildRoutes(state: MockState): MockRoute[] {
             : trainingDays === 5
               ? 'HYBRID_PPL_UPPER_LOWER'
               : 'PPL');
-      const splitDayNames = MOCK_SPLIT_DAY_NAMES[resolvedSplit];
+      const splitDayNames = SPLIT_DAY_NAMES[resolvedSplit];
       const days = Array.from({ length: dayCount }, (_, dayIndex) => ({
         name:
           splitDayNames.length > 0

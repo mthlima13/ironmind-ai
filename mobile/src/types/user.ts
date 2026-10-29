@@ -31,6 +31,14 @@ export const TRAINING_GOALS = {
 
 export type TrainingGoal = (typeof TRAINING_GOALS)[keyof typeof TRAINING_GOALS];
 
+/** Labels of the training goals, used by every form of the app. */
+export const TRAINING_GOAL_LABELS: Record<TrainingGoal, string> = {
+  HYPERTROPHY: 'Hipertrofia',
+  STRENGTH: 'Força',
+  ENDURANCE: 'Resistência',
+  GENERAL: 'Geral',
+};
+
 export type AuthUser = {
   id: string;
   name: string;

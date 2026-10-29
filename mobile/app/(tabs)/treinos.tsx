@@ -12,6 +12,7 @@ import { Screen } from '../../src/components/Screen';
 import { CustomExerciseForm } from '../../src/features/exercises/CustomExerciseForm';
 import { ExerciseList } from '../../src/features/exercises/ExerciseList';
 import { ProgramDayEditor } from '../../src/features/programs/ProgramDayEditor';
+import { NewProgramForm } from '../../src/features/programs/NewProgramForm';
 import { usePrograms, useUpdateProgram } from '../../src/features/programs/usePrograms';
 import { SPLIT_TYPE_LABELS, type CreateProgramInput, type ProgramDay, type WorkoutProgram } from '../../src/types/program';
 import type { ExerciseFilters } from '../../src/types/exercise';
@@ -34,6 +35,7 @@ export default function WorkoutsScreen() {
   const [expandedDayId, setExpandedDayId] = useState<string | null>(null);
   const [draftDays, setDraftDays] = useState<Record<string, ProgramDay>>({});
   const [isCreateExerciseOpen, setIsCreateExerciseOpen] = useState(false);
+  const [isCreateProgramOpen, setIsCreateProgramOpen] = useState(false);
 
   const { data, isLoading, isError, error, refetch } = usePrograms();
   const updateProgram = useUpdateProgram();
@@ -144,20 +146,28 @@ export default function WorkoutsScreen() {
       {section === 'programas' ? (
         <View style={styles.section}>
           <Button
-            label="Coach IA"
+            label={isCreateProgramOpen ? 'Fechar formulário' : 'Novo programa'}
             variant="secondary"
-            icon={<Ionicons name="chatbubbles-outline" size={18} color={colors.accent} />}
-            onPress={() => router.push(ROUTES.coach)}
-            testID="workouts-coach-button"
+            icon={
+              <Ionicons
+                name={isCreateProgramOpen ? 'close' : 'add-circle-outline'}
+                size={18}
+                color={colors.accent}
+              />
+            }
+            onPress={() => setIsCreateProgramOpen((current) => !current)}
+            testID="toggle-new-program"
           />
 
-          <Button
-            label="Proposta de treino com IA"
-            variant="secondary"
-            icon={<Ionicons name="sparkles-outline" size={18} color={colors.accent} />}
-            onPress={() => router.push(ROUTES.propostas)}
-            testID="workouts-proposal-button"
-          />
+          {isCreateProgramOpen ? (
+            <NewProgramForm
+              onCreated={() => {
+                setIsCreateProgramOpen(false);
+                Alert.alert('Programa criado', 'Adicione os exercícios em cada dia e salve.');
+              }}
+              onCancel={() => setIsCreateProgramOpen(false)}
+            />
+          ) : null}
 
           {isLoading ? <LoadingState label="Carregando programas…" /> : null}
 
@@ -171,12 +181,13 @@ export default function WorkoutsScreen() {
             />
           ) : null}
 
-          {!isLoading && !isError && programs.length === 0 ? (
+          {!isLoading && !isError && !isCreateProgramOpen && programs.length === 0 ? (
             <EmptyState
               title="Nenhum programa ainda"
-              description="Crie seu primeiro programa com dias, exercícios e séries alvo."
+              description="Escolha uma divisão (AB, ABC, ABCD, full body, upper/lower…) e os dias já vêm criados para você adicionar os exercícios."
               actionLabel="Criar programa"
-              onAction={() => router.push(ROUTES.propostas)}
+              onAction={() => setIsCreateProgramOpen(true)}
+              actionTestID="workouts-empty-action"
               icon={<Ionicons name="calendar-outline" size={26} color={colors.textMuted} />}
               testID="workouts-empty"
             />

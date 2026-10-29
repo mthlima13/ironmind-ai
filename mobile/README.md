@@ -127,6 +127,7 @@ A suíte cobre, entre outras coisas:
 | `__tests__/startWorkout.test.tsx` | tela de treino: sessão sem exercícios oferece a ação de adicionar, o exercício escolhido entra na sessão já selecionado e a falha mostra retry |
 | `__tests__/offlineSync.test.ts` | reenvio da fila offline: ordem, parada em falha de rede/servidor, rejeição definitiva para `ERROR`, sessão expirada e proteção contra envio duplicado |
 | `__tests__/workoutProposal.test.ts` | revisão da proposta de IA: conversão para o payload do programa, limites, faixa de repetições, detecção de edição e fluxo completo contra o mock (gerar, salvar, decidir) |
+| `__tests__/programSplits.test.ts` | catálogo de divisões do formulário: espelho dos dias aceitos pelo backend (SPEC 7.3), nomes padrão dos dias de AB/ABC/ABCD/ABCDE/full body/upper-lower, sufixo dos dias repetidos e fallback `Dia N` do personalizado |
 
 ---
 
@@ -219,7 +220,8 @@ mobile/
 │   │   ├── auth/               # store, hooks, validação e telas de acesso
 │   │   ├── workouts/           # sessão, SetLogger e sincronização offline
 │   │   ├── exercises/          # busca e filtro do catálogo
-│   │   ├── programs/           # editor de programa (dias → exercícios → séries)
+│   │   ├── programs/           # criação por divisão (splitPlan), editor de programa
+│   │   │                       # (dias → exercícios → séries) e hooks de programas
 │   │   ├── analytics/          # dashboard, evolução por exercício e recordes
 │   │   ├── ai/                 # proposta de treino, revisão e decisão
 │   │   ├── coach/              # placeholder do chat de IA
@@ -357,12 +359,20 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
   carregamento, erro com retry e vazio.
 
 **Programas (RF-005)**
+- **Novo programa:** a aba Treinos abre um formulário com nome, objetivo,
+  divisão e número de dias. As divisões oferecidas são AB, ABC, ABCD, ABCDE,
+  full body, upper/lower, PPL, Arnold Split, PHUL, híbrido PPL + upper/lower e
+  personalizado; ao escolher a divisão, os dias já são criados com os nomes
+  padrão (AB → "Superior" e "Inferior", ABCD → quatro dias, etc.).
+- O formulário só oferece as quantidades de dias que o backend aceita para cada
+  divisão (SPEC 7.3), então ele não consegue montar um programa que a API
+  recusaria com `422`; quando a divisão repete os dias, o nome ganha sufixo
+  ("Superior A"/"Superior B").
 - Lista de programas com dias; editor de dia com nome, exercícios, séries alvo,
-  faixa de repetições, descanso e ordenação.
-- O editor altera o dia **em memória**: o backend já aceita `PUT /programs/{id}`,
-  mas a tela ainda não envia as mudanças.
-- A tela de proposta de IA cria programas com `POST /programs` depois da
-  revisão do usuário.
+  faixa de repetições, descanso e ordenação. "Salvar dia" substitui a estrutura
+  inteira com `PUT /programs/{id}`, na ordem das listas.
+- A tela de proposta de IA também cria programas com `POST /programs` depois da
+  revisão do usuário, mas hoje não tem entrada na interface.
 
 **Sessão e registro de série (RF-006, RF-007, RF-008, RF-010)**
 - Início, escolha do dia, listagem dos exercícios da sessão e finalização.
@@ -420,9 +430,12 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
   provisório; o servidor atribui o id definitivo quando a fila é reenviada.
 
 **Proposta de treino com IA (RF-018)**
-- Tela aberta a partir de Treinos: o usuário descreve o que quer, escolhe os
-  dias por semana (ou usa as preferências) e recebe uma proposta **validada pelo
+- Tela de revisão da proposta: o usuário descreve o que quer, escolhe os dias
+  por semana (ou usa as preferências) e recebe uma proposta **validada pelo
   backend**.
+- **Sem entrada na interface:** a aba Treinos não expõe mais a proposta por IA.
+  A tela continua existindo e é alcançada pelo deep link `ironmind://propostas`,
+  mas nenhum botão do app abre esse fluxo hoje.
 - A revisão permite ajustar séries, repetições e descanso de cada exercício e o
   nome do programa. "Salvar como programa" envia o payload revisado para
   `POST /programs` e depois registra a decisão (`EDITED` ou `ACCEPTED`) em
@@ -434,9 +447,9 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
   explícito do usuário.
 
 **Chat de IA**
-- Apenas a **entrada** para o chat existe (acesso a partir de Treinos e
-  Evolução). O endpoint `POST /ai/coach` já existe no backend, mas a tela de
-  conversa ainda é um placeholder.
+- Apenas a **entrada** para o chat existe, e hoje ela fica só na aba Evolução.
+  O endpoint `POST /ai/coach` já existe no backend, mas a tela de conversa ainda
+  é um placeholder.
 
 ---
 
@@ -445,7 +458,7 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
 | Item | Situação |
 |---|---|
 | Backend real (Spring Boot) | **consumido** para autenticação, perfil, catálogo, programas, sessões, séries, analytics, recordes, restrições e proposta de treino da IA |
-| Criar/editar/excluir programas pela API | a proposta de IA cria programas via `POST /programs`; o editor manual ainda altera o dia só em memória e não há ação de arquivar na tela |
+| Criar/editar/excluir programas pela API | criar programa e salvar o dia usam `POST`/`PUT /programs`; falta renomear/trocar a divisão de um programa já criado e a ação de arquivar na tela |
 | Exercício personalizado do usuário (RF-004) | backend pronto (`POST /exercises`); falta a tela do app |
 | Corrigir/excluir série já registrada (RF-009) | backend pronto (`PATCH` e `DELETE /sets/{id}`); falta a interface no app |
 | Pausar/retomar/abandonar sessão | backend pronto (`PATCH /workout-sessions/{id}`); a tela só inicia e finaliza |

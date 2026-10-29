@@ -17,20 +17,13 @@ import {
   SPLIT_TYPE_LABELS,
   type SplitType,
 } from '../../types/program';
-import type { TrainingGoal } from '../../types/user';
+import { TRAINING_GOAL_LABELS } from '../../types/user';
 import { cloneDays, updateExercise } from './proposal';
 import {
   useGenerateWorkoutProposal,
   useRejectWorkoutProposal,
   useSaveWorkoutProposal,
 } from './useWorkoutProposal';
-
-const GOAL_LABELS: Record<TrainingGoal, string> = {
-  HYPERTROPHY: 'Hipertrofia',
-  STRENGTH: 'Força',
-  ENDURANCE: 'Resistência',
-  GENERAL: 'Geral',
-};
 
 const DAY_OPTIONS: { value: number | null; label: string }[] = [
   { value: null, label: 'Preferências' },
@@ -373,7 +366,7 @@ export function WorkoutProposalScreen() {
         <>
           <Card
             title={proposal.name}
-            subtitle={`${GOAL_LABELS[proposal.goal]} · ${SPLIT_TYPE_LABELS[reviewSplit ?? proposal.splitType]} · ${proposal.days.length} dia(s)`}
+            subtitle={`${TRAINING_GOAL_LABELS[proposal.goal]} · ${SPLIT_TYPE_LABELS[reviewSplit ?? proposal.splitType]} · ${proposal.days.length} dia(s)`}
             testID="proposal-result"
           >
             <Text style={styles.body}>{proposal.explanation}</Text>
