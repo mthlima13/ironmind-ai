@@ -237,6 +237,12 @@ public class MockLlmProvider implements LlmProvider {
                     "Legs (pernas e glúteos)"};
             case UPPER_LOWER -> new String[] {"Superior", "Inferior"};
             case FULL_BODY -> new String[] {"Corpo inteiro"};
+            case AB -> new String[] {"Superior", "Inferior"};
+            case ABCD -> new String[] {
+                    "Peito e tríceps",
+                    "Costas e bíceps",
+                    "Pernas e glúteos",
+                    "Ombros e braços"};
             case ABCDE -> new String[] {"Peito", "Costas", "Pernas", "Ombros", "Braços"};
             case ABC -> new String[] {
                     "Peito e tríceps",
@@ -279,6 +285,8 @@ public class MockLlmProvider implements LlmProvider {
             case PPL -> "Push / Pull / Legs";
             case UPPER_LOWER -> "Upper / Lower";
             case FULL_BODY -> "Full Body";
+            case AB -> "AB (Superior / Inferior)";
+            case ABCD -> "ABCD";
             case ABCDE -> "ABCDE";
             case ABC -> "ABC";
             case ARNOLD_SPLIT -> "Arnold Split";

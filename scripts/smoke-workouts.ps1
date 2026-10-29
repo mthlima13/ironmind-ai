@@ -100,10 +100,10 @@ $secondExerciseId = $exercises[1].id
 
 # ---------------------------------------------------------------- programa
 $program = Invoke-Api -Method POST -Path '/programs' -Headers $auth -Body @{
-    name        = 'Push / Pull / Legs'
-    description = 'Divisao de 3 dias'
+    name        = 'Corpo inteiro'
+    description = 'Um dia de corpo inteiro'
     goal        = 'HYPERTROPHY'
-    splitType   = 'PPL'
+    splitType   = 'FULL_BODY'
     days        = @(
         @{
             name = 'Peito e triceps'

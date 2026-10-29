@@ -84,19 +84,22 @@ class ProgramServiceTest {
         ArgumentCaptor<List<ProgramDay>> daysCaptor = ArgumentCaptor.forClass(List.class);
         verify(programDayRepository).saveAll(daysCaptor.capture());
         List<ProgramDay> days = daysCaptor.getValue();
-        assertThat(days).hasSize(2);
+        assertThat(days).hasSize(3);
         assertThat(days.get(0).getName()).isEqualTo("Peito e tríceps");
         assertThat(days.get(0).getPosition()).isEqualTo(1);
         assertThat(days.get(1).getName()).isEqualTo("Costas");
         assertThat(days.get(1).getPosition()).isEqualTo(2);
+        assertThat(days.get(2).getName()).isEqualTo("Dia 3");
+        assertThat(days.get(2).getPosition()).isEqualTo(3);
 
         ArgumentCaptor<List<ProgramExercise>> exercisesCaptor = ArgumentCaptor.forClass(List.class);
         verify(programExerciseRepository).saveAll(exercisesCaptor.capture());
         List<ProgramExercise> exercises = exercisesCaptor.getValue();
-        assertThat(exercises).hasSize(3);
+        assertThat(exercises).hasSize(4);
         assertThat(exercises.get(0).getPosition()).isEqualTo(1);
         assertThat(exercises.get(1).getPosition()).isEqualTo(2);
         assertThat(exercises.get(2).getPosition()).isEqualTo(1);
+        assertThat(exercises.get(3).getPosition()).isEqualTo(1);
         assertThat(exercises.get(0).getExerciseId()).isEqualTo(EXERCISE_ID);
         assertThat(exercises.get(0).getDayId()).isEqualTo(days.get(0).getId());
 
@@ -105,9 +108,53 @@ class ProgramServiceTest {
         assertThat(result.program().goal()).isEqualTo(TrainingGoal.HYPERTROPHY);
         assertThat(result.program().splitType()).isEqualTo(SplitType.PPL);
         assertThat(result.program().isArchived()).isFalse();
-        assertThat(result.program().days()).hasSize(2);
+        assertThat(result.program().days()).hasSize(3);
         assertThat(result.program().days().get(0).exercises()).hasSize(2);
         assertThat(result.program().days().get(1).exercises()).hasSize(1);
+        assertThat(result.program().days().get(2).exercises()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("refuses a program whose number of days contradicts the split")
+    void refusesAProgramWhoseNumberOfDaysContradictsTheSplit() {
+        assertThatThrownBy(() -> programService.create(request(SplitType.ABCD, 3), OWNER_ID, null))
+                .isInstanceOf(FieldValidationException.class)
+                .satisfies(exception -> assertThat(((FieldValidationException) exception).getFieldErrors())
+                        .singleElement()
+                        .satisfies(fieldError -> {
+                            assertThat(fieldError.field()).isEqualTo("days");
+                            assertThat(fieldError.message())
+                                    .isEqualTo("O split ABCD exige 4 dias de treino; foram informados 3.");
+                        }));
+    }
+
+    @Test
+    @DisplayName("accepts the two days of the AB split, the new option of the catalog")
+    @SuppressWarnings("unchecked")
+    void acceptsTheTwoDaysOfTheAbSplit() {
+        when(exerciseRepository.findById(EXERCISE_ID)).thenReturn(Optional.of(catalogExercise()));
+        when(exerciseRepository.findAllById(any())).thenReturn(List.of(catalogExercise()));
+        when(programRepository.save(any(WorkoutProgram.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(programDayRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(programExerciseRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ProgramService.CreationResult result = programService.create(request(SplitType.AB, 2), OWNER_ID, null);
+
+        assertThat(result.program().splitType()).isEqualTo(SplitType.AB);
+        assertThat(result.program().days()).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("accepts a draft without days, whatever the split is")
+    @SuppressWarnings("unchecked")
+    void acceptsADraftWithoutDays() {
+        when(programRepository.save(any(WorkoutProgram.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(programDayRepository.saveAll(anyList())).thenReturn(List.of());
+        when(programExerciseRepository.saveAll(anyList())).thenReturn(List.of());
+
+        ProgramService.CreationResult result = programService.create(request(SplitType.ABCDE, 0), OWNER_ID, null);
+
+        assertThat(result.program().days()).isEmpty();
     }
 
     @Test
@@ -205,17 +252,32 @@ class ProgramServiceTest {
     }
 
     private static CreateProgramRequest request() {
-        return new CreateProgramRequest(
-                "Push / Pull / Legs",
-                "Divisão de 3 dias",
-                TrainingGoal.HYPERTROPHY,
-                SplitType.PPL,
-                List.of(
-                        new ProgramDayRequest("Peito e tríceps", List.of(
-                                exercise(EXERCISE_ID, 4, 6, 8, 150),
-                                exercise(EXERCISE_ID, 3, 8, 12, 120))),
-                        new ProgramDayRequest("Costas", List.of(
-                                exercise(EXERCISE_ID, 4, 8, 12, 120)))));
+        return request(SplitType.PPL, 3);
+    }
+
+    /**
+     * Builds a payload with the given split and number of days, one exercise per day.
+     *
+     * <p>It starts from the two named days of the first test, so the ordering assertions keep
+     * their meaning, and appends numbered days when more are needed.
+     */
+    private static CreateProgramRequest request(SplitType splitType, int dayCount) {
+        List<ProgramDayRequest> days = new java.util.ArrayList<>();
+        if (dayCount > 0) {
+            days.add(new ProgramDayRequest("Peito e tríceps", List.of(
+                    exercise(EXERCISE_ID, 4, 6, 8, 150),
+                    exercise(EXERCISE_ID, 3, 8, 12, 120))));
+        }
+        if (dayCount > 1) {
+            days.add(new ProgramDayRequest("Costas", List.of(
+                    exercise(EXERCISE_ID, 4, 8, 12, 120))));
+        }
+        for (int index = 2; index < dayCount; index++) {
+            days.add(new ProgramDayRequest("Dia " + (index + 1), List.of(
+                    exercise(EXERCISE_ID, 3, 8, 12, 120))));
+        }
+        return new CreateProgramRequest("Push / Pull / Legs", "Divisão de 3 dias",
+                TrainingGoal.HYPERTROPHY, splitType, days);
     }
 
     private static CreateProgramRequest requestWithASingleDay() {
@@ -233,7 +295,7 @@ class ProgramServiceTest {
                 "Push / Pull / Legs",
                 "Divisão de 3 dias",
                 TrainingGoal.HYPERTROPHY,
-                SplitType.PPL,
+                SplitType.CUSTOM,
                 List.of(new ProgramDayRequest("Peito e tríceps", List.of(
                         exercise(EXERCISE_ID, 3, 8, 12, 120),
                         exercise(MISSING_EXERCISE_ID, 3, 8, 12, 120)))));
@@ -244,7 +306,7 @@ class ProgramServiceTest {
                 "Push / Pull / Legs",
                 "Divisão de 3 dias",
                 TrainingGoal.HYPERTROPHY,
-                SplitType.PPL,
+                SplitType.CUSTOM,
                 List.of(new ProgramDayRequest("Peito e tríceps", List.of(
                         new ProgramExerciseRequest(EXERCISE_ID, 3, 12, 8, 120, null)))));
     }

@@ -92,7 +92,7 @@ Catálogo global do sistema e exercícios personalizados.
 | `name` | string | |
 | `description` | string | |
 | `goal` | enum | `HYPERTROPHY`, `STRENGTH`, `ENDURANCE`, `GENERAL` |
-| `splitType` | enum | `PPL`, `UPPER_LOWER`, `FULL_BODY`, `CUSTOM`, `ABCDE`, `ABC`, `ARNOLD_SPLIT`, `PHUL`, `HYBRID_PPL_UPPER_LOWER` |
+| `splitType` | enum | `PPL`, `UPPER_LOWER`, `FULL_BODY`, `AB`, `ABC`, `ABCD`, `ABCDE`, `ARNOLD_SPLIT`, `PHUL`, `HYBRID_PPL_UPPER_LOWER`, `CUSTOM` |
 | `archived` | boolean | arquivar não apaga e não altera sessões |
 | `createdAt` | data | UTC |
 | `updatedAt` | data | UTC |
@@ -304,7 +304,7 @@ suporta transação de múltiplos documentos em replica set, por isso:
 | Enum | Valores |
 |---|---|
 | `training_goal` | `HYPERTROPHY`, `STRENGTH`, `ENDURANCE`, `GENERAL` |
-| `split_type` | `PPL`, `UPPER_LOWER`, `FULL_BODY`, `CUSTOM`, `ABCDE`, `ABC`, `ARNOLD_SPLIT`, `PHUL`, `HYBRID_PPL_UPPER_LOWER` |
+| `split_type` | `PPL`, `UPPER_LOWER`, `FULL_BODY`, `AB`, `ABC`, `ABCD`, `ABCDE`, `ARNOLD_SPLIT`, `PHUL`, `HYBRID_PPL_UPPER_LOWER`, `CUSTOM` |
 | `movement_type` | `COMPOUND`, `ISOLATION`, `CARDIO`, `ISOMETRIC` |
 | `session_status` | `IN_PROGRESS`, `PAUSED`, `COMPLETED`, `ABANDONED` |
 | `record_type` | `MAX_WEIGHT`, `MAX_REPS_AT_WEIGHT`, `BEST_ESTIMATED_1RM` |

@@ -182,7 +182,7 @@ cd backend
 mvn clean verify
 ```
 
-A suíte tem **113 testes em 16 classes**: calculadoras de volume e 1RM, serviços de
+A suíte tem **116 testes em 16 classes**: calculadoras de volume e 1RM, serviços de
 exercício, programa, sessão, série, recordes, analytics e IA, filtro de identidade,
 validador de proposta, gateway/LLM mock e o handler global de erros.
 
@@ -200,7 +200,7 @@ docker compose up -d --build
 docker compose --profile test run --rm tests
 ```
 
-A suíte em [`tests/integration/`](../tests/integration) tem **97 testes** em 9 módulos e
+A suíte em [`tests/integration/`](../tests/integration) tem **100 testes** em 9 módulos e
 fala somente com a API pública: identidade e isolamento entre usuários, catálogo,
 programas, sessões, séries, recordes, analytics, restrições e IA. Ela não importa código
 do backend nem acessa o MongoDB diretamente.
@@ -297,13 +297,14 @@ API. Exercício personalizado só é visível e editável pelo dono.
 curl -X POST http://localhost:8080/api/v1/programs \
   -H "X-User-UUID: 3f8c1d2e-9b7a-4c1e-8f2b-0a1c3d5e7f90" \
   -H "Content-Type: application/json" \
-  -d '{"name":"Push / Pull / Legs","description":"Divisão de 3 dias","goal":"HYPERTROPHY","splitType":"PPL","days":[{"name":"Peito e tríceps","exercises":[{"exerciseId":"<uuid do exercício>","targetSets":3,"targetRepsMin":8,"targetRepsMax":12,"restSeconds":120,"notes":null}]}]}'
+  -d '{"name":"Corpo inteiro A","description":"Um dia de corpo inteiro","goal":"HYPERTROPHY","splitType":"FULL_BODY","days":[{"name":"Corpo inteiro","exercises":[{"exerciseId":"<uuid do exercício>","targetSets":3,"targetRepsMin":8,"targetRepsMax":12,"restSeconds":120,"notes":null}]}]}'
 ```
 
 | Regra | Comportamento |
 |---|---|
 | Dono | vem do header; `userId` no corpo é ignorado; programa de outro usuário → `404` |
 | Estrutura | `POST` e `PUT` gravam dias e exercícios na ordem do corpo, com `position` `1..n`; `PUT` não faz merge |
+| Dias × divisão | com dias, o total tem que caber no split: `AB`=2, `ABC`=3, `ABCD`=4, `ABCDE`=5, `ARNOLD_SPLIT`=3, `UPPER_LOWER`=2 ou 4, `PPL`=3 ou 6, `PHUL`=4, `HYBRID_PPL_UPPER_LOWER`=5, `FULL_BODY`=1..6, `CUSTOM`=livre; sem dias é rascunho. Violação → `422` em `days` |
 | Catálogo | `exerciseId` inexistente → `422`, com `fieldErrors` apontando `days[0].exercises[1].exerciseId` |
 | Validações | nome 1..120; `targetSets` ≥ 1; `targetRepsMin` ≥ 0; `targetRepsMax` ≥ `targetRepsMin`; `restSeconds` 0..600 |
 | Paginação | `page` ≥ 0 e `size` 1..100 |

@@ -14,6 +14,7 @@ import com.ironmind.program.dto.ProgramExerciseResponse;
 import com.ironmind.program.dto.ProgramResponse;
 import com.ironmind.program.entity.ProgramDay;
 import com.ironmind.program.entity.ProgramExercise;
+import com.ironmind.program.entity.SplitType;
 import com.ironmind.program.entity.WorkoutProgram;
 import com.ironmind.program.repository.ProgramDayRepository;
 import com.ironmind.program.repository.ProgramExerciseRepository;
@@ -135,7 +136,7 @@ public class ProgramService {
             }
         }
 
-        List<ResolvedDay> days = resolve(request.days(), userId);
+        List<ResolvedDay> days = resolve(request, userId);
 
         WorkoutProgram program = programRepository.save(new WorkoutProgram(UUID.randomUUID(), userId,
                 request.name().trim(), request.description(), request.goal(), request.splitType()));
@@ -158,7 +159,7 @@ public class ProgramService {
     @Transactional
     public ProgramResponse update(UUID id, CreateProgramRequest request, UUID userId) {
         WorkoutProgram program = requireOwnedProgram(id, userId);
-        List<ResolvedDay> days = resolve(request.days(), userId);
+        List<ResolvedDay> days = resolve(request, userId);
 
         program.update(request.name().trim(), request.description(), request.goal(), request.splitType());
         programRepository.save(program);
@@ -207,15 +208,22 @@ public class ProgramService {
     /**
      * Validates the days of the payload and resolves the exercises of the catalog.
      *
-     * <p>The rules that only the service can evaluate are checked here: the exercise must exist
-     * and must be visible to the user, and the biggest number of repetitions cannot be smaller
-     * than the smallest one. The answer keeps the path of the rejected field, so the client can
-     * point the user to the right input (SPEC.md appendix A.1).
+     * <p>The rules that only the service can evaluate are checked here: the number of days must
+     * match the split, the exercise must exist and must be visible to the user, and the biggest
+     * number of repetitions cannot be smaller than the smallest one. The answer keeps the path of
+     * the rejected field, so the client can point the user to the right input (SPEC.md appendix
+     * A.1).
+     *
+     * <p>A payload without days is a draft: the split rule only applies once at least one day is
+     * sent, so an empty program can be created and filled later.
      */
-    private List<ResolvedDay> resolve(List<ProgramDayRequest> days, UUID userId) {
+    private List<ResolvedDay> resolve(CreateProgramRequest request, UUID userId) {
+        List<ProgramDayRequest> days = request.days();
         if (days == null || days.isEmpty()) {
             return List.of();
         }
+
+        requireDayCount(request.splitType(), days.size());
 
         List<ResolvedDay> resolved = new ArrayList<>();
         for (int dayIndex = 0; dayIndex < days.size(); dayIndex++) {
@@ -245,6 +253,48 @@ public class ProgramService {
             resolved.add(new ResolvedDay(dayRequest.name().trim(), resolvedExercises));
         }
         return resolved;
+    }
+
+    /**
+     * Refuses a program whose number of days contradicts the split.
+     *
+     * <p>The rule exists because the split is the structure the user promised: an "ABC" with two
+     * days would be shown as a three-day split and lie about its own content. The message tells
+     * the accepted counts so the client can fix the payload without guessing.
+     */
+    private static void requireDayCount(SplitType splitType, int dayCount) {
+        if (splitType == null || splitType.acceptsDayCount(dayCount)) {
+            return;
+        }
+
+        List<Integer> supported = splitType.supportedDayCounts().stream().sorted().toList();
+        throw new FieldValidationException("days", "O split " + splitType.name() + " exige "
+                + describeDayCounts(supported) + " de treino; foram informados " + dayCount + ".");
+    }
+
+    /**
+     * Describes the accepted day counts in Portuguese, collapsing a long contiguous range.
+     */
+    private static String describeDayCounts(List<Integer> counts) {
+        if (counts.size() == 1) {
+            return counts.get(0) + (counts.get(0) == 1 ? " dia" : " dias");
+        }
+
+        boolean contiguous = true;
+        for (int index = 1; index < counts.size(); index++) {
+            if (counts.get(index) != counts.get(index - 1) + 1) {
+                contiguous = false;
+                break;
+            }
+        }
+        if (contiguous && counts.size() > 2) {
+            return "entre " + counts.get(0) + " e " + counts.get(counts.size() - 1) + " dias";
+        }
+
+        String head = counts.subList(0, counts.size() - 1).stream()
+                .map(String::valueOf)
+                .collect(Collectors.joining(", "));
+        return head + " ou " + counts.get(counts.size() - 1) + " dias";
     }
 
     /**

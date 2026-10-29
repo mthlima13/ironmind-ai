@@ -141,13 +141,13 @@ X-User-UUID: 3f8c1d2e-9b7a-4c1e-8f2b-0a1c3d5e7f90
 Content-Type: application/json
 
 {
-  "name": "Push / Pull / Legs",
-  "description": "Divisão de 3 dias",
+  "name": "Corpo inteiro A",
+  "description": "Um dia de corpo inteiro",
   "goal": "HYPERTROPHY",
-  "splitType": "PPL",
+  "splitType": "FULL_BODY",
   "days": [
     {
-      "name": "Peito e tríceps",
+      "name": "Corpo inteiro",
       "exercises": [
         {
           "exerciseId": "…",
@@ -168,17 +168,17 @@ Content-Type: application/json
 ```json
 {
   "id": "…",
-  "name": "Push / Pull / Legs",
-  "description": "Divisão de 3 dias",
+  "name": "Corpo inteiro A",
+  "description": "Um dia de corpo inteiro",
   "goal": "HYPERTROPHY",
-  "splitType": "PPL",
+  "splitType": "FULL_BODY",
   "isArchived": false,
   "createdAt": "2026-10-21T19:43:06Z",
   "days": [
     {
       "id": "…",
       "programId": "…",
-      "name": "Peito e tríceps",
+      "name": "Corpo inteiro",
       "position": 1,
       "exercises": [
         {
@@ -205,6 +205,7 @@ Regras:
 | Dono | vem do header `X-User-UUID`; `userId` no corpo é ignorado |
 | Programa alheio | **404**, nunca 403 |
 | `POST` e `PUT` | **substituem** a estrutura inteira; a ordem do corpo define `position` |
+| `days` | com pelo menos um dia, o total tem que caber na divisão: `AB`=2, `ABC`=3, `ABCD`=4, `ABCDE`=5, `ARNOLD_SPLIT`=3, `UPPER_LOWER`=2 ou 4, `PPL`=3 ou 6, `PHUL`=4, `HYBRID_PPL_UPPER_LOWER`=5, `FULL_BODY`=1 a 6, `CUSTOM`=livre. Sem dias é rascunho. Violação → `422` com `fieldErrors` em `days` |
 | `exerciseId` inexistente | `422` com `fieldErrors` apontando `days[0].exercises[1].exerciseId` |
 | `targetSets` | >= 1 |
 | `targetRepsMin` / `targetRepsMax` | `targetRepsMax` >= `targetRepsMin` |
@@ -384,9 +385,9 @@ Content-Type: application/json
 valem os padrões documentados (3 dias e `GENERAL`) e a IA escolhe a divisão. O
 serviço não guarda objetivo nem experiência do usuário: esses dados pertencem à
 conta no provedor de identidade.
-`splitType` aceita `PPL`, `UPPER_LOWER`, `FULL_BODY`, `ABCDE`, `ABC`,
-`ARNOLD_SPLIT`, `PHUL` e `HYBRID_PPL_UPPER_LOWER`. Não existe modo aleatório: a
-divisão informada prevalece sobre a sugestão do modelo.
+`splitType` aceita `PPL`, `UPPER_LOWER`, `FULL_BODY`, `AB`, `ABC`, `ABCD`,
+`ABCDE`, `ARNOLD_SPLIT`, `PHUL`, `HYBRID_PPL_UPPER_LOWER` e `CUSTOM`. Não existe
+modo aleatório: a divisão informada prevalece sobre a sugestão do modelo.
 
 `200` com a proposta validada:
 

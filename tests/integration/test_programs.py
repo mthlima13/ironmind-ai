@@ -26,9 +26,10 @@ def test_creates_program_with_days_and_exercises_in_order(api, catalog):
             ],
         ),
         program_day("Pull", [program_exercise(remada, sets=4, reps_min=10, reps_max=12)]),
+        program_day("Legs", [program_exercise(catalog["Leg press 45 graus"]["id"])]),
     ]
 
-    response = api.post("/api/v1/programs", json=program_payload(days=days))
+    response = api.post("/api/v1/programs", json=program_payload(split_type="PPL", days=days))
     program = expect(response, 201)
 
     assert response.headers["Location"] == f"/api/v1/programs/{program['id']}"
@@ -38,8 +39,8 @@ def test_creates_program_with_days_and_exercises_in_order(api, catalog):
     assert program["isArchived"] is False
     assert program["createdAt"]
 
-    assert [day["name"] for day in program["days"]] == ["Push", "Pull"]
-    assert [day["position"] for day in program["days"]] == [1, 2]
+    assert [day["name"] for day in program["days"]] == ["Push", "Pull", "Legs"]
+    assert [day["position"] for day in program["days"]] == [1, 2, 3]
     assert all(day["programId"] == program["id"] for day in program["days"])
 
     push = program["days"][0]
@@ -61,6 +62,57 @@ def test_creates_program_with_days_and_exercises_in_order(api, catalog):
 
     fetched = expect(api.get(f"/api/v1/programs/{program['id']}"), 200)
     assert fetched["days"] == program["days"]
+
+
+def test_accepts_the_two_days_of_the_ab_split(api, catalog):
+    """AB is two days: upper body and lower body."""
+    days = [
+        program_day("A - Superior", [program_exercise(catalog["Supino reto com barra"]["id"])]),
+        program_day("B - Inferior", [program_exercise(catalog["Leg press 45 graus"]["id"])]),
+    ]
+
+    program = expect(
+        api.post(
+            "/api/v1/programs",
+            json=program_payload(name="AB Superior / Inferior", split_type="AB", days=days),
+        ),
+        201,
+    )
+
+    assert program["splitType"] == "AB"
+    assert [day["name"] for day in program["days"]] == ["A - Superior", "B - Inferior"]
+
+
+def test_rejects_a_split_with_the_wrong_number_of_days(api, catalog):
+    """The split labels the structure, so a three day split needs three days."""
+    days = [
+        program_day("Peito e tríceps", [program_exercise(catalog["Supino reto com barra"]["id"])]),
+        program_day("Costas e bíceps", [program_exercise(catalog["Remada curvada"]["id"])]),
+    ]
+
+    body = expect(
+        api.post(
+            "/api/v1/programs",
+            json=program_payload(name="ABC com dois dias", split_type="ABC", days=days),
+        ),
+        422,
+    )
+
+    assert body["code"] == "VALIDATION_ERROR"
+    assert body["fieldErrors"][0]["field"] == "days"
+    assert "ABC" in body["fieldErrors"][0]["message"]
+    assert "3 dias" in body["fieldErrors"][0]["message"]
+
+    # Nothing was written: a rejected program does not leave a partial record behind.
+    assert expect(api.get("/api/v1/programs"), 200)["totalElements"] == 0
+
+
+def test_accepts_a_program_without_days_as_a_draft(api):
+    """An empty program is a draft: the split rule only applies once days are sent."""
+    program = expect(api.post("/api/v1/programs", json=program_payload(split_type="ABCD")), 201)
+
+    assert program["splitType"] == "ABCD"
+    assert program["days"] == []
 
 
 def test_update_replaces_the_whole_structure(api, catalog):

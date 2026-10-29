@@ -53,7 +53,7 @@ O IronMind AI resolve isso em duas frentes:
 | Séries (API): registrar, corrigir, excluir, com idempotência durável | Implementado |
 | Analytics, volume, 1RM (Brzycki) e recordes transacionais | Implementado |
 | Restrições de lesão e proposta de treino / sugestão de carga / coaching por IA | Implementado no backend — provedor `mock` por padrão |
-| Backend: testes unitários JUnit (113 casos) | Passando |
+| Backend: testes unitários JUnit (116 casos) | Passando |
 | Suíte de contrato da API em Python contra `docker compose` | Passando |
 | App Android: 5 abas, autenticação própria, catálogo, programa, sessão, séries, histórico, perfil e tema | Implementado, **mas ainda no contrato antigo da API** |
 | Recursos sociais e gamificação | Planejado — Fase 3 |

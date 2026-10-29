@@ -117,7 +117,7 @@ def program_day(name: str, exercises: list[dict]) -> dict:
 
 
 def program_payload(*, name: str = "Push / Pull / Legs", days: list[dict] | None = None,
-                    goal: str = "HYPERTROPHY", split_type: str = "PPL") -> dict:
+                    goal: str = "HYPERTROPHY", split_type: str = "CUSTOM") -> dict:
     return {
         "name": name,
         "description": "Program created by the integration suite",
@@ -132,10 +132,10 @@ def program_payload(*, name: str = "Push / Pull / Legs", days: list[dict] | None
 # ---------------------------------------------------------------------------
 
 def create_program(api: Api, *, days: list[dict] | None = None, name: str = "Push / Pull / Legs",
-                   idempotency_key: str | None = None) -> dict:
+                   split_type: str = "CUSTOM", idempotency_key: str | None = None) -> dict:
     """Creates a program and returns the representation answered by the API."""
     return expect(
-        api.post("/api/v1/programs", json=program_payload(name=name, days=days),
+        api.post("/api/v1/programs", json=program_payload(name=name, days=days, split_type=split_type),
                  headers=idempotency(idempotency_key)),
         201,
     )

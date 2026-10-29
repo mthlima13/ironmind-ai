@@ -48,7 +48,7 @@ public class OpenAiLlmProvider implements LlmProvider {
             {
               "name": "string",
               "goal": "HYPERTROPHY | STRENGTH | ENDURANCE | GENERAL",
-              "splitType": "PPL | UPPER_LOWER | FULL_BODY | ABCDE | ABC | ARNOLD_SPLIT | PHUL | HYBRID_PPL_UPPER_LOWER | CUSTOM",
+              "splitType": "PPL | UPPER_LOWER | FULL_BODY | AB | ABC | ABCD | ABCDE | ARNOLD_SPLIT | PHUL | HYBRID_PPL_UPPER_LOWER | CUSTOM",
               "days": [
                 {
                   "name": "string",

@@ -918,12 +918,41 @@ O modelo retorna um objeto estruturado validado por esquema definido no backend.
 ```
 
 **Divisão do treino:** o usuário escolhe explicitamente a divisão entre
-`PPL`, `UPPER_LOWER`, `FULL_BODY`, `ABCDE`, `ABC`, `ARNOLD_SPLIT`, `PHUL` e
-`HYBRID_PPL_UPPER_LOWER`. Não existe modo aleatório. A opção "IA escolhe" deixa
-a decisão para o modelo, que deve justificá-la pelo número de dias, objetivo,
-experiência e histórico. A escolha do usuário sempre prevalece sobre a sugestão
-do modelo; sem escolha e sem sugestão válida, a proposta é classificada como
-`CUSTOM`.
+`PPL`, `UPPER_LOWER`, `FULL_BODY`, `AB`, `ABC`, `ABCD`, `ABCDE`, `ARNOLD_SPLIT`,
+`PHUL` e `HYBRID_PPL_UPPER_LOWER`, ou deixa `CUSTOM` para um arranjo próprio. Não
+existe modo aleatório. A opção "IA escolhe" deixa a decisão para o modelo, que
+deve justificá-la pelo número de dias, objetivo, experiência e histórico. A
+escolha do usuário sempre prevalece sobre a sugestão do modelo; sem escolha e sem
+sugestão válida, a proposta é classificada como `CUSTOM`.
+
+**Dias × divisão:** a divisão descreve a estrutura, então o número de dias tem
+que caber nela. Um programa com dias informados só é aceito quando o total bate
+com a divisão:
+
+| Divisão | Dias aceitos |
+|---|---|
+| `AB` | 2 |
+| `ABC` | 3 |
+| `ABCD` | 4 |
+| `ABCDE` | 5 |
+| `ARNOLD_SPLIT` | 3 |
+| `UPPER_LOWER` | 2 ou 4 |
+| `PPL` | 3 ou 6 |
+| `PHUL` | 4 |
+| `HYBRID_PPL_UPPER_LOWER` | 5 |
+| `FULL_BODY` | 1 a 6 |
+| `CUSTOM` | qualquer quantidade |
+
+Um programa **sem dias** é um rascunho e é aceito com qualquer divisão; a regra
+só vale a partir do primeiro dia. A recusa é `422 VALIDATION_ERROR` com
+`fieldErrors` em `days`, e a mensagem informa quantos dias a divisão exige. A
+mesma verificação roda no `POST` e no `PUT`, porque os dois substituem a
+estrutura inteira.
+
+No app, a criação manual de programa oferece **todas** as divisões acima e só
+as quantidades de dias válidas para a escolhida: escolher AB cria os dois dias
+("Superior" e "Inferior"), ABCD cria os quatro, e assim por diante. Os dias
+nascem sem exercícios e o usuário preenche cada um no editor de dia.
 
 **Fluxo obrigatório:**
 
@@ -1131,13 +1160,16 @@ O treino deve continuar funcionando quando a conexão cair.
 ### 15.1 Abas principais
 
 1. **Início:** resumo do dia e acesso rápido ao treino.
-2. **Treinos:** programas, dias, divisão atual e catálogo de exercícios.
+2. **Treinos:** programas, dias, divisão atual, criação manual de programa por
+   divisão (AB, ABC, ABCD, corpo inteiro, upper/lower, entre outras) e catálogo
+   de exercícios.
 3. **Começar treino:** sessão ativa, registro de séries e descanso.
 4. **Evolução:** gráficos, volume, recordes e histórico.
 5. **Perfil:** preferências, restrições, privacidade e configurações.
 
-> O chat de IA é acessado a partir de **Treinos** e **Evolução**, para receber
-> contexto relevante sem sobrecarregar a navegação principal.
+> O chat de IA continua acessível a partir de **Evolução**, para receber
+> contexto relevante sem sobrecarregar a navegação principal. A aba Treinos não
+> tem entrada de IA.
 
 ### 15.2 Direção visual
 
