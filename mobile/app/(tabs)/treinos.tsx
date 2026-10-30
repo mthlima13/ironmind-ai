@@ -4,131 +4,107 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Button } from '../../src/components/Button';
-import { Card } from '../../src/components/Card';
 import { EmptyState } from '../../src/components/EmptyState';
 import { ErrorState } from '../../src/components/ErrorState';
 import { LoadingState } from '../../src/components/LoadingState';
 import { Screen } from '../../src/components/Screen';
-import { CustomExerciseForm } from '../../src/features/exercises/CustomExerciseForm';
-import { ExerciseList } from '../../src/features/exercises/ExerciseList';
-import { ProgramDayEditor } from '../../src/features/programs/ProgramDayEditor';
+import { LevelFilters } from '../../src/features/programs/LevelFilters';
+import { ProgramCard } from '../../src/features/programs/ProgramCard';
 import { NewProgramForm } from '../../src/features/programs/NewProgramForm';
-import { usePrograms, useUpdateProgram } from '../../src/features/programs/usePrograms';
-import { SPLIT_TYPE_LABELS, type CreateProgramInput, type ProgramDay, type WorkoutProgram } from '../../src/types/program';
-import type { ExerciseFilters } from '../../src/types/exercise';
+import {
+  PROGRAM_LEVEL_LABELS,
+  filterProgramTemplates,
+  type ProgramLevelFilter,
+} from '../../src/features/programs/trainingTemplates';
+import { usePrograms } from '../../src/features/programs/usePrograms';
 import { ROUTES } from '../../src/navigation/linking';
 import { mapApiError } from '../../src/services/api';
-import { createIdempotencyKey } from '../../src/utils/id';
-import { useTheme, useThemedStyles, radii, spacing, typography, type ThemeColors } from '../../src/theme';
+import { useTheme, useThemedStyles, layout, radii, spacing, typography, type ThemeColors } from '../../src/theme';
+import { TRAINING_GOAL_LABELS } from '../../src/types/user';
+import type { WorkoutProgram } from '../../src/types/program';
 
-type Section = 'programas' | 'exercicios';
+type TrainingTab = 'mine' | 'explore';
 
+const TABS: { key: TrainingTab; label: string }[] = [
+  { key: 'mine', label: 'Meus programas' },
+  { key: 'explore', label: 'Explorar' },
+];
+
+function weekDaysLabel(count: number): string {
+  return `${count} ${count === 1 ? 'dia' : 'dias'}/semana`;
+}
+
+/**
+ * Treinos listing (SPEC sections 3 and 4).
+ *
+ * "Meus programas" lists the programs owned by the user and keeps the manual
+ * creation form; "Explorar" lists the read-only catalogue models with the level
+ * filters. The long day and exercise lists moved to the details screen, so this
+ * tab only shows compact cards.
+ */
 export default function WorkoutsScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
-  const [section, setSection] = useState<Section>('programas');
-  const [filters, setFilters] = useState<ExerciseFilters>({
-    search: '',
-    muscleGroup: 'ALL',
-  });
-  const [expandedDayId, setExpandedDayId] = useState<string | null>(null);
-  const [draftDays, setDraftDays] = useState<Record<string, ProgramDay>>({});
-  const [isCreateExerciseOpen, setIsCreateExerciseOpen] = useState(false);
+
+  const [tab, setTab] = useState<TrainingTab>('mine');
+  const [level, setLevel] = useState<ProgramLevelFilter>('ALL');
   const [isCreateProgramOpen, setIsCreateProgramOpen] = useState(false);
 
   const { data, isLoading, isError, error, refetch } = usePrograms();
-  const updateProgram = useUpdateProgram();
 
   const programs: WorkoutProgram[] = useMemo(() => data?.content ?? [], [data]);
+  const templates = filterProgramTemplates(level);
 
-  const dayDrafts = useMemo(() => {
-    const result: Record<string, ProgramDay> = {};
-    programs.forEach((program) => {
-      program.days.forEach((day) => {
-        result[day.id] = draftDays[day.id] ?? day;
-      });
-    });
-    return result;
-  }, [programs, draftDays]);
-
-  const startSession = (programId: string, programDayId: string) => {
+  const openSavedProgram = (programId: string) => {
     router.push({
-      pathname: ROUTES.comecar,
-      params: { programId, programDayId },
+      pathname: ROUTES.programa,
+      params: { id: programId, source: 'saved' },
     });
   };
 
-  const saveDay = async (program: WorkoutProgram, day: ProgramDay) => {
-    // The backend replaces the whole structure and derives the positions from
-    // the order of the lists (SPEC RF-005).
-    const payload: CreateProgramInput = {
-      name: program.name,
-      description: program.description ?? '',
-      goal: program.goal,
-      splitType: program.splitType,
-      days: program.days.map((currentDay) => {
-        const source = currentDay.id === day.id ? day : currentDay;
-        return {
-          name: source.name,
-          exercises: source.exercises
-            .slice()
-            .sort((a, b) => a.position - b.position)
-            .map((ex) => ({
-              exerciseId: ex.exerciseId,
-              targetSets: ex.targetSets,
-              targetRepsMin: ex.targetRepsMin,
-              targetRepsMax: ex.targetRepsMax,
-              restSeconds: ex.restSeconds,
-              notes: ex.notes ?? undefined,
-            })),
-        };
-      }),
-    };
-
-    try {
-      await updateProgram.mutateAsync({
-        id: program.id,
-        input: payload,
-        idempotencyKey: createIdempotencyKey(),
-      });
-      setDraftDays((current) => {
-        const next = { ...current };
-        delete next[day.id];
-        return next;
-      });
-      Alert.alert('Programa atualizado', 'As alterações do dia foram salvas.');
-    } catch (err) {
-      Alert.alert('Erro ao salvar', mapApiError(err).message);
-    }
+  const openTemplate = (templateId: string) => {
+    router.push({
+      pathname: ROUTES.programa,
+      params: { id: templateId, source: 'template' },
+    });
   };
 
   return (
     <Screen
       title="Treinos"
-      subtitle="Programas, divisão atual e catálogo de exercícios."
+      subtitle="Seus programas e modelos prontos para começar."
+      headerAction={
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Catálogo de exercícios"
+          onPress={() => router.push(ROUTES.exercicios)}
+          style={({ pressed }) => [
+            styles.headerButton,
+            pressed ? styles.headerButtonPressed : null,
+          ]}
+          testID="open-exercise-catalogue"
+        >
+          <Ionicons name="barbell-outline" size={22} color={colors.accent} />
+        </Pressable>
+      }
       testID="workouts-screen"
     >
       <View style={styles.segmented}>
-        {(
-          [
-            { key: 'programas', label: 'Programas' },
-            { key: 'exercicios', label: 'Exercícios' },
-          ] as const
-        ).map((item) => {
-          const isActive = section === item.key;
+        {TABS.map((item) => {
+          const isActive = tab === item.key;
           return (
             <Pressable
               key={item.key}
               accessibilityRole="tab"
               accessibilityState={{ selected: isActive }}
-              onPress={() => setSection(item.key)}
+              onPress={() => setTab(item.key)}
               style={({ pressed }) => [
                 styles.segment,
                 isActive ? styles.segmentActive : null,
                 pressed ? styles.segmentPressed : null,
               ]}
-              testID={`workouts-section-${item.key}`}
+              testID={`training-tab-${item.key}`}
             >
               <Text
                 style={[
@@ -143,7 +119,7 @@ export default function WorkoutsScreen() {
         })}
       </View>
 
-      {section === 'programas' ? (
+      {tab === 'mine' ? (
         <View style={styles.section}>
           <Button
             label={isCreateProgramOpen ? 'Fechar formulário' : 'Novo programa'}
@@ -163,13 +139,21 @@ export default function WorkoutsScreen() {
             <NewProgramForm
               onCreated={() => {
                 setIsCreateProgramOpen(false);
-                Alert.alert('Programa criado', 'Adicione os exercícios em cada dia e salve.');
+                Alert.alert(
+                  'Programa criado',
+                  'Abra o programa para adicionar os exercícios em cada dia.'
+                );
               }}
               onCancel={() => setIsCreateProgramOpen(false)}
             />
           ) : null}
 
-          {isLoading ? <LoadingState label="Carregando programas…" /> : null}
+          {isLoading ? (
+            <LoadingState
+              label="Carregando seus programas…"
+              testID="workouts-loading"
+            />
+          ) : null}
 
           {isError ? (
             <ErrorState
@@ -183,112 +167,68 @@ export default function WorkoutsScreen() {
 
           {!isLoading && !isError && !isCreateProgramOpen && programs.length === 0 ? (
             <EmptyState
-              title="Nenhum programa ainda"
-              description="Escolha uma divisão (AB, ABC, ABCD, full body, upper/lower…) e os dias já vêm criados para você adicionar os exercícios."
-              actionLabel="Criar programa"
-              onAction={() => setIsCreateProgramOpen(true)}
+              title="Você ainda não tem programas"
+              description="Crie um programa do zero ou adicione um modelo pronto do catálogo."
+              actionLabel="Explorar programas"
+              onAction={() => setTab('explore')}
               actionTestID="workouts-empty-action"
               icon={<Ionicons name="calendar-outline" size={26} color={colors.textMuted} />}
               testID="workouts-empty"
             />
           ) : null}
 
-          {programs.map((program) => (
-            <Card
-              key={program.id}
-              title={program.name}
-              subtitle={`${SPLIT_TYPE_LABELS[program.splitType]}${program.description ? ` • ${program.description}` : ''}`}
-              testID={`program-${program.id}`}
-            >
-              {program.days.map((day) => {
-                const draft = dayDrafts[day.id] ?? day;
-                const isExpanded = expandedDayId === day.id;
-                return (
-                  <View key={day.id} style={styles.day}>
-                    <View style={styles.dayHeader}>
-                      <View style={styles.dayInfo}>
-                        <Text style={styles.dayName}>{draft.name}</Text>
-                        <Text style={styles.dayMeta}>
-                          {draft.exercises.length}{' '}
-                          {draft.exercises.length === 1 ? 'exercício' : 'exercícios'}
-                        </Text>
-                      </View>
-                      <Button
-                        label="Iniciar"
-                        size="md"
-                        onPress={() => startSession(program.id, day.id)}
-                        testID={`start-day-${day.id}`}
-                      />
-                    </View>
-
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityState={{ expanded: isExpanded }}
-                      onPress={() => setExpandedDayId(isExpanded ? null : day.id)}
-                      style={({ pressed }) => [
-                        styles.editToggle,
-                        pressed ? styles.editTogglePressed : null,
-                      ]}
-                      testID={`toggle-day-editor-${day.id}`}
-                    >
-                      <Ionicons
-                        name={isExpanded ? 'chevron-up' : 'chevron-down'}
-                        size={16}
-                        color={colors.accent}
-                      />
-                      <Text style={styles.editToggleText}>
-                        {isExpanded ? 'Fechar editor' : 'Editar dia'}
-                      </Text>
-                    </Pressable>
-
-                    {isExpanded ? (
-                      <View style={styles.editorContainer}>
-                        <ProgramDayEditor
-                          day={draft}
-                          onChange={(updated) =>
-                            setDraftDays((current) => ({
-                              ...current,
-                              [updated.id]: updated,
-                            }))
-                          }
-                        />
-                        <Button
-                          label={updateProgram.isPending ? 'Salvando…' : 'Salvar dia'}
-                          onPress={() => saveDay(program, draft)}
-                          disabled={updateProgram.isPending}
-                          testID={`save-day-${day.id}`}
-                        />
-                      </View>
-                    ) : null}
-                  </View>
-                );
-              })}
-            </Card>
-          ))}
+          {!isLoading && !isError
+            ? programs.map((program) => (
+                <ProgramCard
+                  key={program.id}
+                  name={program.name}
+                  description={program.description || undefined}
+                  meta={`${weekDaysLabel(program.days.length)} • ${TRAINING_GOAL_LABELS[program.goal]}`}
+                  onPress={() => openSavedProgram(program.id)}
+                  testID={`program-card-${program.id}`}
+                />
+              ))
+            : null}
         </View>
       ) : (
         <View style={styles.section}>
-          <Button
-            label={isCreateExerciseOpen ? 'Fechar formulário' : 'Criar exercício personalizado'}
-            variant="secondary"
-            icon={<Ionicons name="add-circle-outline" size={18} color={colors.accent} />}
-            onPress={() => setIsCreateExerciseOpen((current) => !current)}
-            testID="toggle-custom-exercise-form"
-          />
+          <Text style={styles.exploreHint}>
+            Modelos prontos. Ao adicionar, você cria uma cópia independente que
+            pode personalizar.
+          </Text>
 
-          {isCreateExerciseOpen ? (
-            <Card
-              title="Novo exercício"
-              subtitle="O exercício fica disponível apenas para a sua conta."
-            >
-              <CustomExerciseForm onCreated={() => setIsCreateExerciseOpen(false)} />
-            </Card>
-          ) : null}
+          <LevelFilters value={level} onChange={setLevel} />
 
-          <ExerciseList
-            filters={filters}
-            onChangeFilters={setFilters}
-          />
+          <Text style={styles.resultCount} testID="template-count">
+            {templates.length}{' '}
+            {templates.length === 1 ? 'programa' : 'programas'}
+            {level === 'ALL' ? '' : ` • ${PROGRAM_LEVEL_LABELS[level]}`}
+          </Text>
+
+          {templates.length === 0 ? (
+            <EmptyState
+              title="Nenhum programa neste nível"
+              description="Ajuste o filtro para ver os modelos dos outros níveis."
+              actionLabel="Ver todos"
+              onAction={() => setLevel('ALL')}
+              actionTestID="explore-empty-action"
+              icon={<Ionicons name="funnel-outline" size={26} color={colors.textMuted} />}
+              testID="explore-empty"
+            />
+          ) : (
+            templates.map((template) => (
+              <ProgramCard
+                key={template.id}
+                name={template.name}
+                description={template.description}
+                meta={`${weekDaysLabel(template.days.length)} • ${TRAINING_GOAL_LABELS[template.goal]}`}
+                badge={PROGRAM_LEVEL_LABELS[template.level]}
+                icon="library-outline"
+                onPress={() => openTemplate(template.id)}
+                testID={`template-card-${template.id}`}
+              />
+            ))
+          )}
         </View>
       )}
     </Screen>
@@ -296,8 +236,18 @@ export default function WorkoutsScreen() {
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  section: {
-    gap: spacing.md,
+  headerButton: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.borderStrong,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    height: layout.minTouchTarget,
+    justifyContent: 'center',
+    width: layout.minTouchTarget,
+  },
+  headerButtonPressed: {
+    backgroundColor: colors.surfacePressed,
   },
   segmented: {
     backgroundColor: colors.surface,
@@ -312,7 +262,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     borderRadius: radii.sm,
     flex: 1,
     justifyContent: 'center',
-    minHeight: 44,
+    minHeight: layout.minTouchTarget,
   },
   segmentActive: {
     backgroundColor: colors.accentSoft,
@@ -327,44 +277,15 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   segmentTextActive: {
     color: colors.accent,
   },
-  day: {
-    borderTopColor: colors.border,
-    borderTopWidth: 1,
-    gap: spacing.sm,
-    paddingTop: spacing.md,
-  },
-  dayHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
+  section: {
     gap: spacing.md,
-    justifyContent: 'space-between',
   },
-  dayInfo: {
-    flex: 1,
-    gap: spacing.xs,
+  exploreHint: {
+    ...typography.body,
+    color: colors.textSecondary,
   },
-  dayName: {
-    ...typography.bodyStrong,
-    color: colors.text,
-  },
-  dayMeta: {
-    ...typography.caption,
+  resultCount: {
+    ...typography.label,
     color: colors.textMuted,
-  },
-  editToggle: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.xs,
-    minHeight: 44,
-  },
-  editTogglePressed: {
-    opacity: 0.6,
-  },
-  editToggleText: {
-    ...typography.caption,
-    color: colors.accent,
-  },
-  editorContainer: {
-    gap: spacing.sm,
   },
 });

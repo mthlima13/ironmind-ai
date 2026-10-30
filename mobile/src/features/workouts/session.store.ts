@@ -24,6 +24,13 @@ type SessionState = {
   updateSet: (sessionExerciseId: string, set: ExerciseSet) => void;
   /** Removes a set from the running session (SPEC 7.8). */
   removeSet: (sessionExerciseId: string, setId: string) => void;
+  /**
+   * Marks an exercise as done or pending without touching its sets.
+   *
+   * Exercise completion is explicit: it is never inferred from the registered
+   * sets, and changing it never creates a fictitious set.
+   */
+  setExerciseCompleted: (sessionExerciseId: string, completed: boolean) => void;
   clearSession: () => void;
 };
 
@@ -101,6 +108,27 @@ export const useSessionStore = create<SessionState>()((set) => ({
               ? {
                   ...sessionExercise,
                   sets: sessionExercise.sets.filter((item) => item.id !== setId),
+                }
+              : sessionExercise
+          ),
+        },
+      };
+    }),
+  setExerciseCompleted: (sessionExerciseId, completed) =>
+    set((state) => {
+      if (!state.session) {
+        return state;
+      }
+      return {
+        session: {
+          ...state.session,
+          exercises: state.session.exercises.map((sessionExercise) =>
+            sessionExercise.id === sessionExerciseId
+              ? {
+                  ...sessionExercise,
+                  completedAt: completed
+                    ? sessionExercise.completedAt ?? new Date().toISOString()
+                    : null,
                 }
               : sessionExercise
           ),

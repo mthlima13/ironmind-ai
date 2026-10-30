@@ -32,6 +32,8 @@ export type RootParamList = {
   resetPassword: { token?: string } | undefined;
   coach: undefined;
   propostas: undefined;
+  'programa/[id]': { id: string; source?: 'saved' | 'template' } | undefined;
+  exercicios: undefined;
 };
 
 /** Internal routes, used by every navigation call of the app. */
@@ -43,6 +45,8 @@ export const ROUTES = {
   perfil: '/(tabs)/perfil',
   coach: '/coach',
   propostas: '/propostas',
+  programa: '/programa/[id]',
+  exercicios: '/exercicios',
   login: '/auth/login',
   register: '/auth/register',
   forgotPassword: '/auth/forgot-password',
@@ -64,6 +68,8 @@ export const DEEP_LINK_PATHS: Record<AppRoute, string> = {
   forgotPassword: 'esqueci-senha',
   resetPassword: 'reset-password',
   propostas: 'propostas',
+  programa: 'programa/:id',
+  exercicios: 'exercicios',
 };
 
 export function buildDeepLink(route: AppRoute): string {
@@ -105,6 +111,8 @@ export const linking: LinkingOptions<RootParamList> = {
       resetPassword: DEEP_LINK_PATHS.resetPassword,
       coach: DEEP_LINK_PATHS.coach,
       propostas: DEEP_LINK_PATHS.propostas,
+      'programa/[id]': DEEP_LINK_PATHS.programa,
+      exercicios: DEEP_LINK_PATHS.exercicios,
     },
   },
 };

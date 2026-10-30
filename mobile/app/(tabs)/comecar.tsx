@@ -18,6 +18,10 @@ import {
   SetLogger,
   type LoggedSet,
 } from '../../src/features/workouts/SetLogger';
+import {
+  getSessionProgress,
+  isExerciseCompleted,
+} from '../../src/features/workouts/sessionProgress';
 import { useSessionStore } from '../../src/features/workouts/session.store';
 import {
   useAddSessionExercise,
@@ -33,6 +37,7 @@ import { useOfflineSync } from '../../src/features/workouts/useOfflineSync';
 import { ROUTES } from '../../src/navigation/linking';
 import { ENDPOINTS } from '../../src/services/endpoints';
 import { mapApiError } from '../../src/services/api';
+import { clearSessionDraft } from '../../src/storage/offlineQueue';
 import { useTheme, useThemedStyles, radii, spacing, typography, type ThemeColors } from '../../src/theme';
 import type { Exercise, ExerciseFilters } from '../../src/types/exercise';
 import { SESSION_STATUSES, type ExerciseSet } from '../../src/types/workout';
@@ -53,6 +58,9 @@ export default function StartWorkoutScreen() {
   const addExercise = useSessionStore((state) => state.addExercise);
   const updateSetInStore = useSessionStore((state) => state.updateSet);
   const removeSetFromStore = useSessionStore((state) => state.removeSet);
+  const setExerciseCompleted = useSessionStore(
+    (state) => state.setExerciseCompleted
+  );
   const clearSession = useSessionStore((state) => state.clearSession);
   const pendingCount = useSessionStore((state) => state.pendingCount);
   const failedCount = useSessionStore((state) => state.failedCount);
@@ -71,7 +79,10 @@ export default function StartWorkoutScreen() {
   const deleteSetMutation = useDeleteSet();
 
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
-  const [isCompleted, setIsCompleted] = useState(false);
+  const [finishSummary, setFinishSummary] = useState<{
+    completed: number;
+    total: number;
+  } | null>(null);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [exerciseFilters, setExerciseFilters] = useState<ExerciseFilters>({
     search: '',
@@ -84,9 +95,33 @@ export default function StartWorkoutScreen() {
     repetitions: string;
   } | null>(null);
   const autoStartedRef = useRef(false);
+  const isFinishingRef = useRef(false);
 
   const unit = profile?.preferences.preferredUnits ?? 'KG';
   const programs = useMemo(() => programsData?.content ?? [], [programsData]);
+
+  const sessionProgress = useMemo(
+    () => getSessionProgress(session?.exercises ?? []),
+    [session]
+  );
+
+  const progressWidth: `${number}%` = `${sessionProgress.percent}%`;
+
+  /** Name of the program day the session was started from, when known. */
+  const workoutName = useMemo(() => {
+    if (!session) {
+      return 'Treino livre';
+    }
+    if (!session.programId) {
+      return 'Treino livre';
+    }
+    const program = programs.find((item) => item.id === session.programId);
+    if (!program) {
+      return 'Treino do programa';
+    }
+    const day = program.days.find((item) => item.id === session.programDayId);
+    return day ? `${program.name} · ${day.name}` : program.name;
+  }, [programs, session]);
 
   // Starts the session requested from the Treinos tab.
   useEffect(() => {
@@ -208,14 +243,53 @@ export default function StartWorkoutScreen() {
     addExerciseMutation.reset();
   };
 
-  const handleFinish = async () => {
-    if (!session) {
+  /** Finishes the session, preserving every set already registered. */
+  const finishSession = async () => {
+    if (!session || isFinishingRef.current) {
       return;
     }
-    await completeMutation.mutateAsync();
-    clearSession();
-    setSelectedExerciseId(null);
-    setIsCompleted(true);
+    const summary = {
+      completed: sessionProgress.completed,
+      total: sessionProgress.total,
+    };
+    // Guards a second tap while the first request is still in flight.
+    isFinishingRef.current = true;
+    try {
+      await completeMutation.mutateAsync();
+      // A finished session must not be restored from the local draft.
+      await clearSessionDraft();
+      setFinishSummary(summary);
+      setSelectedExerciseId(null);
+      clearSession();
+    } catch {
+      // The mutation error is shown below the button, with a retry action.
+    } finally {
+      isFinishingRef.current = false;
+    }
+  };
+
+  /**
+   * Finishing with pending exercises needs an explicit confirmation.
+   *
+   * The pending exercises stay in the session snapshot without any fictitious
+   * set being created for them.
+   */
+  const handleFinish = () => {
+    if (!session || isFinishingRef.current) {
+      return;
+    }
+    if (sessionProgress.pending > 0) {
+      Alert.alert(
+        'Finalizar treino?',
+        `Você concluiu ${sessionProgress.completed} de ${sessionProgress.total} exercícios. Finalizar mesmo assim?`,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Finalizar', onPress: () => void finishSession() },
+        ]
+      );
+      return;
+    }
+    void finishSession();
   };
 
   /** Pauses or resumes the running session (SPEC 7.8). */
@@ -251,6 +325,7 @@ export default function StartWorkoutScreen() {
               { status: SESSION_STATUSES.ABANDONED },
               {
                 onSuccess: () => {
+                  void clearSessionDraft();
                   clearSession();
                   setSelectedExerciseId(null);
                 },
@@ -321,10 +396,22 @@ export default function StartWorkoutScreen() {
     ]);
   };
 
-  if (isCompleted) {
+  if (finishSummary) {
     return (
       <Screen title="Treino concluído" testID="start-workout-screen">
         <Card title="Sessão finalizada">
+          {finishSummary.total > 0 ? (
+            <Text style={styles.summaryText} testID="finish-summary-progress">
+              Você concluiu {finishSummary.completed} de {finishSummary.total}{' '}
+              exercícios.
+            </Text>
+          ) : null}
+          {finishSummary.total > finishSummary.completed ? (
+            <Text style={styles.summaryText}>
+              Os exercícios não concluídos permaneceram pendentes; nenhuma série
+              fictícia foi criada para eles.
+            </Text>
+          ) : null}
           <Text style={styles.summaryText}>
             As séries registradas já estão no histórico e podem ser consultadas
             na aba Evolução.
@@ -441,6 +528,45 @@ export default function StartWorkoutScreen() {
         onSync={() => void syncNow()}
       />
 
+      <Card title={workoutName} testID="session-progress-card">
+        <View style={styles.progressHeader}>
+          <Text
+            accessibilityLiveRegion="polite"
+            style={styles.progressCount}
+            testID="session-progress-count"
+          >
+            {sessionProgress.completed} / {sessionProgress.total}
+          </Text>
+          <Text style={styles.progressLabel}>exercícios concluídos</Text>
+        </View>
+        <View
+          accessible
+          accessibilityLabel="Progresso do treino"
+          accessibilityRole="progressbar"
+          accessibilityValue={{
+            min: 0,
+            max: Math.max(sessionProgress.total, 1),
+            now: sessionProgress.completed,
+            text: `${sessionProgress.completed} de ${sessionProgress.total} exercícios concluídos`,
+          }}
+          style={styles.progressTrack}
+          testID="session-progress-bar"
+        >
+          <View style={[styles.progressFill, { width: progressWidth }]} />
+        </View>
+        <Text style={styles.progressHint}>
+          {sessionProgress.total === 0
+            ? 'Adicione exercícios para acompanhar o progresso.'
+            : sessionProgress.pending === 0
+              ? 'Todos os exercícios concluídos. Você já pode finalizar a sessão.'
+              : `${sessionProgress.pending} ${
+                  sessionProgress.pending === 1
+                    ? 'exercício pendente'
+                    : 'exercícios pendentes'
+                }. Marcar como concluído não altera as séries registradas.`}
+        </Text>
+      </Card>
+
       <View style={styles.statusRow}>
         <Button
           label={isPaused ? 'Retomar sessão' : 'Pausar sessão'}
@@ -458,7 +584,10 @@ export default function StartWorkoutScreen() {
         />
       </View>
 
-      <Card title="Exercícios" subtitle="Toque no exercício para registrar as séries">
+      <Card
+        title="Exercícios"
+        subtitle="Toque para registrar séries e use o check para marcar como concluído"
+      >
         {session.exercises.length === 0 ? (
           <EmptyState
             title="Nenhum exercício na sessão"
@@ -472,34 +601,82 @@ export default function StartWorkoutScreen() {
           <>
             {session.exercises.map((sessionExercise) => {
               const isSelected = sessionExercise.id === selectedExerciseId;
+              const isDone = isExerciseCompleted(sessionExercise);
+              const setsLabel = `${sessionExercise.sets.length} ${
+                sessionExercise.sets.length === 1
+                  ? 'série registrada'
+                  : 'séries registradas'
+              }`;
               return (
-                <Pressable
+                <View
                   key={sessionExercise.id}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: isSelected }}
-                  onPress={() => setSelectedExerciseId(sessionExercise.id)}
-                  style={({ pressed }) => [
+                  style={[
                     styles.exerciseRow,
                     isSelected ? styles.exerciseRowActive : null,
-                    pressed ? styles.exerciseRowPressed : null,
                   ]}
-                  testID={`session-exercise-${sessionExercise.id}`}
                 >
-                  <View style={styles.exerciseInfo}>
-                    <Text style={styles.exerciseName}>
-                      {sessionExercise.exercise.name}
-                    </Text>
-                    <Text style={styles.exerciseMeta}>
-                      {sessionExercise.sets.length}{' '}
-                      {sessionExercise.sets.length === 1 ? 'série registrada' : 'séries registradas'}
-                    </Text>
-                  </View>
-                  <Ionicons
-                    name={isSelected ? 'chevron-up' : 'chevron-down'}
-                    size={18}
-                    color={colors.textMuted}
-                  />
-                </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`${sessionExercise.exercise.name}, ${
+                      isDone ? 'concluído' : 'pendente'
+                    }, ${setsLabel}`}
+                    accessibilityState={{ selected: isSelected }}
+                    onPress={() => setSelectedExerciseId(sessionExercise.id)}
+                    style={({ pressed }) => [
+                      styles.exerciseMain,
+                      pressed ? styles.exerciseRowPressed : null,
+                    ]}
+                    testID={`session-exercise-${sessionExercise.id}`}
+                  >
+                    <View style={styles.exerciseInfo}>
+                      <Text style={styles.exerciseName}>
+                        {sessionExercise.exercise.name}
+                      </Text>
+                      <Text style={styles.exerciseMeta}>
+                        <Text
+                          style={
+                            isDone
+                              ? styles.exerciseStatusDone
+                              : styles.exerciseStatusPending
+                          }
+                        >
+                          {isDone ? 'Concluído' : 'Pendente'}
+                        </Text>
+                        {` · ${setsLabel}`}
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name={isSelected ? 'chevron-up' : 'chevron-down'}
+                      size={18}
+                      color={colors.textMuted}
+                    />
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="checkbox"
+                    accessibilityLabel={
+                      isDone
+                        ? `Desmarcar ${sessionExercise.exercise.name} como concluído`
+                        : `Marcar ${sessionExercise.exercise.name} como concluído`
+                    }
+                    accessibilityHint="A conclusão do exercício não altera as séries registradas."
+                    accessibilityState={{ checked: isDone }}
+                    onPress={() =>
+                      setExerciseCompleted(sessionExercise.id, !isDone)
+                    }
+                    style={({ pressed }) => [
+                      styles.completeButton,
+                      isDone ? styles.completeButtonDone : null,
+                      pressed ? styles.setActionPressed : null,
+                    ]}
+                    testID={`toggle-exercise-${sessionExercise.id}`}
+                  >
+                    <Ionicons
+                      name={isDone ? 'checkmark-circle' : 'ellipse-outline'}
+                      size={28}
+                      color={isDone ? colors.success : colors.textMuted}
+                    />
+                  </Pressable>
+                </View>
               );
             })}
 
@@ -695,16 +872,35 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     alignItems: 'center',
     borderRadius: radii.sm,
     flexDirection: 'row',
+    gap: spacing.xs,
+    minHeight: 56,
+    paddingLeft: spacing.sm,
+  },
+  exerciseMain: {
+    alignItems: 'center',
+    borderRadius: radii.sm,
+    flex: 1,
+    flexDirection: 'row',
     gap: spacing.md,
     justifyContent: 'space-between',
     minHeight: 56,
-    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   exerciseRowActive: {
     backgroundColor: colors.accentSoft,
   },
   exerciseRowPressed: {
     backgroundColor: colors.surfacePressed,
+  },
+  completeButton: {
+    alignItems: 'center',
+    borderRadius: radii.sm,
+    justifyContent: 'center',
+    minHeight: 44,
+    minWidth: 44,
+  },
+  completeButtonDone: {
+    backgroundColor: colors.successSoft,
   },
   exerciseInfo: {
     flex: 1,
@@ -717,6 +913,42 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   exerciseMeta: {
     ...typography.caption,
     color: colors.textMuted,
+  },
+  exerciseStatusDone: {
+    color: colors.success,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  exerciseStatusPending: {
+    color: colors.textSecondary,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  progressHeader: {
+    alignItems: 'baseline',
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  progressCount: {
+    ...typography.metric,
+    color: colors.text,
+  },
+  progressLabel: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  progressTrack: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radii.sm,
+    height: 8,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    backgroundColor: colors.success,
+    borderRadius: radii.sm,
+    height: '100%',
+  },
+  progressHint: {
+    ...typography.caption,
+    color: colors.textSecondary,
   },
   statusRow: {
     flexDirection: 'row',

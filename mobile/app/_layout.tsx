@@ -80,6 +80,18 @@ function AppNavigator({ isAuthenticated }: { isAuthenticated: boolean }) {
             }}
           />
           <Stack.Screen
+            name="programa/[id]"
+            options={{
+              title: 'Programa',
+            }}
+          />
+          <Stack.Screen
+            name="exercicios"
+            options={{
+              title: 'Catálogo de exercícios',
+            }}
+          />
+          <Stack.Screen
             name="reset-password"
             options={{
               title: 'Definir nova senha',
@@ -108,11 +120,11 @@ export default function RootLayout() {
     void hydrateTheme();
   }, [hydrateTheme]);
 
-  useSessionPersistence();
   useConnectionSync();
   useDeepLinks();
 
   const isAuthenticated = status === 'authenticated';
+  useSessionPersistence(isAuthenticated);
   const isReady = loaded && status !== 'booting' && themeHydrated;
 
   return (

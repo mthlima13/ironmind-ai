@@ -51,6 +51,17 @@ export type SessionExercise = {
   position: number;
   notes?: string;
   sets: ExerciseSet[];
+  /**
+   * Moment the user marked the exercise as done.
+   *
+   * `null` or absent means the exercise is still pending. This is intentionally
+   * independent from the registered sets: marking an exercise never creates,
+   * changes or removes a set.
+   *
+   * The backend does not persist this field yet, so the value lives in the
+   * running session and in its local draft.
+   */
+  completedAt?: string | null;
 };
 
 /** Workout session (SPEC 10.7). */

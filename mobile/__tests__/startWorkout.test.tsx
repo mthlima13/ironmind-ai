@@ -4,13 +4,24 @@
  * A session started without a program has no exercises: the screen must offer
  * the addition of an exercise from the catalogue.
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react-native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Alert, type AlertButton } from 'react-native';
 
 import StartWorkoutScreen from '../app/(tabs)/comecar';
 import { useSessionStore } from '../src/features/workouts/session.store';
 import type { Exercise } from '../src/types/exercise';
-import type { SessionExercise, WorkoutSession } from '../src/types/workout';
+import type {
+  ExerciseSet,
+  SessionExercise,
+  WorkoutSession,
+} from '../src/types/workout';
 
 jest.mock('../src/features/auth/useProfile', () => ({
   useProfile: () => ({ data: null }),
@@ -40,6 +51,7 @@ jest.mock('../src/features/exercises/exercise.service', () => ({
 jest.mock('../src/features/workouts/workout.service', () => ({
   ...jest.requireActual('../src/features/workouts/workout.service'),
   addSessionExercise: jest.fn(),
+  completeSession: jest.fn(),
   fetchLastSessionSets: jest.fn(async () => []),
 }));
 
@@ -94,6 +106,7 @@ function renderScreen() {
 }
 
 beforeEach(() => {
+  jest.clearAllMocks();
   queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false, gcTime: 0 },
@@ -115,6 +128,9 @@ beforeEach(() => {
   jest
     .mocked(workoutService.addSessionExercise)
     .mockResolvedValue(sessionExercise);
+  jest
+    .mocked(workoutService.completeSession)
+    .mockResolvedValue(createSession([sessionExercise]));
 
   useSessionStore.setState({
     session: createSession(),
@@ -126,6 +142,7 @@ beforeEach(() => {
 
 afterEach(() => {
   queryClient.clear();
+  jest.restoreAllMocks();
   useSessionStore.setState({
     session: null,
     pendingCount: 0,
@@ -204,5 +221,130 @@ describe('StartWorkoutScreen', () => {
     expect(
       useSessionStore.getState().session?.exercises
     ).toHaveLength(0);
+  });
+
+  it('marks an exercise as done without touching its registered sets', async () => {
+    const registeredSet: ExerciseSet = {
+      id: 'set-1',
+      setNumber: 1,
+      weightKg: 80,
+      repetitions: 10,
+      completedAt: '2026-02-01T12:05:00.000Z',
+    };
+    const exerciseWithSets: SessionExercise = {
+      ...sessionExercise,
+      sets: [registeredSet],
+    };
+    useSessionStore.setState({ session: createSession([exerciseWithSets]) });
+
+    await renderScreen();
+
+    expect(screen.getByText('0 / 1')).toBeTruthy();
+
+    await fireEvent.press(screen.getByTestId('toggle-exercise-sex-1'));
+
+    const marked = useSessionStore.getState().session?.exercises[0];
+    expect(marked?.completedAt).toEqual(expect.any(String));
+    expect(marked?.sets).toEqual([registeredSet]);
+    expect(screen.getByText('1 / 1')).toBeTruthy();
+
+    await fireEvent.press(screen.getByTestId('toggle-exercise-sex-1'));
+
+    const unmarked = useSessionStore.getState().session?.exercises[0];
+    expect(unmarked?.completedAt).toBeNull();
+    expect(unmarked?.sets).toEqual([registeredSet]);
+    expect(screen.getByText('0 / 1')).toBeTruthy();
+  });
+
+  it('asks for confirmation before finishing with pending exercises', async () => {
+    const secondExercise: SessionExercise = {
+      ...sessionExercise,
+      id: 'sex-2',
+      exerciseId: 'ex-remada',
+      exercise: {
+        ...exercise,
+        id: 'ex-remada',
+        name: 'Remada curvada',
+      },
+      position: 2,
+    };
+    const doneExercise: SessionExercise = {
+      ...sessionExercise,
+      completedAt: '2026-02-01T12:10:00.000Z',
+    };
+    useSessionStore.setState({
+      session: createSession([doneExercise, secondExercise]),
+    });
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+
+    await renderScreen();
+
+    expect(screen.getByText('1 / 2')).toBeTruthy();
+
+    await fireEvent.press(screen.getByTestId('finish-session-button'));
+
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Finalizar treino?',
+      'Você concluiu 1 de 2 exercícios. Finalizar mesmo assim?',
+      expect.any(Array)
+    );
+    expect(workoutService.completeSession).not.toHaveBeenCalled();
+  });
+
+  it('finishes after the confirmation and keeps the final progress summary', async () => {
+    const secondExercise: SessionExercise = {
+      ...sessionExercise,
+      id: 'sex-2',
+      exerciseId: 'ex-remada',
+      exercise: {
+        ...exercise,
+        id: 'ex-remada',
+        name: 'Remada curvada',
+      },
+      position: 2,
+    };
+    const doneExercise: SessionExercise = {
+      ...sessionExercise,
+      completedAt: '2026-02-01T12:10:00.000Z',
+    };
+    useSessionStore.setState({
+      session: createSession([doneExercise, secondExercise]),
+    });
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+
+    await renderScreen();
+    await fireEvent.press(screen.getByTestId('finish-session-button'));
+
+    const buttons = alertSpy.mock.calls[0]?.[2] as AlertButton[] | undefined;
+    await act(async () => {
+      buttons?.[1]?.onPress?.();
+    });
+
+    await waitFor(() => {
+      expect(workoutService.completeSession).toHaveBeenCalledWith('session-1');
+    });
+    expect(useSessionStore.getState().session).toBeNull();
+    expect(screen.getByTestId('finish-summary-progress')).toBeTruthy();
+    expect(screen.getByText(/Você concluiu 1 de 2 exercícios/)).toBeTruthy();
+  });
+
+  it('finishes without confirmation when every exercise is done', async () => {
+    useSessionStore.setState({
+      session: createSession([
+        {
+          ...sessionExercise,
+          completedAt: '2026-02-01T12:10:00.000Z',
+        },
+      ]),
+    });
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+
+    await renderScreen();
+    await fireEvent.press(screen.getByTestId('finish-session-button'));
+
+    expect(alertSpy).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(workoutService.completeSession).toHaveBeenCalledWith('session-1');
+    });
   });
 });
