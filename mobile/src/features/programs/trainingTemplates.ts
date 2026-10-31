@@ -103,7 +103,7 @@ export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
     id: 'template-full-body-iniciante',
     name: 'Full Body Iniciante',
     description:
-      'Dois treinos de corpo inteiro por semana para as primeiras 8 a 12 semanas. De 2 a 3 séries de 8 a 12 repetições, com foco em técnica, respiração e progressão de carga.',
+      'Três treinos de corpo inteiro por semana (A/B/C) para as primeiras 8 a 12 semanas. De 2 a 3 séries de 8 a 12 repetições, com foco em técnica, respiração e progressão de carga.',
     level: TRAINING_EXPERIENCE.BEGINNER,
     goal: 'GENERAL',
     splitType: 'FULL_BODY',
@@ -132,6 +132,19 @@ export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
           exercise('Rosca alternada com halteres', 2, 10, 12, 60),
           exercise('Abdominal com haltere', 2, 12, 15, 45),
           exercise('Panturrilha sentado', 2, 12, 15, 60),
+        ],
+      },
+      {
+        name: 'Corpo inteiro C',
+        exercises: [
+          exercise('Agachamento goblin', 3, 8, 12, 90),
+          exercise('Supino com halteres', 3, 8, 12, 90),
+          exercise('Remada curvada', 3, 8, 12, 90),
+          exercise('Elevação lateral na polia', 2, 12, 15, 60),
+          exercise('Rosca martelo', 2, 10, 12, 60),
+          exercise('Tríceps testa com barra', 2, 8, 12, 60),
+          exercise('Mesa flexora', 2, 10, 15, 60),
+          exercise('Prancha', 2, 30, 45, 45),
         ],
       },
     ],
@@ -177,13 +190,13 @@ export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
     id: 'template-abc-intermediario',
     name: 'ABC Hipertrofia',
     description:
-      'Três sessões com 6 a 8 exercícios e 3 a 4 séries por exercício. O dia A segue o padrão de 3 exercícios de peito e 3 de tríceps; o volume semanal fica na faixa de 10 a 14 séries por grupo principal.',
+      'Três sessões com 6 a 8 exercícios e 3 a 4 séries por exercício. O dia A mantém 3 exercícios de peito e 3 de tríceps, com 2 acessórios de ombros para aumentar a frequência semanal.',
     level: TRAINING_EXPERIENCE.INTERMEDIATE,
     goal: 'HYPERTROPHY',
     splitType: 'ABC',
     days: [
       {
-        name: 'Peito e tríceps',
+        name: 'Peito, tríceps e ombros',
         exercises: [
           exercise('Supino reto com barra', 4, 6, 10, 120),
           exercise('Supino inclinado com halteres', 3, 8, 12, 90),
@@ -191,6 +204,8 @@ export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
           exercise('Tríceps na polia com corda', 3, 10, 15, 60),
           exercise('Tríceps testa com barra', 3, 8, 12, 90),
           exercise('Tríceps na polia baixa', 3, 12, 15, 45),
+          exercise('Elevação lateral com halteres', 3, 12, 15, 60),
+          exercise('Face pull na polia', 3, 12, 15, 60),
         ],
       },
       {

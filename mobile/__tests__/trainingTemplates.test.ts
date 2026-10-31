@@ -132,8 +132,10 @@ describe('training structure of the models', () => {
       ).length;
 
     expect(resolved.missing).toEqual([]);
+    expect(resolved.exercises).toHaveLength(8);
     expect(countByGroup('Peito')).toBe(3);
     expect(countByGroup('Tríceps')).toBe(3);
+    expect(countByGroup('Ombros')).toBe(2);
   });
 });
 
@@ -183,6 +185,9 @@ describe('copy payload of a template', () => {
         const source = template.days[dayIndex]!;
         expect(day.name).toBe(source.name);
         expect(day.exercises).toHaveLength(source.exercises.length);
+        expect(
+          new Set(day.exercises.map((item) => item.exerciseId)).size
+        ).toBe(day.exercises.length);
         day.exercises.forEach((exercise, exerciseIndex) => {
           // The id must come from the catalogue, never from the template.
           expect(
