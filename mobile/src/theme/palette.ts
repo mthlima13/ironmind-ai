@@ -1,5 +1,5 @@
 /**
- * IronMind AI visual language (SPEC 15.2).
+ * IronFit AI visual language (SPEC 15.2).
  *
  * The app ships two palettes: the dark graphite theme with the lime accent and
  * a light theme with the same accent family darkened for contrast on white.
@@ -60,17 +60,19 @@ export type ThemeColors = {
 };
 
 export const darkColors: ThemeColors = {
-  background: '#0B0E10',
-  backgroundElevated: '#111619',
-  surface: '#161C20',
-  surfaceElevated: '#1E262B',
-  surfacePressed: '#263137',
-  border: '#5F6F78',
-  borderStrong: '#6F7C78',
+  /* Soft graphite: lighter than the original near-black so cards breathe on
+     OLED screens while text keeps WCAG AA contrast (palette tests guard it). */
+  background: '#1B2026',
+  backgroundElevated: '#232932',
+  surface: '#2A323A',
+  surfaceElevated: '#344049',
+  surfacePressed: '#414D56',
+  border: '#6B7B84',
+  borderStrong: '#82909A',
 
   text: '#F4F7F5',
   textSecondary: '#AAB5B0',
-  textMuted: '#87948F',
+  textMuted: '#A2AEA8',
 
   accent: '#C8F751',
   accentPressed: '#B2E33A',

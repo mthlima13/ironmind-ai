@@ -82,6 +82,18 @@ export default function DashboardScreen() {
 
   const { summary } = data;
 
+  const maxVolume = data.activity.reduce(
+    (max, point) => Math.max(max, point.volumeKg),
+    0
+  );
+  const spark = data.activity.map((point) =>
+    maxVolume > 0 ? point.volumeKg / maxVolume : 0
+  );
+  const volumeChange = data.volumeChangePercent;
+  const deltaLabel = `${volumeChange >= 0 ? '▲' : '▼'} ${Math.abs(
+    volumeChange
+  ).toLocaleString('pt-BR')}%`;
+
   return (
     <Screen
       title={`Olá, ${user?.name.split(' ')[0] ?? ''}`.trim() || 'Início'}
@@ -99,18 +111,19 @@ export default function DashboardScreen() {
         <StatCard
           label="Volume da semana"
           value={formatWeight(summary.totalVolumeKg, unit, { withUnit: true })}
-          hint={
-            data.volumeChangePercent >= 0
-              ? `+${data.volumeChangePercent}% vs. semana anterior`
-              : `${data.volumeChangePercent}% vs. semana anterior`
-          }
-          tone={data.volumeChangePercent >= 0 ? 'positive' : 'negative'}
+          hint="vs. semana anterior"
+          icon={<Ionicons name="barbell" size={16} color={colors.accent} />}
+          delta={deltaLabel}
+          deltaTone={volumeChange >= 0 ? 'positive' : 'negative'}
+          variant="hero"
+          spark={spark}
           testID="dashboard-volume"
         />
         <StatCard
           label="Sessões"
           value={String(summary.completedSessions)}
           hint={`${summary.totalSets} séries registradas`}
+          icon={<Ionicons name="calendar-outline" size={16} color={colors.accent} />}
           testID="dashboard-sessions"
         />
         <StatCard
@@ -118,12 +131,15 @@ export default function DashboardScreen() {
           value={String(summary.recordsBroken)}
           hint="pessoais neste período"
           tone="accent"
+          icon={<Ionicons name="trophy-outline" size={16} color={colors.accent} />}
           testID="dashboard-records"
         />
         <StatCard
           label="Tempo médio"
           value={formatDuration(summary.averageSessionMinutes)}
           hint="por sessão"
+          icon={<Ionicons name="time-outline" size={16} color={colors.accent} />}
+          variant="wide"
           testID="dashboard-duration"
         />
       </View>

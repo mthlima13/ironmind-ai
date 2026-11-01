@@ -1,4 +1,4 @@
-# IronMind AI — Especificação Técnica do Produto
+# IronFit AI — Especificação Técnica do Produto
 
 > **Treine com inteligência. Evolua com dados.**
 >
@@ -7,7 +7,7 @@
 
 | Campo | Valor |
 |---|---|
-| Nome provisório | IronMind AI |
+| Nome provisório | IronFit AI |
 | Tipo | Aplicativo mobile **Android** (iOS planejado para fase posterior) |
 | Stack | React Native + Expo + TypeScript (mobile) · Java + Spring Boot (backend) · MongoDB (dados) |
 | Status | Backend implementado com identidade delegada e MongoDB. O app Android existe, mas ainda usa o contrato antigo de autenticação e precisa ser migrado. |
@@ -50,7 +50,7 @@
 
 ## 1. Visão do produto
 
-O **IronMind AI** é um aplicativo de treinamento que ajuda o usuário a planejar,
+O **IronFit AI** é um aplicativo de treinamento que ajuda o usuário a planejar,
 registrar e analisar seus exercícios. Ele usa o histórico de treinos para gerar
 sugestões personalizadas, permite criar planos por linguagem natural e transforma
 dados de desempenho em informação acionável.
@@ -1175,7 +1175,9 @@ O treino deve continuar funcionando quando a conexão cair.
 
 - Dois temas selecionáveis pelo usuário em **Perfil → Aparência**: **Claro** e
   **Escuro**, além de **Sistema**, que segue a configuração do Android.
-- Tema **escuro** (padrão): fundo grafite com verde-limão como cor de destaque.
+- Tema **escuro** (padrão): grafite suave — fundo `#1B2026`, superfícies
+  `#2A323A`/`#344049` e texto apagado mais claro — com verde-limão como cor de
+  destaque.
 - Tema **claro**: fundo branco, superfícies claras e o mesmo verde-limão em um
   tom mais escuro, para manter o contraste do texto e dos botões.
 - A escolha do tema é local do aparelho: não é enviada à API e persiste entre
@@ -1183,6 +1185,14 @@ O treino deve continuar funcionando quando a conexão cair.
 - Tipografia legível e hierarquia visual clara.
 - Botões grandes para uso durante o treino (alvo de toque ≥ 44pt).
 - Registro de série em poucos toques.
+- Cartões de métrica com ícone decorativo opcional, chip de variação (▲/▼)
+  comparando com o período anterior, variante em largura total e variante
+  destacada com mini-gráfico do volume por dia.
+- Gráfico de volume em barras com linhas de grade, destaque no melhor dia
+  (anel de realce + bolha com o valor fixo) e valor de qualquer outra barra
+  revelado por toque.
+- Animações de gráfico respeitam a configuração "reduzir movimento" do sistema
+  (por padrão, ficam estáticas enquanto não se confirma que o movimento é OK).
 - Contraste adequado e alternativas a informações transmitidas só por cor.
 - Estados visíveis para: carregando, erro, vazio e sincronização pendente.
 

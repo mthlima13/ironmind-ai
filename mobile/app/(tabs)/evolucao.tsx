@@ -70,12 +70,22 @@ export default function EvolutionScreen() {
               value={formatWeight(overview.data.summary.totalVolumeKg, unit, {
                 withUnit: true,
               })}
+              hint="vs. semana anterior"
+              icon={<Ionicons name="barbell" size={16} color={colors.accent} />}
+              delta={
+                overview.data.volumeChangePercent >= 0
+                  ? `▲ ${Math.abs(overview.data.volumeChangePercent).toLocaleString('pt-BR')}%`
+                  : `▼ ${Math.abs(overview.data.volumeChangePercent).toLocaleString('pt-BR')}%`
+              }
+              deltaTone={overview.data.volumeChangePercent >= 0 ? 'positive' : 'negative'}
               testID="evolution-volume"
             />
             <StatCard
               label="Recordes"
               value={String(overview.data.summary.recordsBroken)}
               tone="accent"
+              icon={<Ionicons name="trophy-outline" size={16} color={colors.accent} />}
+              hint="quebrados no período"
               testID="evolution-records-count"
             />
           </View>
