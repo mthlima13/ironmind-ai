@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 import { Button } from '../../components/Button';
@@ -8,7 +7,7 @@ import { ErrorState } from '../../components/ErrorState';
 import { Screen } from '../../components/Screen';
 import { TextField } from '../../components/TextField';
 import { ROUTES } from '../../navigation/linking';
-import { useTheme, useThemedStyles, radii, spacing, typography, type ThemeColors } from '../../theme';
+import { useThemedStyles, layout, spacing, typography, type ThemeColors } from '../../theme';
 import { useAuthStore } from './auth.store';
 import {
   hasErrors,
@@ -17,20 +16,8 @@ import {
 } from './auth.validation';
 import { useLogin } from './useAuth';
 
-function Logo() {
-  const { colors } = useTheme();
-  const styles = useThemedStyles(createStyles);
-
-  return (
-    <View style={styles.logoContainer} accessibilityLabel="IronFit">
-      <Ionicons name="barbell" size={80} color={colors.accent} />
-    </View>
-  );
-}
-
 export function LoginScreen() {
   const router = useRouter();
-  const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const { login, isSubmitting } = useLogin();
   const apiError = useAuthStore((state) => state.error);
@@ -51,14 +38,16 @@ export function LoginScreen() {
 
   return (
     <Screen
-      subtitle="Treine com inteligência. Evolua com dados."
       avoidKeyboard
+      style={styles.auth}
       testID="login-screen"
     >
-      <Logo />
-      <View style={styles.badge}>
-        <Ionicons name="barbell" size={22} color={colors.accent} />
-        <Text style={styles.badgeText}>Acesso à sua conta</Text>
+      <View style={styles.intro}>
+        <Text style={styles.brand}>IronFit</Text>
+        <Text style={styles.title}>Treine com inteligência.</Text>
+        <Text style={styles.caption}>
+          Evolua com dados. Entre para registrar suas séries.
+        </Text>
       </View>
 
       <View style={styles.form}>
@@ -72,7 +61,7 @@ export function LoginScreen() {
               setFieldErrors((current) => ({ ...current, email: undefined }));
             }
           }}
-          placeholder="voce@exemplo.com"
+          placeholder="voce@email.com"
           keyboardType="email-address"
           autoCapitalize="none"
           autoComplete="email"
@@ -118,59 +107,82 @@ export function LoginScreen() {
             clearError();
             router.push(ROUTES.forgotPassword);
           }}
-          style={styles.link}
+          style={styles.secondaryAction}
           testID="login-go-forgot-password"
         >
-          <Text style={styles.linkText}>Esqueci minha senha</Text>
+          <Text style={styles.secondaryActionText}>Esqueci minha senha</Text>
         </Pressable>
 
-        <Pressable
-          accessibilityRole="link"
-          onPress={() => {
-            clearError();
-            router.push(ROUTES.register);
-          }}
-          style={styles.link}
-          testID="login-go-register"
-        >
-          <Text style={styles.linkText}>Ainda não tem conta? Criar conta</Text>
-        </Pressable>
+        <View style={styles.signupRow}>
+          <Text style={styles.signupHint}>Ainda não tem conta?</Text>
+          <Pressable
+            accessibilityRole="link"
+            onPress={() => {
+              clearError();
+              router.push(ROUTES.register);
+            }}
+            style={styles.signupLink}
+            testID="login-go-register"
+          >
+            <Text style={styles.signupLinkText}>Criar conta</Text>
+          </Pressable>
+        </View>
       </View>
     </Screen>
   );
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  logoContainer: {
-    alignItems: 'center',
+  auth: {
+    flexGrow: 1,
     justifyContent: 'center',
-    marginTop: spacing.xl,
-    marginBottom: spacing.lg,
   },
-  badge: {
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: colors.accentSoft,
-    borderRadius: radii.pill,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+  intro: {
+    gap: spacing.xs,
   },
-  badgeText: {
+  brand: {
+    ...typography.label,
+    color: colors.textMuted,
+  },
+  title: {
+    ...typography.title,
+    color: colors.text,
+  },
+  caption: {
     ...typography.caption,
-    color: colors.accent,
+    color: colors.textSecondary,
   },
   form: {
     gap: spacing.lg,
+    marginTop: spacing.sm,
   },
-  link: {
+  secondaryAction: {
     alignItems: 'center',
-    minHeight: 44,
     justifyContent: 'center',
+    minHeight: layout.minTouchTarget,
   },
-  linkText: {
+  secondaryActionText: {
     ...typography.bodyStrong,
     color: colors.accent,
+  },
+  signupRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    justifyContent: 'center',
+  },
+  signupHint: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  signupLink: {
+    justifyContent: 'center',
+    minHeight: layout.minTouchTarget,
+  },
+  signupLinkText: {
+    ...typography.caption,
+    color: colors.accent,
+    fontFamily: 'Inter_600SemiBold',
   },
 });
