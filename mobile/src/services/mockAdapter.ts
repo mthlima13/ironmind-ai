@@ -1,5 +1,5 @@
 /**
- * In-memory implementation of the IronMind AI API contract.
+ * In-memory implementation of the IronFit AI API contract.
  *
  * The app ships with this adapter so every screen can be exercised without a
  * running backend. It follows the SPEC contracts: paginated envelopes
@@ -1699,7 +1699,7 @@ function readHeaders(config: InternalAxiosRequestConfig): Record<string, string>
   return result;
 }
 
-/** Creates the axios adapter that emulates the IronMind AI backend. */
+/** Creates the axios adapter that emulates the IronFit AI backend. */
 export function createMockAdapter(): AxiosAdapter {
   const state = createState();
   const routes = buildRoutes(state);

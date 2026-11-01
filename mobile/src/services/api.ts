@@ -1,5 +1,5 @@
 /**
- * HTTP client for the IronMind AI backend.
+ * HTTP client for the IronFit AI backend.
  *
  * Responsibilities:
  * - point to the API base URL (`EXPO_PUBLIC_API_URL`);

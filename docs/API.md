@@ -1,4 +1,4 @@
-# API — IronMind AI
+# API — IronFit AI
 
 Referência rápida da API REST. A especificação completa está em
 [`SPEC.md`](SPEC.md#11-api-rest) e a documentação viva é gerada pelo springdoc

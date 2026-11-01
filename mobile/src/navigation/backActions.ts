@@ -20,7 +20,7 @@ export function resolveBackDecision(input: {
 }
 
 export const EXIT_DIALOG = {
-  title: 'Sair do IronMind AI?',
+  title: 'Sair do IronFit?',
   message: 'Você está na tela inicial. Toque em Sair para fechar o aplicativo.',
   sessionTitle: 'Sair com a sessão em andamento?',
   sessionMessage:

@@ -1,5 +1,5 @@
 /**
- * Global Jest setup for the IronMind AI mobile app.
+ * Global Jest setup for the IronFit AI mobile app.
  *
  * Native modules used by the app are replaced by lightweight mocks so the test
  * suite runs on Node without an emulator.

@@ -1,5 +1,5 @@
 /**
- * REST endpoints of the IronMind AI backend (SPEC 11).
+ * REST endpoints of the IronFit AI backend (SPEC 11).
  *
  * Every private endpoint expects an `Authorization: Bearer <token>` header
  * (SPEC A.4).

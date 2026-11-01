@@ -1,4 +1,4 @@
-# Segurança e Privacidade — IronMind AI
+# Segurança e Privacidade — IronFit AI
 
 Este documento descreve o modelo de ameaça, os controles **implementados** no
 backend e o que depende da infraestrutura. Requisitos funcionais relacionados em

@@ -1,7 +1,7 @@
 {
   "name": "ironmind-ai-mobile",
   "version": "1.0.0",
-  "description": "IronMind AI - mobile application (Expo + React Native + TypeScript)",
+  "description": "IronFit - mobile application (Expo + React Native + TypeScript)",
   "main": "expo-router/entry",
   "private": true,
   "scripts": {

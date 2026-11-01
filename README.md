@@ -1,4 +1,4 @@
-# IronMind AI
+# IronFit AI
 
 > **Treine com inteligência. Evolua com dados.**
 
@@ -21,7 +21,7 @@ momento do treino o atrito é o que faz o usuário desistir. Em seguida, os dado
 ficam presos em um serviço sem significado: o usuário não sabe se está progredindo,
 se a carga deveria subir, e se o treino faz sentido para o objetivo dele.
 
-O IronMind AI resolve isso em duas frentes:
+O IronFit AI resolve isso em duas frentes:
 
 1. **Registro confiável e rápido** — poucos toques durante o treino, histórico
    imutável, volume, 1RM estimado e recordes calculados de forma consistente.

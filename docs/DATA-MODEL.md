@@ -1,4 +1,4 @@
-# Modelo de Dados — IronMind AI
+# Modelo de Dados — IronFit AI
 
 Referência do modelo persistido no MongoDB. A definição de produto está em
 [`SPEC.md`](SPEC.md#10-modelo-de-dados); a fonte executável são as classes

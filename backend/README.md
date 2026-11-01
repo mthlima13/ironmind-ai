@@ -1,6 +1,6 @@
-# IronMind AI — Backend
+# IronFit AI — Backend
 
-API REST do aplicativo **IronMind AI** (Java 25 · Spring Boot 3.5 · Spring Data MongoDB ·
+API REST do aplicativo **IronFit AI** (Java 25 · Spring Boot 3.5 · Spring Data MongoDB ·
 identidade delegada ao gateway).
 
 A especificação canônica do produto é [`docs/SPEC.md`](../docs/SPEC.md). Este README

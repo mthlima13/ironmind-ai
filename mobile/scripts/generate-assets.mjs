@@ -96,7 +96,7 @@ function fillRect(canvas, size, x0, y0, x1, y1, color) {
 }
 
 /**
- * Draws the IronMind barbell mark.
+ * Draws the IronFit barbell mark.
  *
  * @param scale relative size of the mark inside the canvas
  * @param offsetX horizontal center of the mark

@@ -1,4 +1,4 @@
-# Convenções de contribuição — IronMind AI
+# Convenções de contribuição — IronFit AI
 
 Documento curto para quem (humano ou agente de IA) for escrever neste repositório.
 As regras derivam de [`docs/SPEC.md`](docs/SPEC.md), que é a fonte da verdade do
@@ -77,7 +77,7 @@ O controller **não** tem regra de negócio. A entity **não** vira JSON.
 - Estados obrigatórios em toda tela com dado: carregando, erro com retry, vazio
   com ação, offline/pendente.
 - Tokens do provedor de identidade em `expo-secure-store`. Nunca em
-  `AsyncStorage`. A API do IronMind não recebe nem guarda credencial.
+  `AsyncStorage`. A API do IronFit não recebe nem guarda credencial.
 - Chamadas de IA sempre pelo backend.
 - Gesto de back do sistema respeitado em toda tela empilhada.
 - Componentes de registro de série precisam de teste.

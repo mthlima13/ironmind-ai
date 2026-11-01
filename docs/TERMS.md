@@ -1,4 +1,4 @@
-# Termos de Uso — IronMind AI (rascunho)
+# Termos de Uso — IronFit AI (rascunho)
 
 > **Rascunho técnico, não publicado.** Este texto descreve como o app funciona
 > hoje. Ele **não** substitui revisão jurídica e não deve ser publicado no Google
@@ -13,7 +13,7 @@
 
 ## 1. Aceitação
 
-Estes Termos regulam o uso do aplicativo **IronMind AI** ("app") e da API que o
+Estes Termos regulam o uso do aplicativo **IronFit AI** ("app") e da API que o
 atende. Ao criar uma conta ou usar o app, você declara que leu, entendeu e
 concorda com estes Termos e com a
 [Política de Privacidade](PRIVACY.md). Se não concordar, não use o app.
@@ -23,7 +23,7 @@ com sede em `[PREENCHER: endereço]` ("nós").
 
 ## 2. O que o app faz
 
-O IronMind AI registra treinos de musculação: programas, dias, exercícios,
+O IronFit AI registra treinos de musculação: programas, dias, exercícios,
 séries, cargas, repetições, descanso, histórico, volume, estimativa de 1RM e
 recordes pessoais. O app também oferece recursos de IA que **sugerem** treinos,
 cargas e respostas de coaching.
@@ -34,7 +34,7 @@ revisada por você antes de virar um programa.
 
 ## 3. Não é orientação médica
 
-> **O IronMind AI não é serviço médico, não faz diagnóstico e não substitui
+> **O IronFit AI não é serviço médico, não faz diagnóstico e não substitui
 > acompanhamento de profissional de educação física, fisioterapeuta ou médico.**
 
 As sugestões de treino, carga e resposta de coaching são informativas e podem
@@ -49,7 +49,7 @@ Treinar envolve risco de lesão. Você assume esse risco ao usar o app.
 
 - O app é destinado a maiores de 18 anos `[PREENCHER: confirmar]`.
 - A conta é criada e autenticada pelo provedor de identidade
-  `[PREENCHER: provedor]`; o IronMind não recebe nem armazena sua senha.
+  `[PREENCHER: provedor]`; o IronFit não recebe nem armazena sua senha.
 - Você deve informar dados verdadeiros e manter a credencial da conta em sigilo.
 - Uma conta é pessoal e não deve ser compartilhada.
 - Você é responsável pelas atividades feitas com a sua conta. Se suspeitar de
@@ -115,7 +115,7 @@ direito de propriedade intelectual para você.
 
 Você pode encerrar a conta a qualquer momento pelo fluxo do provedor de
 identidade `[PREENCHER: caminho no app ou URL web]`. A exclusão é **definitiva**:
-o provedor encerra a conta e o IronMind apaga os dados de treino vinculados ao
+o provedor encerra a conta e o IronFit apaga os dados de treino vinculados ao
 seu identificador — programas, sessões, séries, recordes, restrições e
 recomendações de IA. O e-mail fica livre para um novo cadastro no provedor.
 

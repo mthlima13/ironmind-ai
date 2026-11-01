@@ -1,4 +1,4 @@
-# Política de Privacidade — IronMind AI (rascunho)
+# Política de Privacidade — IronFit AI (rascunho)
 
 > **Rascunho técnico, não publicado.** Este texto descreve o tratamento de dados
 > que o código realmente faz hoje. Ele **não** substitui revisão jurídica e não
@@ -17,7 +17,7 @@
 
 ## 1. Quem é o controlador
 
-O IronMind AI é operado por `[PREENCHER: razão social]`, inscrita no CNPJ
+O IronFit AI é operado por `[PREENCHER: razão social]`, inscrita no CNPJ
 `[PREENCHER: CNPJ]`, com sede em `[PREENCHER: endereço]` ("nós"). Para fins da
 Lei Geral de Proteção de Dados (Lei nº 13.709/2018 — LGPD), somos o
 **controlador** dos dados pessoais descritos abaixo.
@@ -30,15 +30,15 @@ Lei Geral de Proteção de Dados (Lei nº 13.709/2018 — LGPD), somos o
 ### 2.1 Dados de conta
 
 A conta (nome, e-mail e credencial) é mantida pelo **provedor de identidade**
-`[PREENCHER: provedor de identidade]`, que autentica você e entrega ao IronMind
-apenas um identificador opaco no formato UUID. O backend do IronMind **não
+`[PREENCHER: provedor de identidade]`, que autentica você e entrega ao IronFit
+apenas um identificador opaco no formato UUID. O backend do IronFit **não
 guarda** nome, e-mail, senha, papel nem fuso horário.
 
 | Dado | Finalidade | Origem |
 |---|---|---|
 | Identificador (UUID) | Vincular treinos, recordes e restrições a você | Provedor de identidade, por header injetado pelo gateway |
-| Nome e e-mail | Cadastro e login | Provedor de identidade — fora do IronMind |
-| Senha | Autenticação | Provedor de identidade — o IronMind nunca a recebe |
+| Nome e e-mail | Cadastro e login | Provedor de identidade — fora do IronFit |
+| Senha | Autenticação | Provedor de identidade — o IronFit nunca a recebe |
 
 ### 2.2 Dados de treino
 
@@ -116,7 +116,7 @@ salvaguardas.]`
 | Logs técnicos | `[PREENCHER: prazo]` |
 
 A exclusão da conta é **definitiva**. O provedor de identidade encerra a conta e
-o IronMind remove todos os documentos vinculados ao seu identificador. Não
+o IronFit remove todos os documentos vinculados ao seu identificador. Não
 mantemos cópia de arquivo.
 
 ## 6. Seus direitos
@@ -140,7 +140,7 @@ de identidade antes de atender pedidos feitos fora do app.
 ## 7. Segurança
 
 - A autenticação e o armazenamento da credencial são responsabilidade do
-  provedor de identidade; o IronMind não recebe senha nem token.
+  provedor de identidade; o IronFit não recebe senha nem token.
 - Toda operação é limitada ao titular: o identificador do usuário vem do header
   injetado pelo gateway, nunca do corpo da requisição; recurso de outro usuário
   responde `404`.

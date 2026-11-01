@@ -22,7 +22,7 @@ function Logo() {
   const styles = useThemedStyles(createStyles);
 
   return (
-    <View style={styles.logoContainer} accessibilityLabel="IronMind AI">
+    <View style={styles.logoContainer} accessibilityLabel="IronFit">
       <Ionicons name="barbell" size={80} color={colors.accent} />
     </View>
   );
