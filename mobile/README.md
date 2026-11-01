@@ -1,6 +1,6 @@
-# IronMind AI — aplicativo mobile
+# IronFit AI — aplicativo mobile
 
-Aplicativo de treinamento físico do **IronMind AI**, escrito em **Expo + React Native + TypeScript** com **Expo Router**.
+Aplicativo de treinamento físico do **IronFit AI**, escrito em **Expo + React Native + TypeScript** com **Expo Router**.
 
 > **Plataforma do primeiro lançamento: Android.** O iOS está planejado para uma
 > fase posterior e **não** faz parte deste ciclo. O código continua agnóstico de
