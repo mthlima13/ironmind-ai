@@ -1191,6 +1191,11 @@ O treino deve continuar funcionando quando a conexão cair.
 - Gráfico de volume em barras com linhas de grade, destaque no melhor dia
   (anel de realce + bolha com o valor fixo) e valor de qualquer outra barra
   revelado por toque.
+- Tela de boas-vindas com composição própria congelada: gradiente azul-índigo
+  (`#4A69E2` → `#6F85F0` → `#BCC6F5`) desvanecendo para o grafite escuro,
+  azulejo branco com o marco da marca, cards brancos flutuantes com ícone em
+  selo verde-limão e CTA em pílula. Essa tela não acompanha o tema
+  claro/escuro e o selo de idioma ("PT") é estático — o app é pt-BR.
 - Animações de gráfico respeitam a configuração "reduzir movimento" do sistema
   (por padrão, ficam estáticas enquanto não se confirma que o movimento é OK).
 - Contraste adequado e alternativas a informações transmitidas só por cor.
@@ -1198,7 +1203,8 @@ O treino deve continuar funcionando quando a conexão cair.
 
 ### 15.3 Telas do MVP
 
-- Boas-vindas e autenticação.
+- Boas-vindas: entrada do app para quem não está autenticado; "Continuar"
+  leva ao cadastro e "Entrar" leva ao login.
 - Recuperação de acesso.
 - Configuração inicial de perfil (unidades, objetivo, equipamento).
 - Dashboard.

@@ -20,6 +20,7 @@ export type TabsParamList = {
 
 /** Parameters of the authentication group. */
 export type AuthParamList = {
+  boasvindas: undefined;
   login: undefined;
   register: undefined;
   forgotPassword: undefined;
@@ -50,6 +51,7 @@ export const ROUTES = {
   login: '/auth/login',
   register: '/auth/register',
   forgotPassword: '/auth/forgot-password',
+  boasvindas: '/auth/boasvindas',
   resetPassword: '/reset-password',
 } as const;
 
@@ -66,6 +68,7 @@ export const DEEP_LINK_PATHS: Record<AppRoute, string> = {
   login: 'entrar',
   register: 'cadastrar',
   forgotPassword: 'esqueci-senha',
+  boasvindas: 'boas-vindas',
   resetPassword: 'reset-password',
   propostas: 'propostas',
   programa: 'programa/:id',
@@ -103,6 +106,7 @@ export const linking: LinkingOptions<RootParamList> = {
       },
       auth: {
         screens: {
+          boasvindas: DEEP_LINK_PATHS.boasvindas,
           login: DEEP_LINK_PATHS.login,
           register: DEEP_LINK_PATHS.register,
           forgotPassword: DEEP_LINK_PATHS.forgotPassword,
