@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -16,9 +16,10 @@ import { useAuthState } from '../../src/features/auth/useAuth';
 import { useProfile } from '../../src/features/auth/useProfile';
 import { useSessionStore } from '../../src/features/workouts/session.store';
 import { useOfflineSync } from '../../src/features/workouts/useOfflineSync';
+import { usePrograms } from '../../src/features/programs/usePrograms';
 import { ROUTES } from '../../src/navigation/linking';
 import { mapApiError } from '../../src/services/api';
-import { useTheme, useThemedStyles, spacing, typography, type ThemeColors } from '../../src/theme';
+import { useTheme, useThemedStyles, radii, spacing, typography, type ThemeColors } from '../../src/theme';
 import { formatWeight } from '../../src/utils/units';
 
 function formatDuration(minutes: number): string {
@@ -30,6 +31,14 @@ function formatDuration(minutes: number): string {
   return rest === 0 ? `${hours}h` : `${hours}h ${rest}min`;
 }
 
+/** "Iniciado às HH:mm" of the running session. */
+function formatStartedTime(isoDate: string): string {
+  return new Date(isoDate).toLocaleTimeString('pt-BR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 export default function DashboardScreen() {
   const router = useRouter();
   const { colors } = useTheme();
@@ -39,8 +48,14 @@ export default function DashboardScreen() {
   const { data, isLoading, isError, error, refetch } = useDashboardOverview();
 
   const { pendingCount, failedCount, syncNow } = useOfflineSync();
+  const session = useSessionStore((state) => state.session);
+  const hasActiveSession = session !== null;
   const isOffline = useSessionStore((state) => state.isOffline);
-  const hasActiveSession = useSessionStore((state) => state.session !== null);
+  const { data: programsData } = usePrograms();
+  // "Programa atual" = the first non-archived program of the user (no status
+  // field exists on WorkoutProgram, so the wording stays honest).
+  const currentProgram =
+    programsData?.content.find((program) => !program.isArchived) ?? null;
 
   const unit = profile?.preferences.preferredUnits ?? 'KG';
 
@@ -144,15 +159,76 @@ export default function DashboardScreen() {
         />
       </View>
 
-      <Button
-        label={hasActiveSession ? 'Continuar treino em andamento' : 'Começar treino'}
-        onPress={() => router.push(ROUTES.comecar)}
-        size="lg"
-        icon={<Ionicons name="play" size={20} color={colors.onAccent} />}
-        testID="dashboard-start-workout"
-      />
+        {hasActiveSession && session ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Treino em andamento</Text>
+            <Card testID="dashboard-active-session">
+              <Text style={styles.sessionTitle}>Na ativa desde as {formatStartedTime(session.startedAt)}</Text>
+              <Text style={styles.sessionMeta}>
+                {session.exercises.length === 0
+                  ? 'Nenhum exercício adicionado.'
+                  : `${session.exercises.length} exercícios · ${session.exercises.reduce(
+                      (total, exercise) => total + exercise.sets.length,
+                      0
+                    )} séries registradas`}
+              </Text>
+              <Button
+                label="Continuar treino"
+                onPress={() => router.push(ROUTES.comecar)}
+                size="lg"
+                icon={<Ionicons name="play" size={20} color={colors.onAccent} />}
+                testID="dashboard-start-workout"
+              />
+            </Card>
+          </View>
+        ) : (
+          <Button
+            label="Começar treino"
+            onPress={() => router.push(ROUTES.comecar)}
+            size="lg"
+            icon={<Ionicons name="play" size={20} color={colors.onAccent} />}
+            testID="dashboard-start-workout"
+          />
+        )}
 
-      <Card title="Atividade recente" subtitle="Volume por dia, calculado pelo servidor">
+        {currentProgram ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Programa atual</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Abrir ${currentProgram.name}`}
+              style={styles.listItem}
+              onPress={() =>
+                router.push({
+                  pathname: ROUTES.programa,
+                  params: { id: currentProgram.id, source: 'saved' },
+                })
+              }
+              testID="dashboard-program"
+            >
+              <View style={styles.sessionInfo}>
+                <Text style={styles.sessionTitle}>{currentProgram.name}</Text>
+                <Text style={styles.sessionMeta}>
+                  {currentProgram.days.length} dias ·{' '}
+                  {currentProgram.days.reduce(
+                    (total, day) => total + day.exercises.length,
+                    0
+                  )}{' '}
+                  exercícios
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={colors.accent} />
+            </Pressable>
+            <Button
+              label="Ver histórico"
+              variant="secondary"
+              onPress={() => router.push(ROUTES.evolucao)}
+              testID="dashboard-view-history"
+            />
+          </View>
+        ) : null}
+
+        <Card title="Atividade recente" subtitle="Volume por dia, calculado pelo servidor">
         {data.activity.length === 0 ? (
           <Text style={styles.emptyActivity}>
             Nenhuma atividade registrada no período.
@@ -203,6 +279,24 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
+  },
+  section: {
+    gap: spacing.sm,
+  },
+  sectionTitle: {
+    ...typography.label,
+    color: colors.textMuted,
+  },
+  listItem: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.md,
+    minHeight: 64,
+    padding: spacing.md,
   },
   emptyActivity: {
     ...typography.caption,
