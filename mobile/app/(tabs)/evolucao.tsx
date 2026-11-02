@@ -58,14 +58,6 @@ export default function EvolutionScreen() {
       subtitle="Volume, recordes e histórico de treinos."
       testID="evolution-screen"
     >
-      <Button
-        label="Coach IA"
-        variant="secondary"
-        icon={<Ionicons name="chatbubbles-outline" size={18} color={colors.accent} />}
-        onPress={() => router.push(ROUTES.coach)}
-        testID="evolution-coach-button"
-      />
-
       {overview.isLoading ? (
         <LoadingState label="Carregando sua evolução…" />
       ) : null}

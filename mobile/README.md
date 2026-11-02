@@ -203,7 +203,6 @@ mobile/
 │   ├── _layout.tsx             # providers (QueryClient, auth, fontes), Stack, back handler
 │   ├── auth/                   # grupo de autenticação (login, cadastro e recuperação)
 │   ├── reset-password.tsx      # rota do link profundo de recuperação de senha
-│   ├── coach.tsx               # placeholder do chat de IA
 │   ├── propostas.tsx           # revisão e salvamento da proposta de treino da IA
 │   └── (tabs)/
 │       ├── _layout.tsx         # as 5 abas da SPEC 15.1
@@ -224,7 +223,6 @@ mobile/
 │   │   │                       # (dias → exercícios → séries) e hooks de programas
 │   │   ├── analytics/          # dashboard, evolução por exercício e recordes
 │   │   ├── ai/                 # proposta de treino, revisão e decisão
-│   │   ├── coach/              # placeholder do chat de IA
 │   │   ├── profile/            # restrições do usuário
 │   │   └── voice/              # estrutura de permissões de câmera/microfone (Fase 2)
 │   ├── hooks/                  # fontes, conexão e persistência da sessão
@@ -447,9 +445,8 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
   explícito do usuário.
 
 **Chat de IA**
-- Apenas a **entrada** para o chat existe, e hoje ela fica só na aba Evolução.
-  O endpoint `POST /ai/coach` já existe no backend, mas a tela de conversa ainda
-  é um placeholder.
+- Sem entrada no app do MVP (Fase 2, RF-020): a navegação não expõe o chat.
+  O endpoint `POST /ai/coach` existe no backend e a tela volta na Fase 2.
 
 ---
 
@@ -466,7 +463,7 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
 | Estimativa de 1RM e volume calculados no app | **por decisão** — o cálculo é do backend (SPEC 1.4) |
 | Geração de programa por IA (RF-018) | **implementada** com revisão e salvamento explícito |
 | Sugestão de carga (RF-019) | backend pronto (`POST /ai/load-suggestions`); o registro de série ainda não consome a sugestão |
-| Chat de coaching (RF-020) | backend pronto (`POST /ai/coach`); no app continua sendo apenas o placeholder de navegação |
+| Chat de coaching (RF-020) | backend pronto (`POST /ai/coach`); o app não tem tela nem entrada na navegação do MVP (Fase 2) |
 | Registro por voz (RF-021) | backend pronto (`POST /ai/voice-interpretation`); o app só tem a estrutura de permissões |
 | Resolução de conflitos na sincronização (RF-022) | parcial: a fila reenvia sozinha e nunca duplica, mas não há edição offline nem resolução de conflito entre versões |
 | Comunidade, gamificação e moderação (RF-023 a RF-025) | Fase 3 |
@@ -494,8 +491,8 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
   `PUT /programs/{id}`, mas a tela ainda não persiste.
 - Não há interface para corrigir/excluir série, pausar/retomar sessão nem criar
   exercício personalizado — as rotas existem no backend.
-- O chat de IA continua sendo um placeholder no app, embora o endpoint de
-  coaching já exista no backend.
+- O app não expõe o chat de coach (Fase 2, RF-020); o endpoint de coaching
+  já existe no backend.
 - A **entrega do e-mail** de recuperação de acesso é do backend: o app só
   chama `POST /auth/forgot-password` e mostra sempre a mesma resposta.
 - A renovação automática do token foi exercitada com um adapter falso do

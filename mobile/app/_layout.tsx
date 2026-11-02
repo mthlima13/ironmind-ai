@@ -66,13 +66,6 @@ function AppNavigator({ isAuthenticated }: { isAuthenticated: boolean }) {
             <Stack.Screen name="auth" options={{ headerShown: false }} />
           </Stack.Protected>
           <Stack.Screen
-            name="coach"
-            options={{
-              presentation: 'modal',
-              title: 'Coach IA',
-            }}
-          />
-          <Stack.Screen
             name="propostas"
             options={{
               presentation: 'modal',

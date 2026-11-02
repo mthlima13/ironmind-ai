@@ -608,8 +608,7 @@ ironmind-ai/
 │   │   │   ├── workouts/
 │   │   │   ├── exercises/
 │   │   │   ├── programs/
-│   │   │   ├── analytics/
-│   │   │   └── coach/
+│   │   │   └── analytics/
 │   │   ├── navigation/
 │   │   ├── services/
 │   │   ├── storage/
@@ -1169,9 +1168,9 @@ O treino deve continuar funcionando quando a conexão cair.
    privacidade, notificações e conta ficam em **Configurações** (tela
    dedicada, fora das abas, acessada por atalho no Perfil).
 
-> O chat de IA continua acessível a partir de **Evolução**, para receber
-> contexto relevante sem sobrecarregar a navegação principal. A aba Treinos não
-> tem entrada de IA.
+> O chat de coach (RF-020) é da Fase 2 e não tem entrada na navegação do
+> app atual. A única entrada de IA do MVP está nos fluxos de proposta de
+> treino (§12); a aba Treinos não tem entrada de IA.
 
 ### 15.2 Direção visual
 

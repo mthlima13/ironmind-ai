@@ -33,7 +33,6 @@ export type RootParamList = {
   '(tabs)': NavigatorScreenParams<TabsParamList> | undefined;
   auth: NavigatorScreenParams<AuthParamList> | undefined;
   resetPassword: { token?: string } | undefined;
-  coach: undefined;
   propostas: undefined;
   'programa/[id]': { id: string; source?: 'saved' | 'template' } | undefined;
   exercicios: undefined;
@@ -49,7 +48,6 @@ export const ROUTES = {
   comecar: '/(tabs)/comecar',
   evolucao: '/(tabs)/evolucao',
   perfil: '/(tabs)/perfil',
-  coach: '/coach',
   propostas: '/propostas',
   programa: '/programa/[id]',
   exercicios: '/exercicios',
@@ -73,7 +71,6 @@ export const DEEP_LINK_PATHS: Record<AppRoute, string> = {
   comecar: 'comecar',
   evolucao: 'evolucao',
   perfil: 'perfil',
-  coach: 'coach',
   login: 'entrar',
   register: 'cadastrar',
   forgotPassword: 'esqueci-senha',
@@ -128,7 +125,6 @@ export const linking: LinkingOptions<RootParamList> = {
         },
       },
       resetPassword: DEEP_LINK_PATHS.resetPassword,
-      coach: DEEP_LINK_PATHS.coach,
       propostas: DEEP_LINK_PATHS.propostas,
       'programa/[id]': DEEP_LINK_PATHS.programa,
       exercicios: DEEP_LINK_PATHS.exercicios,
