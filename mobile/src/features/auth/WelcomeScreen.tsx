@@ -50,9 +50,9 @@ const FEATURES = [
 /**
  * Welcome screen (SPEC 15.3): the landing for unauthenticated users.
  *
- * "Continuar" goes to the sign-up form; "Entrar" jumps straight to login.
- * The language pill is decorative on purpose - the app is pt-BR only, so it
- * is rendered as a badge, not as a control.
+ * "Continuar" goes to the role selection screen ("Quem é você?"); "Entrar"
+ * jumps straight to login. The language pill is decorative on purpose - the
+ * app is pt-BR only, so it is rendered as a badge, not as a control.
  */
 export function WelcomeScreen() {
   const router = useRouter();
@@ -128,7 +128,7 @@ export function WelcomeScreen() {
         <View style={styles.footer}>
           <Button
             label="Continuar"
-            onPress={() => router.push(ROUTES.register)}
+            onPress={() => router.push(ROUTES.funcao)}
             size="lg"
             fullWidth
             style={styles.cta}

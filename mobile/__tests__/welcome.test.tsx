@@ -37,12 +37,12 @@ describe('WelcomeScreen', () => {
     expect(screen.getByText(/seu nível/i)).toBeTruthy();
   });
 
-  it('continues to the sign-up form', async () => {
+  it('continues to the role selection screen', async () => {
     await render(<WelcomeScreen />);
 
     await fireEvent.press(screen.getByTestId('welcome-cta'));
 
-    expect(router.push).toHaveBeenCalledWith(ROUTES.register);
+    expect(router.push).toHaveBeenCalledWith(ROUTES.funcao);
   });
 
   it('both Entrar actions go to the login screen', async () => {

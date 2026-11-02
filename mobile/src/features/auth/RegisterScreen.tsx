@@ -6,6 +6,7 @@ import { Button } from '../../components/Button';
 import { ErrorState } from '../../components/ErrorState';
 import { Screen } from '../../components/Screen';
 import { TextField } from '../../components/TextField';
+import { ROUTES } from '../../navigation/linking';
 import { useThemedStyles, typography, type ThemeColors } from '../../theme';
 import { useAuthStore } from './auth.store';
 import {
@@ -15,7 +16,18 @@ import {
   type AuthFieldErrors,
 } from './auth.validation';
 import { useRegister } from './useAuth';
+import { PersonaBanner } from './PersonaBanner';
+import { StepChips } from './StepChips';
 
+/**
+ * Step 1 of the sign-up flow (SPEC 15.3): the access data.
+ *
+ * After register() succeeds the user is already authenticated, so step 2
+ * (training preferences) must be a ROOT route: the moment the auth guard
+ * flips, the whole auth group (this screen included) is hidden from the
+ * stack. That is why the success handler replaces the history there instead
+ * of pushing another screen inside the auth group.
+ */
 export function RegisterScreen() {
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
@@ -41,16 +53,23 @@ export function RegisterScreen() {
     if (hasErrors(errors)) {
       return;
     }
-    await register({ name, email, password });
+    const registered = await register({ name, email, password });
+    if (registered) {
+      router.replace(ROUTES.preferencias);
+    }
   };
 
   return (
-    <Screen
-      title="Criar conta"
-      subtitle="Comece a registrar seus treinos em poucos toques."
-      avoidKeyboard
-      testID="register-screen"
-    >
+    <Screen avoidKeyboard testID="register-screen">
+      <StepChips current={1} />
+
+      <Text style={styles.title}>Criar conta</Text>
+      <Text style={styles.subtitle}>
+        Seus dados ficam protegidos e você pode excluir a conta quando quiser.
+      </Text>
+
+      <PersonaBanner label="Você escolheu" text="Sou aluno" />
+
       <Text style={styles.hint}>
         A senha precisa ter ao menos {MIN_PASSWORD_LENGTH} caracteres, com letra e
         número.
@@ -64,7 +83,7 @@ export function RegisterScreen() {
           setName(value);
           clearFieldError('name');
         }}
-        placeholder="Como te chamamos?"
+        placeholder="Como devemos te chamar?"
         autoCapitalize="words"
         autoComplete="name"
         error={fieldErrors.name}
@@ -78,7 +97,7 @@ export function RegisterScreen() {
           setEmail(value);
           clearFieldError('email');
         }}
-        placeholder="voce@exemplo.com"
+        placeholder="voce@email.com"
         keyboardType="email-address"
         autoCapitalize="none"
         autoComplete="email"
@@ -93,7 +112,7 @@ export function RegisterScreen() {
           setPassword(value);
           clearFieldError('password');
         }}
-        placeholder="Crie uma senha forte"
+        placeholder="Mínimo de 8 caracteres"
         secureTextEntry
         autoComplete="new-password"
         error={fieldErrors.password}
@@ -122,13 +141,20 @@ export function RegisterScreen() {
       ) : null}
 
       <Button
-        label="Criar conta"
-        onPress={onSubmit}
+        label="Continuar"
+        onPress={() => {
+          void onSubmit();
+        }}
         size="lg"
         loading={isSubmitting}
         fullWidth
         testID="register-submit"
       />
+
+      <Text style={styles.nextStepNote}>
+        Na próxima etapa definimos suas preferências: unidade, experiência,
+        objetivo e dias por semana.
+      </Text>
 
       <Pressable
         accessibilityRole="link"
@@ -149,6 +175,18 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   hint: {
     ...typography.caption,
     color: colors.textMuted,
+  },
+  nextStepNote: {
+    ...typography.caption,
+    color: colors.textMuted,
+  },
+  title: {
+    ...typography.display,
+    color: colors.text,
+  },
+  subtitle: {
+    ...typography.body,
+    color: colors.textSecondary,
   },
   link: {
     alignItems: 'center',
