@@ -22,6 +22,7 @@ import {
   getSessionProgress,
   isExerciseCompleted,
 } from '../../src/features/workouts/sessionProgress';
+import { parseEditedRpe } from '../../src/features/workouts/setEdit';
 import { useSessionStore } from '../../src/features/workouts/session.store';
 import {
   useAddSessionExercise,
@@ -42,6 +43,22 @@ import { useTheme, useThemedStyles, radii, spacing, typography, type ThemeColors
 import type { Exercise, ExerciseFilters } from '../../src/types/exercise';
 import { SESSION_STATUSES, type ExerciseSet } from '../../src/types/workout';
 import { createIdempotencyKey } from '../../src/utils/id';
+
+/** mm:ss (or h:mm:ss past an hour) of seconds elapsed since the start. */
+function formatElapsed(totalSeconds: number | null): string {
+  if (totalSeconds === null) {
+    return '—';
+  }
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes < 60) {
+    return `${minutes}:${String(seconds).padStart(2, '0')}`;
+  }
+  const hours = Math.floor(minutes / 60);
+  return `${hours}:${String(minutes % 60).padStart(2, '0')}:${String(
+    seconds
+  ).padStart(2, '0')}`;
+}
 
 export default function StartWorkoutScreen() {
   const router = useRouter();
@@ -93,6 +110,8 @@ export default function StartWorkoutScreen() {
     setId: string;
     weightKg: string;
     repetitions: string;
+    /** New in this pass: RPE 1–10 as typed, empty means "clear". */
+    rpe: string;
   } | null>(null);
   const autoStartedRef = useRef(false);
   const isFinishingRef = useRef(false);
@@ -106,6 +125,24 @@ export default function StartWorkoutScreen() {
   );
 
   const progressWidth: `${number}%` = `${sessionProgress.percent}%`;
+
+  // Session clock passed by the sandbox design: elapsed time since
+  // startedAt, ticking every second while the session is running.
+  const [elapsedSeconds, setElapsedSeconds] = useState<number | null>(null);
+  useEffect(() => {
+    if (!session || session.status !== SESSION_STATUSES.IN_PROGRESS) {
+      setElapsedSeconds(null);
+      return;
+    }
+    const startedAtMs = new Date(session.startedAt).getTime();
+    const update = () =>
+      setElapsedSeconds(
+        Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000))
+      );
+    update();
+    const intervalId = setInterval(update, 1_000);
+    return () => clearInterval(intervalId);
+  }, [session?.id, session?.status, session?.startedAt]);
 
   /** Name of the program day the session was started from, when known. */
   const workoutName = useMemo(() => {
@@ -342,6 +379,10 @@ export default function StartWorkoutScreen() {
       setId: set.id,
       weightKg: set.weightKg === null ? '' : String(set.weightKg),
       repetitions: String(set.repetitions),
+      rpe:
+        set.perceivedExertion === null || set.perceivedExertion === undefined
+          ? ''
+          : String(set.perceivedExertion),
     });
   };
 
@@ -356,12 +397,19 @@ export default function StartWorkoutScreen() {
       Alert.alert('Repetições inválidas', 'Informe um número de repetições maior que zero.');
       return;
     }
+    // RPE keeps the same 1–10 contract as the registration (SPEC 10.9).
+    const parsedRpe = parseEditedRpe(editingSet.rpe);
+    if (!parsedRpe.valid) {
+      Alert.alert('RPE inválido', 'O RPE deve ser um número de 1 a 10.');
+      return;
+    }
     try {
       const updated = await updateSetMutation.mutateAsync({
         setId: editingSet.setId,
         input: {
           weightKg: weight === '' ? null : Number(weight),
           repetitions,
+          perceivedExertion: parsedRpe.value,
         },
       });
       updateSetInStore(selectedExercise.id, updated);
@@ -530,14 +578,24 @@ export default function StartWorkoutScreen() {
 
       <Card title={workoutName} testID="session-progress-card">
         <View style={styles.progressHeader}>
-          <Text
-            accessibilityLiveRegion="polite"
-            style={styles.progressCount}
-            testID="session-progress-count"
-          >
-            {sessionProgress.completed} / {sessionProgress.total}
-          </Text>
-          <Text style={styles.progressLabel}>exercícios concluídos</Text>
+          <View style={styles.progressStack}>
+            <Text
+              accessibilityLiveRegion="polite"
+              style={styles.progressCount}
+              testID="session-progress-count"
+            >
+              {sessionProgress.completed} / {sessionProgress.total}
+            </Text>
+            <Text style={styles.progressLabel}>
+              exercícios concluídos — {sessionProgress.percent}%
+            </Text>
+          </View>
+          <View style={styles.timerRow}>
+            <Ionicons name="time-outline" size={16} color={colors.textMuted} />
+            <Text style={styles.timerText} testID="session-timer">
+              {formatElapsed(elapsedSeconds)}
+            </Text>
+          </View>
         </View>
         <View
           accessible
@@ -809,6 +867,18 @@ export default function StartWorkoutScreen() {
                 }
                 keyboardType="number-pad"
               />
+              <TextField
+                label="RPE (1–10)"
+                value={editingSet.rpe}
+                onChangeText={(value) =>
+                  setEditingSet((current) =>
+                    current ? { ...current, rpe: value } : current
+                  )
+                }
+                placeholder="Esforço percebido"
+                keyboardType="number-pad"
+                testID="session-edit-rpe"
+              />
               <View style={styles.editSetActions}>
                 <Button
                   label={updateSetMutation.isPending ? 'Salvando…' : 'Salvar'}
@@ -923,9 +993,13 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     fontFamily: 'Inter_600SemiBold',
   },
   progressHeader: {
-    alignItems: 'baseline',
+    alignItems: 'center',
     flexDirection: 'row',
     gap: spacing.sm,
+    justifyContent: 'space-between',
+  },
+  progressStack: {
+    gap: spacing.xs,
   },
   progressCount: {
     ...typography.metric,
@@ -934,6 +1008,23 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   progressLabel: {
     ...typography.caption,
     color: colors.textMuted,
+  },
+  timerRow: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceElevated,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.xs + 2,
+    minHeight: 36,
+    paddingHorizontal: spacing.sm + 4,
+    paddingVertical: spacing.xs,
+  },
+  timerText: {
+    ...typography.metric,
+    color: colors.text,
+    fontVariant: ['tabular-nums'],
   },
   progressTrack: {
     backgroundColor: colors.surfaceElevated,
