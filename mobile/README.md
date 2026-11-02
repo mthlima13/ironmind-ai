@@ -50,30 +50,38 @@ npx expo start --clear        # limpa o cache do Metro
 ### Backend: mock ou real?
 
 O app **não precisa de backend para funcionar**. Sem servidor, ele usa um
-adaptador de mock embutido (`src/services/mockAdapter.ts`) que implementa os
-mesmos contratos descritos na SPEC (paginação do Apêndice A.2, formato de erro
-do A.1, autenticação do A.4 e idempotência do A.3).
+adaptador de mock embutido (`src/services/mockAdapter.ts`) que segue os
+contratos descritos na SPEC (paginação do Apêndice A.2, formato de erro do A.1
+e idempotência do A.3).
 
-O mock também implementa o fluxo de sessão completo — cadastro (com
-`Idempotency-Key`), login, renovação, logout com revogação e recuperação de
-acesso — além de analytics, recordes, restrições e a proposta de treino da IA
-(com revisão e salvamento do programa). A conta de demonstração do mock é
-`alex@ironmind.ai` com a senha `ironmind123` — qualquer outra conta pode ser
-criada pela tela de cadastro.
+O mock implementa o fluxo de sessão completo — cadastro (com `Idempotency-Key`),
+login, renovação, logout e recuperação de acesso — além de analytics, recordes,
+restrições e a proposta de treino da IA (com revisão e salvamento do programa).
+A conta de demonstração é `alex@ironmind.ai` com a senha `ironmind123`; qualquer
+outra conta pode ser criada pela tela de cadastro.
 
-Para apontar para o backend real, copie `.env.example` para `.env` e ajuste:
+> **O app ainda não fala com o backend real.** O backend adota identidade
+> delegada: o gateway autentica a sessão e injeta o UUID do usuário no header
+> `X-User-UUID`. Ele **não** expõe `/auth/*` nem `/users/me` — esses endpoints
+> foram removidos. O mobile continua chamando os dois, então
+> `EXPO_PUBLIC_USE_MOCK_API=false` **quebra o login e o perfil** até a migração
+> descrita na [seção 21 da SPEC](../docs/SPEC.md) e em
+> [`AUTH-INTEGRATION.md`](../docs/AUTH-INTEGRATION.md). Use o mock até lá.
+
+A configuração de ambiente fica em `.env` (copiado de `.env.example`):
 
 ```bash
 EXPO_PUBLIC_API_URL=http://localhost:8080/api/v1
-EXPO_PUBLIC_USE_MOCK_API=false
+# Enquanto a migração para X-User-UUID não acontece, o app só funciona com o mock.
+EXPO_PUBLIC_USE_MOCK_API=true
 # Opcionais: só aparecem no Perfil quando publicados (SPEC 14.4).
 EXPO_PUBLIC_PRIVACY_URL=
 EXPO_PUBLIC_TERMS_URL=
 ```
 
-> O `.env.example` vem com `EXPO_PUBLIC_USE_MOCK_API=true`. Com `false`, o app
-> usa a API real para todas as features, incluindo analytics, recordes,
-> restrições e a proposta de treino da IA.
+> O `.env.example` vem com `EXPO_PUBLIC_USE_MOCK_API=true`. Enquanto a migração
+> para a identidade delegada não acontecer, manter `true` é obrigatório para o
+> app funcionar de ponta a ponta.
 >
 > `EXPO_PUBLIC_PRIVACY_URL` e `EXPO_PUBLIC_TERMS_URL` ficam **vazias** enquanto
 > os documentos não forem publicados; nesse caso os botões de política e termos
@@ -83,10 +91,12 @@ EXPO_PUBLIC_TERMS_URL=
 
 ### Link profundo de recuperação de senha
 
-O e-mail de recuperação aponta para `ironmind://reset-password?token=...`
-(rota `app/reset-password.tsx`, esquema `ironmind` em `app.json`). O token é
-de uso único e vale 30 minutos; quando o link chega expirado ou já usado, a
-tela explica que é preciso pedir um novo.
+No contrato antigo, o e-mail de recuperação apontava para
+`ironmind://reset-password?token=...` (rota `app/reset-password.tsx`, esquema
+`ironmind` em `app.json`), com token de uso único válido por 30 minutos. A rota
+e o link profundo **continuam no app**, mas o backend não envia mais esse e-mail:
+recuperação e troca de senha passaram a ser responsabilidade do provedor de
+identidade (SPEC 20, decisão 9). O destino do link será redefinido na migração.
 
 > O link também é aceito na forma `ironmind:///reset-password?token=...`.
 
@@ -114,8 +124,8 @@ A suíte cobre, entre outras coisas:
 |---|---|
 | `__tests__/setLogger.test.tsx` | componente de registro de série: adicionar/remover série, **usar valores da última sessão**, conversão de unidade, validação de carga/reps/RPE |
 | `__tests__/apiError.test.ts` | mapeamento de erro da API no formato do Apêndice A.1 e códigos do A.5, incluindo os códigos de autenticação |
-| `__tests__/authSession.test.ts` | renovação automática do token, limpeza da sessão quando o refresh é recusado, `Idempotency-Key` no cadastro e logout com revogação |
-| `__tests__/passwordRecovery.test.tsx` | telas de recuperação de acesso: renderização, validação, envio e token inválido |
+| `__tests__/authSession.test.ts` | contrato antigo (só mock): renovação automática do token, limpeza da sessão quando o refresh é recusado, `Idempotency-Key` no cadastro e logout com revogação |
+| `__tests__/passwordRecovery.test.tsx` | telas de recuperação de acesso do contrato antigo: renderização, validação, envio e token inválido |
 | `__tests__/mockAuth.test.ts` | contrato dos endpoints de autenticação do adaptador de mock |
 | `__tests__/mockWorkout.test.ts` | contrato do mock no treino livre: sessão sem exercícios, adição de exercício, exercício repetido e exercício inexistente |
 | `__tests__/deepLink.test.ts` | link profundo de recuperação de senha (`ironmind://reset-password?token=...`) |
@@ -133,9 +143,14 @@ A suíte cobre, entre outras coisas:
 
 ### Teste de contrato contra a API real
 
-Além da suíte com mock, existe um contrato que fala com um backend de verdade.
-Ele é **opt-in**: sem `IT_API_URL` a suíte é pulada e o `npx jest` continua
-hermético.
+Existe um projeto de Jest separado e **opt-in** que fala com um backend de
+verdade. Sem `IT_API_URL` a suíte é pulada e o `npx jest` continua hermético.
+
+> **Desatualizado desde a identidade delegada.** O teste ainda exercita
+> `/auth/register`, `/auth/login`, `/auth/refresh`, `/auth/logout` e
+> `/users/me`, todos removidos do backend. Ele precisa ser reescrito junto com
+> a migração do app (SPEC 21) para mandar `X-User-UUID`; até lá, rodá-lo contra
+> a API atual falha logo no cadastro.
 
 ```bash
 # backend rodando
@@ -144,20 +159,8 @@ cd mobile
 IT_API_URL=http://localhost:8080/api/v1 npx jest apiContract
 ```
 
-O que ele prova, contra a API real:
-
-| Cenário | Esperado |
-|---|---|
-| Cadastro | `201` com access token, refresh token e usuário |
-| Senha fraca | `422` com o detalhe por campo (`password`) |
-| Login | `200` e perfil aninhado com `privacySettings` normalizado |
-| Atualização parcial | campo omitido mantém o valor anterior |
-| `userId` no corpo | ignorado; o perfil continua sendo o do token |
-| Catálogo | envelope paginado do Apêndice A.2 |
-| Renovação | token novo, e o antigo é recusado (`INVALID_REFRESH_TOKEN`) |
-| Reuso | a família inteira de tokens é revogada |
-| Logout | `204` e a sessão não renova mais |
-| Sem token | `401` |
+Enquanto a migração não acontece, a cobertura real de rede é a da suíte com
+mock (`apiContract` fica de fora do `npx jest` padrão).
 
 O projeto de Jest do contrato roda em ambiente Node, com a condição de
 exportação `node`: sob o preset do React Native o Axios resolve para o build de
@@ -278,9 +281,10 @@ Cobertura mínima esperada em cada release:
 | Acessibilidade | TalkBack, contraste e alvo de toque |
 
 > **Execução parcial registrada.** A matriz foi executada em um emulador
-> Android 15 (API 35, x86_64, perfil Pixel 6), com o app conectado à API e ao
-> banco reais: cadastro pela interface, navegação entre as cinco abas, leitura
-> do catálogo e do perfil vindos do backend.
+> Android 15 (API 35, x86_64, perfil Pixel 6), quando o backend ainda tinha
+> autenticação local: cadastro pela interface, navegação entre as cinco abas,
+> leitura do catálogo e do perfil. Com a identidade delegada, essa execução
+> precisa ser repetida depois da migração do app.
 >
 > Ainda **não** foram verificados: aparelho físico de outra marca, tela de 5
 > polegadas, modo multi-janela, TalkBack, escala máxima de fonte e o ciclo
@@ -319,31 +323,38 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
 
 ## 8. O que está implementado
 
-**Autenticação (RF-001)**
+**Acesso (RF-001) — implementado contra o contrato antigo**
+
+> Tudo nesta seção roda **apenas contra o mock**. O backend real usa identidade
+> delegada (`X-User-UUID`) e não expõe `/auth/*` nem `/users/me`; a migração do
+> app é o próximo passo da SPEC 21.
+
 - Telas de login e cadastro com validação de formulário (e-mail, senha com no
   mínimo 8 caracteres, letra e número, confirmação de senha).
 - Estado global com Zustand; token e refresh token guardados em
   `expo-secure-store`; `logout` apaga o token e a fila local.
 - Sessão restaurada ao abrir o app.
-- **Renovação automática:** um `401` em uma requisição privada dispara
-  `POST /auth/refresh`, guarda o novo par de tokens e **repete a requisição
-  original** (uma tentativa de renovação por requisição). Se o refresh token
-  for recusado, os tokens são apagados, a sessão é encerrada e o app volta
-  para a tela de login sem travar a tela.
-- **Logout com revogação:** `POST /auth/logout` revoga a família de refresh
-  tokens no servidor (a detecção de reuso depende disso). A sessão local é
-  encerrada **mesmo sem rede**.
+- **Renovação automática (contrato antigo):** um `401` em uma requisição
+  privada dispara `POST /auth/refresh`, guarda o novo par de tokens e **repete
+  a requisição original** (uma tentativa de renovação por requisição). Se o
+  refresh token for recusado, os tokens são apagados, a sessão é encerrada e o
+  app volta para a tela de login sem travar a tela.
+- **Logout com revogação (contrato antigo):** `POST /auth/logout` revoga a
+  família de refresh tokens no servidor (a detecção de reuso depende disso). A
+  sessão local é encerrada **mesmo sem rede**.
 - **Exclusão de conta (Google Play):** em **Perfil → Excluir conta**, com
-  confirmação em duas etapas e a senha atual. O app chama `DELETE /users/me`;
-  no sucesso, apaga tokens e fila offline e limpa o cache de consultas. Senha
-  errada devolve `422` e **mantém** a sessão e os dados.
-- **Idempotência no cadastro:** o `register` envia o header `Idempotency-Key`.
-  Uma falha de rede seguida de "tentar de novo" reusa a mesma chave e **não
-  cria duas contas**.
-- **Recuperação de acesso:** tela "esqueci minha senha" (a resposta é sempre a
-  mesma, exista o e-mail ou não — anti-enumeração) e tela "definir nova
-  senha", aberta pelo link profundo `ironmind://reset-password?token=...`
-  (o token é de uso único e vale 30 minutos).
+  confirmação em duas etapas e a senha atual. A tela chama `DELETE /users/me`,
+  que **não existe mais** no backend: exclusão e encerramento de conta passam a
+  ser do provedor de identidade (SPEC 20, decisão 9). A tela precisa ser
+  redesenhada na migração.
+- **Idempotência no cadastro (contrato antigo):** o `register` envia o header
+  `Idempotency-Key`. Uma falha de rede seguida de "tentar de novo" reusa a
+  mesma chave e **não cria duas contas**.
+- **Recuperação de acesso (contrato antigo):** tela "esqueci minha senha" (a
+  resposta é sempre a mesma, exista o e-mail ou não — anti-enumeração) e tela
+  "definir nova senha", aberta pelo link profundo
+  `ironmind://reset-password?token=...`. O envio do e-mail e a validade do
+  token agora são do provedor de identidade.
 - Códigos de erro de autenticação da API mapeados no app: `EMAIL_ALREADY_IN_USE`,
   `INVALID_CREDENTIALS`, `INVALID_REFRESH_TOKEN` e `INVALID_RESET_TOKEN`.
 
@@ -393,13 +404,16 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
   exercício. Os números vêm do servidor — o app **não calcula** volume, 1RM nem
   recordes.
 - O histórico (`GET /workout-sessions`), a evolução (`/analytics/*`) e os
-  recordes (`/records`) usam a API real.
+  recordes (`/records`) vêm do servidor — hoje o mock; a API real depois da
+  migração da SPEC 21.
 
 **Perfil e privacidade (RF-002, RF-016)**
 - Unidade, experiência, objetivo, limitações informadas e controles de
   privacidade.
-- **Excluir conta:** exclusão definitiva com a senha atual, descrita na seção
-  de autenticação. É a exigência de conta do Google Play.
+- **Excluir conta:** a tela existe, mas ainda confirma com a senha e chama
+  `DELETE /users/me`, que foi removido do backend. A exclusão definitiva deve
+  ser delegada ao provedor de identidade (SPEC 20, decisão 9) — ver a seção de
+  acesso.
 - **Política de privacidade e termos de uso:** botões no Perfil, exibidos apenas
   quando `EXPO_PUBLIC_PRIVACY_URL` e `EXPO_PUBLIC_TERMS_URL` estão definidos.
   Documentos ainda em rascunho em `docs/PRIVACY.md` e `docs/TERMS.md`.
@@ -454,12 +468,13 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
 
 | Item | Situação |
 |---|---|
-| Backend real (Spring Boot) | **consumido** para autenticação, perfil, catálogo, programas, sessões, séries, analytics, recordes, restrições e proposta de treino da IA |
+| Migração do app para a identidade delegada (SPEC 21) | **pendente e bloqueante** — o mobile ainda chama `/auth/*` e `/users/me`, removidos do backend. Enquanto isso, só o mock funciona |
+| Backend real (Spring Boot) | catálogo, programas, sessões, séries, analytics, recordes, restrições e IA usam identidade delegada (`X-User-UUID`); o app ainda não manda esse header |
 | Criar/editar/excluir programas pela API | criar programa e salvar o dia usam `POST`/`PUT /programs`; falta renomear/trocar a divisão de um programa já criado e a ação de arquivar na tela |
 | Exercício personalizado do usuário (RF-004) | **implementado** no app (catálogo de exercícios → "Criar exercício personalizado") |
 | Corrigir/excluir série já registrada (RF-009) | backend pronto (`PATCH` e `DELETE /sets/{id}`); falta a interface no app |
 | Pausar/retomar/abandonar sessão | backend pronto (`PATCH /workout-sessions/{id}`); a tela só inicia e finaliza |
-| Envio real do e-mail de recuperação | a tela e o contrato da API existem, mas **a entrega do e-mail é do backend** (porta de e-mail plugável, SPEC 14.1) |
+| Envio do e-mail de recuperação | **fora do backend**: login, recuperação e troca de senha pertencem ao provedor de identidade (SPEC 20, decisão 9) |
 | Estimativa de 1RM e volume calculados no app | **por decisão** — o cálculo é do backend (SPEC 1.4) |
 | Geração de programa por IA (RF-018) | **implementada** com revisão e salvamento explícito |
 | Sugestão de carga (RF-019) | backend pronto (`POST /ai/load-suggestions`); o registro de série ainda não consome a sugestão |
@@ -469,7 +484,7 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
 | Comunidade, gamificação e moderação (RF-023 a RF-025) | Fase 3 |
 | Cardio, medidas corporais, device health (RF-026 a RF-029) | Fase 4 |
 | Análise visual assistida por IA (RF-030) | Fase 4 |
-| Exportação e exclusão de dados pelo usuário (RNF-017) | exclusão da conta **implementada** (`DELETE /users/me` + tela no Perfil); exportação de dados **não implementada** |
+| Exportação e exclusão de dados pelo usuário (RNF-017) | a tela de exclusão existe, mas chama `DELETE /users/me`, removido do backend; exclusão deve ser delegada ao provedor de identidade. Exportação de dados **não implementada** |
 | Política de privacidade e termos em URL pública | rascunhos no repositório; falta revisão jurídica e publicação (os links no app ficam ocultos sem as variáveis de URL) |
 | Execução da matriz de validação Android | parcial — API 35 em emulador; falta aparelho físico de outra marca, tela compacta, TalkBack, fonte máxima e rede lenta (SPEC 16.5) |
 
@@ -477,8 +492,10 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
 
 ## 10. Limitações conhecidas
 
-- O app fala com o backend real em todas as features; `EXPO_PUBLIC_USE_MOCK_API=true`
-  mantém o adaptador de mock para desenvolvimento e testes.
+- **O app não conversa com o backend real.** O contrato de identidade mudou
+  para `X-User-UUID` e as rotas `/auth/*` e `/users/me` foram removidas; o
+  mobile ainda depende delas. Todo o fluxo funciona apenas com
+  `EXPO_PUBLIC_USE_MOCK_API=true` até a migração da SPEC 21.
 - A IA é acessada **somente** pelo backend. O app consome a proposta de treino,
   mas ainda não usa as telas de sugestão de carga, chat de coaching nem
   transcrição de voz — os endpoints existem no backend.
@@ -489,12 +506,13 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
   vence e uma rejeição definitiva (`4xx`) fica marcada como `ERROR` no banner.
 - A tela de programa edita o dia **em memória**: o backend já aceita
   `PUT /programs/{id}`, mas a tela ainda não persiste.
-- Não há interface para corrigir/excluir série, pausar/retomar sessão nem criar
-  exercício personalizado — as rotas existem no backend.
+- Não há interface para corrigir/excluir série nem para pausar/retomar/abandonar
+  sessão — as rotas existem no backend.
 - O app não expõe o chat de coach (Fase 2, RF-020); o endpoint de coaching
   já existe no backend.
-- A **entrega do e-mail** de recuperação de acesso é do backend: o app só
-  chama `POST /auth/forgot-password` e mostra sempre a mesma resposta.
-- A renovação automática do token foi exercitada com um adapter falso do
-  axios nos testes; o comportamento real depende do backend aceitar o
-  `Idempotency-Key` e o refresh token rotativo como descrito na SPEC.
+- A **entrega do e-mail** de recuperação de acesso e a troca de senha são do
+  provedor de identidade; o app ainda chama `POST /auth/forgot-password`, que
+  não existe mais no backend.
+- A renovação automática do token foi exercitada com um adapter falso do axios
+  nos testes do mock. Ela descreve o contrato antigo e será removida na
+  migração para a identidade delegada.
