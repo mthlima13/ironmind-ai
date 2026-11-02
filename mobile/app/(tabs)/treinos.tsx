@@ -27,7 +27,7 @@ type TrainingTab = 'mine' | 'explore';
 
 const TABS: { key: TrainingTab; label: string }[] = [
   { key: 'mine', label: 'Meus programas' },
-  { key: 'explore', label: 'Explorar' },
+  { key: 'explore', label: 'Catálogo' },
 ];
 
 function weekDaysLabel(count: number): string {
@@ -38,7 +38,7 @@ function weekDaysLabel(count: number): string {
  * Treinos listing (SPEC sections 3 and 4).
  *
  * "Meus programas" lists the programs owned by the user and keeps the manual
- * creation form; "Explorar" lists the read-only catalogue models with the level
+ * creation form; "Catálogo" lists the read-only catalogue models with the level
  * filters. The long day and exercise lists moved to the details screen, so this
  * tab only shows compact cards.
  */

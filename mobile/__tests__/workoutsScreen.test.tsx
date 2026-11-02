@@ -61,7 +61,7 @@ describe('Treinos listing', () => {
     expect(mockPush).toHaveBeenCalledWith(ROUTES.exercicios);
   });
 
-  it('shows every template on "Explorar" and filters them by level', async () => {
+  it('shows every template on "Catálogo" and filters them by level', async () => {
     await render(<WorkoutsScreen />);
 
     await fireEvent.press(screen.getByTestId('training-tab-explore'));
@@ -102,7 +102,7 @@ describe('Treinos listing', () => {
     });
   });
 
-  it('sends an empty list to "Explorar"', async () => {
+  it('sends an empty list to "Catálogo"', async () => {
     mockUsePrograms.mockReturnValue(loadedPrograms([]));
     await render(<WorkoutsScreen />);
 

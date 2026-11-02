@@ -34,6 +34,24 @@ export default function EvolutionScreen() {
   const records = useRecords();
   const history = useSessionHistory(page);
 
+  // Chart meta line (sandbox design): rolling average and the best day of
+  // the same activity window the server already returns.
+  const activity = overview.data?.activity ?? [];
+  const dayVolumeTotal = activity.reduce(
+    (accumulator, point) => accumulator + point.volumeKg,
+    0
+  );
+  const dayVolumeAverage =
+    activity.length > 0 ? dayVolumeTotal / activity.length : 0;
+  const bestDay = activity.reduce(
+    (best, point) => (point.volumeKg > best.volumeKg ? point : best),
+    { date: '', volumeKg: 0 }
+  );
+  const chartMeta =
+    activity.length > 0
+      ? `Média ${formatWeight(dayVolumeAverage, unit, { withUnit: true })} por dia · Melhor dia ${bestDay.date.slice(8, 10)}/${bestDay.date.slice(5, 7)}`
+      : null;
+
   return (
     <Screen
       title="Evolução"
@@ -91,6 +109,15 @@ export default function EvolutionScreen() {
           </View>
 
           <Card title="Volume por dia">
+            {chartMeta ? (
+              <Text
+                style={styles.chartMeta}
+                testID="evolution-chart-meta"
+                accessibilityLiveRegion="polite"
+              >
+                {chartMeta}
+              </Text>
+            ) : null}
             <BarChart
               points={overview.data.activity.map((point) => ({
                 label: point.date.slice(8),
@@ -216,6 +243,10 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
+  },
+  chartMeta: {
+    ...typography.caption,
+    color: colors.textMuted,
   },
   list: {
     gap: spacing.sm,
