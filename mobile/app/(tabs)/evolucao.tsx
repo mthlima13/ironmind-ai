@@ -47,10 +47,6 @@ export default function EvolutionScreen() {
     (best, point) => (point.volumeKg > best.volumeKg ? point : best),
     { date: '', volumeKg: 0 }
   );
-  const chartMeta =
-    activity.length > 0
-      ? `Média ${formatWeight(dayVolumeAverage, unit, { withUnit: true })} por dia · Melhor dia ${bestDay.date.slice(8, 10)}/${bestDay.date.slice(5, 7)}`
-      : null;
 
   return (
     <Screen
@@ -101,14 +97,26 @@ export default function EvolutionScreen() {
           </View>
 
           <Card title="Volume por dia">
-            {chartMeta ? (
-              <Text
+            {activity.length > 0 ? (
+              <View
                 style={styles.chartMeta}
                 testID="evolution-chart-meta"
                 accessibilityLiveRegion="polite"
               >
-                {chartMeta}
-              </Text>
+                <Text style={styles.chartMetaText}>
+                  Média{' '}
+                  <Text style={styles.chartMetaStrong}>
+                    {formatWeight(dayVolumeAverage, unit, { withUnit: true })}
+                  </Text>
+                  /dia
+                </Text>
+                <Text style={styles.chartMetaText}>
+                  Melhor dia:{' '}
+                  <Text style={styles.chartMetaAccent}>
+                    {bestDay.date.slice(8, 10)}/{bestDay.date.slice(5, 7)}
+                  </Text>
+                </Text>
+              </View>
             ) : null}
             <BarChart
               points={overview.data.activity.map((point) => ({
@@ -237,8 +245,24 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     gap: spacing.sm,
   },
   chartMeta: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'space-between',
+    marginBottom: spacing.xs + 2,
+  },
+  chartMetaText: {
     ...typography.caption,
-    color: colors.textMuted,
+    color: colors.textSecondary,
+  },
+  chartMetaStrong: {
+    ...typography.caption,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  chartMetaAccent: {
+    ...typography.caption,
+    color: colors.accent,
+    fontWeight: '600',
   },
   list: {
     gap: spacing.sm,
