@@ -4,10 +4,13 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Button } from '../../src/components/Button';
+import { Card } from '../../src/components/Card';
 import { EmptyState } from '../../src/components/EmptyState';
 import { ErrorState } from '../../src/components/ErrorState';
 import { LoadingState } from '../../src/components/LoadingState';
 import { Screen } from '../../src/components/Screen';
+import { CustomExerciseForm } from '../../src/features/exercises/CustomExerciseForm';
+import { ExerciseList } from '../../src/features/exercises/ExerciseList';
 import { LevelFilters } from '../../src/features/programs/LevelFilters';
 import { ProgramCard } from '../../src/features/programs/ProgramCard';
 import { NewProgramForm } from '../../src/features/programs/NewProgramForm';
@@ -21,6 +24,7 @@ import { ROUTES } from '../../src/navigation/linking';
 import { mapApiError } from '../../src/services/api';
 import { useTheme, useThemedStyles, layout, radii, spacing, typography, type ThemeColors } from '../../src/theme';
 import { TRAINING_GOAL_LABELS } from '../../src/types/user';
+import type { ExerciseFilters } from '../../src/types/exercise';
 import type { WorkoutProgram } from '../../src/types/program';
 
 type TrainingTab = 'mine' | 'explore';
@@ -38,9 +42,10 @@ function weekDaysLabel(count: number): string {
  * Treinos listing (SPEC sections 3 and 4).
  *
  * "Meus programas" lists the programs owned by the user and keeps the manual
- * creation form; "Catálogo" lists the read-only catalogue models with the level
- * filters. The long day and exercise lists moved to the details screen, so this
- * tab only shows compact cards.
+ * creation form; "Catálogo" brings the exercise catalogue inline (search,
+ * muscle group chips and the creation of a personal exercise, treinos.html)
+ * followed by the read-only programme templates with level filters. The long
+ * day and exercise lists live on the program details route.
  */
 export default function WorkoutsScreen() {
   const router = useRouter();
@@ -50,6 +55,11 @@ export default function WorkoutsScreen() {
   const [tab, setTab] = useState<TrainingTab>('mine');
   const [level, setLevel] = useState<ProgramLevelFilter>('ALL');
   const [isCreateProgramOpen, setIsCreateProgramOpen] = useState(false);
+  const [exerciseFilters, setExerciseFilters] = useState<ExerciseFilters>({
+    search: '',
+    muscleGroup: 'ALL',
+  });
+  const [isCreateExerciseOpen, setIsCreateExerciseOpen] = useState(false);
 
   const { data, isLoading, isError, error, refetch } = usePrograms();
 
@@ -73,21 +83,7 @@ export default function WorkoutsScreen() {
   return (
     <Screen
       title="Treinos"
-      subtitle="Seus programas e modelos prontos para começar."
-      headerAction={
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Catálogo de exercícios"
-          onPress={() => router.push(ROUTES.exercicios)}
-          style={({ pressed }) => [
-            styles.headerButton,
-            pressed ? styles.headerButtonPressed : null,
-          ]}
-          testID="open-exercise-catalogue"
-        >
-          <Ionicons name="barbell-outline" size={22} color={colors.accent} />
-        </Pressable>
-      }
+      subtitle="Seus programas e o catálogo de exercícios."
       testID="workouts-screen"
     >
       <View style={styles.segmented}>
@@ -192,6 +188,43 @@ export default function WorkoutsScreen() {
         </View>
       ) : (
         <View style={styles.section}>
+          <ExerciseList
+            filters={exerciseFilters}
+            onChangeFilters={setExerciseFilters}
+          />
+
+          <Button
+            label={
+              isCreateExerciseOpen
+                ? 'Fechar formulário'
+                : 'Criar exercício personalizado'
+            }
+            variant="secondary"
+            icon={
+              <Ionicons
+                name={
+                  isCreateExerciseOpen ? 'close' : 'add-circle-outline'
+                }
+                size={18}
+                color={colors.accent}
+              />
+            }
+            onPress={() => setIsCreateExerciseOpen((current) => !current)}
+            testID="toggle-custom-exercise"
+          />
+
+          {isCreateExerciseOpen ? (
+            <Card
+              title="Novo exercício"
+              subtitle="O exercício fica disponível apenas para a sua conta."
+            >
+              <CustomExerciseForm
+                onCreated={() => setIsCreateExerciseOpen(false)}
+              />
+            </Card>
+          ) : null}
+
+          <Text style={styles.sectionTitle}>Modelos de programas</Text>
           <Text style={styles.exploreHint}>
             Modelos prontos. Ao adicionar, você cria uma cópia independente que
             pode personalizar.
@@ -236,19 +269,6 @@ export default function WorkoutsScreen() {
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
-  headerButton: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.borderStrong,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    height: layout.minTouchTarget,
-    justifyContent: 'center',
-    width: layout.minTouchTarget,
-  },
-  headerButtonPressed: {
-    backgroundColor: colors.surfacePressed,
-  },
   segmented: {
     backgroundColor: colors.surface,
     borderColor: colors.borderStrong,
@@ -265,7 +285,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     minHeight: layout.minTouchTarget,
   },
   segmentActive: {
-    backgroundColor: colors.accentSoft,
+    backgroundColor: colors.accent,
   },
   segmentPressed: {
     backgroundColor: colors.surfacePressed,
@@ -275,10 +295,14 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     color: colors.textSecondary,
   },
   segmentTextActive: {
-    color: colors.accent,
+    color: colors.onAccent,
   },
   section: {
     gap: spacing.md,
+  },
+  sectionTitle: {
+    ...typography.label,
+    color: colors.textMuted,
   },
   exploreHint: {
     ...typography.body,

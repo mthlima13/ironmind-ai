@@ -456,7 +456,7 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
 |---|---|
 | Backend real (Spring Boot) | **consumido** para autenticação, perfil, catálogo, programas, sessões, séries, analytics, recordes, restrições e proposta de treino da IA |
 | Criar/editar/excluir programas pela API | criar programa e salvar o dia usam `POST`/`PUT /programs`; falta renomear/trocar a divisão de um programa já criado e a ação de arquivar na tela |
-| Exercício personalizado do usuário (RF-004) | backend pronto (`POST /exercises`); falta a tela do app |
+| Exercício personalizado do usuário (RF-004) | **implementado** no app (catálogo de exercícios → "Criar exercício personalizado") |
 | Corrigir/excluir série já registrada (RF-009) | backend pronto (`PATCH` e `DELETE /sets/{id}`); falta a interface no app |
 | Pausar/retomar/abandonar sessão | backend pronto (`PATCH /workout-sessions/{id}`); a tela só inicia e finaliza |
 | Envio real do e-mail de recuperação | a tela e o contrato da API existem, mas **a entrega do e-mail é do backend** (porta de e-mail plugável, SPEC 14.1) |

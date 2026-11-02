@@ -19,6 +19,30 @@ jest.mock('../src/features/programs/usePrograms', () => ({
   useCreateProgram: () => ({ mutateAsync: jest.fn(), isPending: false }),
 }));
 
+/** Catalogue loaded inside the "Catálogo" tab (ExerciseList uses this hook). */
+jest.mock('../src/features/exercises/useExercises', () => ({
+  useExercises: () => ({
+    data: {
+      content: [
+        {
+          id: 'ex-supino',
+          name: 'Supino reto com barra',
+          primaryMuscleGroup: 'CHEST',
+          equipment: 'Barra',
+        },
+      ],
+    },
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: jest.fn(),
+  }),
+  useCreateExercise: () => ({
+    mutateAsync: jest.fn(),
+    isPending: false,
+  }),
+}));
+
 function loadedPrograms(content = MOCK_PROGRAMS) {
   return {
     data: { content },
@@ -53,12 +77,28 @@ describe('Treinos listing', () => {
     });
   });
 
-  it('opens the exercise catalogue from the header', async () => {
+  it('brings the exercise catalogue inline on the "Catálogo" tab', async () => {
     await render(<WorkoutsScreen />);
 
-    await fireEvent.press(screen.getByTestId('open-exercise-catalogue'));
+    // The catalogue is not a header action anymore (treinos.html): the search,
+    // the muscle group chips and the list live inside the tab.
+    expect(screen.queryByTestId('open-exercise-catalogue')).toBeNull();
 
-    expect(mockPush).toHaveBeenCalledWith(ROUTES.exercicios);
+    await fireEvent.press(screen.getByTestId('training-tab-explore'));
+
+    expect(screen.getByTestId('exercise-search')).toBeTruthy();
+    expect(screen.getByTestId('exercise-filter-ALL')).toBeTruthy();
+    expect(screen.getByTestId('exercise-item-ex-supino')).toBeTruthy();
+  });
+
+  it('keeps the custom exercise creation inside the "Catálogo" tab', async () => {
+    await render(<WorkoutsScreen />);
+
+    await fireEvent.press(screen.getByTestId('training-tab-explore'));
+
+    await fireEvent.press(screen.getByTestId('toggle-custom-exercise'));
+
+    expect(screen.getByText('Novo exercício')).toBeTruthy();
   });
 
   it('shows every template on "Catálogo" and filters them by level', async () => {
