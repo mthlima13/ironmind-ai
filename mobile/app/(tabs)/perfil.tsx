@@ -1,22 +1,17 @@
-import { useState } from 'react';
-import { Linking, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
-import { Button } from '../../src/components/Button';
 import { Card } from '../../src/components/Card';
 import { ErrorState } from '../../src/components/ErrorState';
 import { LoadingState } from '../../src/components/LoadingState';
+import { OptionRow } from '../../src/components/OptionRow';
 import { Screen } from '../../src/components/Screen';
-import { TextField } from '../../src/components/TextField';
-import { useDeleteAccount, useLogout } from '../../src/features/auth/useAuth';
+import { Stepper } from '../../src/components/Stepper';
 import { useProfile, useUpdateProfile } from '../../src/features/auth/useProfile';
 import { useRestrictions } from '../../src/features/profile/useRestrictions';
+import { ROUTES } from '../../src/navigation/linking';
 import { mapApiError } from '../../src/services/api';
-import {
-  describeNotificationPermission,
-  requestNotificationPermission,
-  type PermissionOutcome,
-} from '../../src/services/permissions';
 import {
   useTheme,
   useThemedStyles,
@@ -24,9 +19,9 @@ import {
   spacing,
   typography,
   type ThemeColors,
-  type ThemeMode,
 } from '../../src/theme';
 import {
+  TRAINING_EXPERIENCE_LABELS,
   TRAINING_GOAL_LABELS,
   WEIGHT_UNITS,
   type TrainingExperience,
@@ -34,100 +29,22 @@ import {
   type WeightUnit,
 } from '../../src/types/user';
 
-const EXPERIENCE_LABELS: Record<TrainingExperience, string> = {
-  BEGINNER: 'Iniciante',
-  INTERMEDIATE: 'Intermediário',
-  ADVANCED: 'Avançado',
-};
-
-/** Theme choices offered in Perfil (SPEC 15.2). */
-const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
-  { value: 'light', label: 'Claro' },
-  { value: 'dark', label: 'Escuro' },
-  { value: 'system', label: 'Sistema' },
-];
-
 /**
- * Public addresses of the legal documents (SPEC 14.4).
+ * Profile screen (SPEC 15.3): the user identity and training data.
  *
- * They are empty until the documents are published: the buttons only appear
- * when the build receives the URL, so the app never opens a placeholder page.
+ * Theme, privacy, notifications and the account actions (logout, deletion)
+ * live in the dedicated Configurações screen — the split keeps this screen
+ * focused on what defines the user and feeds the AI.
  */
-const PRIVACY_POLICY_URL = process.env.EXPO_PUBLIC_PRIVACY_URL?.trim() ?? '';
-const TERMS_OF_USE_URL = process.env.EXPO_PUBLIC_TERMS_URL?.trim() ?? '';
-
-function OptionRow<T extends string>({
-  label,
-  options,
-  value,
-  onChange,
-  testID,
-}: {
-  label: string;
-  options: { value: T; label: string }[];
-  value: T;
-  onChange: (value: T) => void;
-  testID: string;
-}) {
-  const styles = useThemedStyles(createStyles);
-
-  return (
-    <View style={styles.optionGroup} testID={testID}>
-      <Text style={styles.optionLabel}>{label}</Text>
-      <View style={styles.options}>
-        {options.map((option) => {
-          const isActive = option.value === value;
-          return (
-            <Button
-              key={option.value}
-              label={option.label}
-              variant={isActive ? 'primary' : 'secondary'}
-              onPress={() => onChange(option.value)}
-              testID={`${testID}-${option.value}`}
-              style={styles.optionButton}
-            />
-          );
-        })}
-      </View>
-    </View>
-  );
-}
-
 export default function ProfileScreen() {
-  const { colors, mode, setMode } = useTheme();
+  const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
-  const { logout, isSubmitting: isLoggingOut } = useLogout();
+  const router = useRouter();
   const { data: profile, isLoading, isError, error, refetch } = useProfile();
   const updateProfile = useUpdateProfile();
   const { data: restrictions } = useRestrictions();
-  const [permission, setPermission] = useState<PermissionOutcome | null>(null);
-  const {
-    deleteAccount,
-    isSubmitting: isDeletingAccount,
-    error: deleteError,
-    clearError: clearDeleteError,
-  } = useDeleteAccount();
-  const [isConfirmingDeletion, setIsConfirmingDeletion] = useState(false);
-  const [password, setPassword] = useState('');
 
   const preferences = profile?.preferences;
-  const passwordError = deleteError?.fieldErrors.find(
-    (fieldError) => fieldError.field === 'password'
-  )?.message;
-
-  const closeDeletion = () => {
-    setIsConfirmingDeletion(false);
-    setPassword('');
-    clearDeleteError();
-  };
-
-  const confirmDeletion = async () => {
-    const trimmed = password.trim();
-    if (trimmed.length === 0) {
-      return;
-    }
-    await deleteAccount(trimmed);
-  };
 
   const savePreferences = (
     patch: Partial<NonNullable<typeof preferences>>
@@ -138,7 +55,7 @@ export default function ProfileScreen() {
   return (
     <Screen
       title="Perfil"
-      subtitle="Preferências, restrições e privacidade."
+      subtitle="Seus dados e preferências de treino."
       testID="profile-screen"
     >
       {isLoading ? <LoadingState label="Carregando perfil…" /> : null}
@@ -160,19 +77,6 @@ export default function ProfileScreen() {
         </Card>
       ) : null}
 
-      <Card
-        title="Aparência"
-        subtitle="O tema escolhido fica salvo neste aparelho."
-      >
-        <OptionRow<ThemeMode>
-          label="Tema"
-          testID="profile-theme"
-          value={mode}
-          options={THEME_OPTIONS}
-          onChange={setMode}
-        />
-      </Card>
-
       {preferences ? (
         <Card title="Preferências de treino">
           <OptionRow<WeightUnit>
@@ -191,8 +95,8 @@ export default function ProfileScreen() {
             testID="profile-experience"
             value={preferences.trainingExperience}
             options={(
-              Object.keys(EXPERIENCE_LABELS) as TrainingExperience[]
-            ).map((value) => ({ value, label: EXPERIENCE_LABELS[value] }))}
+              Object.keys(TRAINING_EXPERIENCE_LABELS) as TrainingExperience[]
+            ).map((value) => ({ value, label: TRAINING_EXPERIENCE_LABELS[value] }))}
             onChange={(trainingExperience) => savePreferences({ trainingExperience })}
           />
 
@@ -207,8 +111,15 @@ export default function ProfileScreen() {
             onChange={(goal) => savePreferences({ goal })}
           />
 
-          <Text style={styles.daysLabel}>Dias por semana</Text>
-          <Text style={styles.daysValue}>{preferences.trainingDays}</Text>
+          <Stepper
+            label="Dias por semana"
+            value={preferences.trainingDays}
+            min={2}
+            max={7}
+            onChange={(trainingDays) => savePreferences({ trainingDays })}
+            testID="profile-days"
+            context="Alimentam o volume sugerido pela IA."
+          />
         </Card>
       ) : null}
 
@@ -237,180 +148,27 @@ export default function ProfileScreen() {
         )}
       </Card>
 
-      {preferences ? (
-        <Card title="Privacidade">
-          <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>Perfil público</Text>
-            <Switch
-              value={preferences.privacySettings.publicProfile}
-              onValueChange={(publicProfile) =>
-                savePreferences({
-                  privacySettings: {
-                    ...preferences.privacySettings,
-                    publicProfile,
-                  },
-                })
-              }
-              trackColor={{ true: colors.accent, false: colors.borderStrong }}
-              thumbColor={colors.onAccent}
-              testID="profile-privacy-public"
-            />
-          </View>
-          <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>Mostrar recordes</Text>
-            <Switch
-              value={preferences.privacySettings.showRecords}
-              onValueChange={(showRecords) =>
-                savePreferences({
-                  privacySettings: {
-                    ...preferences.privacySettings,
-                    showRecords,
-                  },
-                })
-              }
-              trackColor={{ true: colors.accent, false: colors.borderStrong }}
-              thumbColor={colors.onAccent}
-              testID="profile-privacy-records"
-            />
-          </View>
-          <View style={styles.switchRow}>
-            <Text style={styles.switchLabel}>Permitir compartilhamento</Text>
-            <Switch
-              value={preferences.privacySettings.allowSharing}
-              onValueChange={(allowSharing) =>
-                savePreferences({
-                  privacySettings: {
-                    ...preferences.privacySettings,
-                    allowSharing,
-                  },
-                })
-              }
-              trackColor={{ true: colors.accent, false: colors.borderStrong }}
-              thumbColor={colors.onAccent}
-              testID="profile-privacy-sharing"
-            />
-          </View>
-          {PRIVACY_POLICY_URL ? (
-            <Button
-              label="Política de privacidade"
-              variant="ghost"
-              onPress={() => {
-                void Linking.openURL(PRIVACY_POLICY_URL);
-              }}
-              testID="profile-privacy-policy"
-            />
-          ) : null}
-          {TERMS_OF_USE_URL ? (
-            <Button
-              label="Termos de uso"
-              variant="ghost"
-              onPress={() => {
-                void Linking.openURL(TERMS_OF_USE_URL);
-              }}
-              testID="profile-terms-of-use"
-            />
-          ) : null}
-        </Card>
-      ) : null}
-
-      <Card title="Notificações" subtitle="Permissão solicitada no momento do uso.">
-        <Button
-          label={
-            permission ? 'Verificar permissão' : 'Permitir notificações'
-          }
-          variant="secondary"
-          onPress={async () => {
-            const outcome = await requestNotificationPermission();
-            setPermission(outcome);
-          }}
-          testID="profile-notification-permission"
-        />
-        {permission ? (
-          <Text style={styles.accountMeta}>
-            {describeNotificationPermission(permission)}
-          </Text>
-        ) : null}
-      </Card>
-
-      <Button
-        label="Sair da conta"
-        variant="danger"
-        loading={isLoggingOut}
-        onPress={() => {
-          void logout();
-        }}
-        testID="profile-logout"
-      />
-
-      <Card
-        title="Excluir conta"
-        subtitle="Exclusão definitiva — exigida pela política do Google Play para apps com conta."
+      <Text style={styles.sectionTitle}>Gerais</Text>
+      <Pressable
+        accessibilityRole="button"
+        style={({ pressed }) => [
+          styles.settingsItem,
+          pressed && styles.settingsItemPressed,
+        ]}
+        onPress={() => router.push(ROUTES.configuracoes)}
+        testID="profile-open-settings"
       >
-        {!isConfirmingDeletion ? (
-          <>
-            <Text style={styles.dangerText}>
-              Apaga permanentemente sua conta e todo o histórico: programas,
-              sessões, séries, recordes, restrições e recomendações de IA. Não é
-              possível desfazer.
-            </Text>
-            <Button
-              label="Quero excluir minha conta"
-              variant="secondary"
-              onPress={() => {
-                clearDeleteError();
-                setIsConfirmingDeletion(true);
-              }}
-              testID="profile-delete-account"
-            />
-          </>
-        ) : (
-          <>
-            <Text style={styles.dangerText}>
-              Digite sua senha para confirmar. Esta ação não pode ser desfeita.
-            </Text>
-            <TextField
-              label="Senha atual"
-              value={password}
-              onChangeText={(value) => {
-                setPassword(value);
-                clearDeleteError();
-              }}
-              placeholder="Sua senha"
-              secureTextEntry
-              autoComplete="password"
-              error={passwordError}
-              editable={!isDeletingAccount}
-              testID="profile-delete-password"
-            />
-            {deleteError && !passwordError ? (
-              <Text
-                style={styles.errorText}
-                accessibilityLiveRegion="polite"
-                testID="profile-delete-error"
-              >
-                {deleteError.message}
-              </Text>
-            ) : null}
-            <Button
-              label="Excluir definitivamente"
-              variant="danger"
-              loading={isDeletingAccount}
-              disabled={password.trim().length === 0}
-              onPress={() => {
-                void confirmDeletion();
-              }}
-              testID="profile-delete-confirm"
-            />
-            <Button
-              label="Cancelar"
-              variant="secondary"
-              disabled={isDeletingAccount}
-              onPress={closeDeletion}
-              testID="profile-delete-cancel"
-            />
-          </>
-        )}
-      </Card>
+        <View style={styles.settingsIcon}>
+          <Ionicons name="settings-outline" size={20} color={colors.accent} />
+        </View>
+        <View style={styles.settingsInfo}>
+          <Text style={styles.settingsTitle}>Configurações</Text>
+          <Text style={styles.settingsMeta}>
+            Aparência, privacidade, notificações, excluir e sair da conta
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+      </Pressable>
     </Screen>
   );
 }
@@ -424,29 +182,45 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     ...typography.caption,
     color: colors.textMuted,
   },
-  optionGroup: {
-    gap: spacing.sm,
-  },
-  optionLabel: {
+  sectionTitle: {
     ...typography.label,
     color: colors.textMuted,
+    marginTop: spacing.xs,
   },
-  options: {
+  settingsItem: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    borderWidth: 1,
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
+    gap: spacing.md,
+    minHeight: 64,
+    padding: spacing.md,
   },
-  optionButton: {
-    flexGrow: 1,
-    flexBasis: 96,
+  settingsItemPressed: {
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.accent,
   },
-  daysLabel: {
-    ...typography.label,
-    color: colors.textMuted,
+  settingsIcon: {
+    alignItems: 'center',
+    backgroundColor: colors.accentSoft,
+    borderRadius: radii.sm,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
   },
-  daysValue: {
-    ...typography.metric,
+  settingsInfo: {
+    flex: 1,
+    gap: spacing.xs,
+  },
+  settingsTitle: {
+    ...typography.bodyStrong,
     color: colors.text,
+  },
+  settingsMeta: {
+    ...typography.caption,
+    color: colors.textMuted,
   },
   restrictions: {
     gap: spacing.sm,
@@ -473,24 +247,5 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   restrictionDescription: {
     ...typography.caption,
     color: colors.textSecondary,
-  },
-  switchRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    minHeight: 44,
-  },
-  switchLabel: {
-    ...typography.body,
-    color: colors.text,
-    flex: 1,
-  },
-  dangerText: {
-    ...typography.body,
-    color: colors.textSecondary,
-  },
-  errorText: {
-    ...typography.caption,
-    color: colors.danger,
   },
 });

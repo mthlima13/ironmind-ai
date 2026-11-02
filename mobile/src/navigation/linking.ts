@@ -21,6 +21,8 @@ export type TabsParamList = {
 /** Parameters of the authentication group. */
 export type AuthParamList = {
   boasvindas: undefined;
+  funcao: undefined;
+  embreve: undefined;
   login: undefined;
   register: undefined;
   forgotPassword: undefined;
@@ -35,6 +37,9 @@ export type RootParamList = {
   propostas: undefined;
   'programa/[id]': { id: string; source?: 'saved' | 'template' } | undefined;
   exercicios: undefined;
+  configuracoes: undefined;
+  /** Step 2 of the sign-up flow; reached authenticated or not. */
+  preferencias: undefined;
 };
 
 /** Internal routes, used by every navigation call of the app. */
@@ -48,10 +53,14 @@ export const ROUTES = {
   propostas: '/propostas',
   programa: '/programa/[id]',
   exercicios: '/exercicios',
+  configuracoes: '/configuracoes',
+  preferencias: '/preferencias',
   login: '/auth/login',
   register: '/auth/register',
   forgotPassword: '/auth/forgot-password',
   boasvindas: '/auth/boasvindas',
+  funcao: '/auth/funcao',
+  embreve: '/auth/embreve',
   resetPassword: '/reset-password',
 } as const;
 
@@ -69,10 +78,14 @@ export const DEEP_LINK_PATHS: Record<AppRoute, string> = {
   register: 'cadastrar',
   forgotPassword: 'esqueci-senha',
   boasvindas: 'boas-vindas',
+  funcao: 'quem-e-voce',
+  embreve: 'em-breve',
   resetPassword: 'reset-password',
   propostas: 'propostas',
   programa: 'programa/:id',
   exercicios: 'exercicios',
+  configuracoes: 'configuracoes',
+  preferencias: 'preferencias',
 };
 
 export function buildDeepLink(route: AppRoute): string {
@@ -107,6 +120,8 @@ export const linking: LinkingOptions<RootParamList> = {
       auth: {
         screens: {
           boasvindas: DEEP_LINK_PATHS.boasvindas,
+          funcao: DEEP_LINK_PATHS.funcao,
+          embreve: DEEP_LINK_PATHS.embreve,
           login: DEEP_LINK_PATHS.login,
           register: DEEP_LINK_PATHS.register,
           forgotPassword: DEEP_LINK_PATHS.forgotPassword,
@@ -117,6 +132,8 @@ export const linking: LinkingOptions<RootParamList> = {
       propostas: DEEP_LINK_PATHS.propostas,
       'programa/[id]': DEEP_LINK_PATHS.programa,
       exercicios: DEEP_LINK_PATHS.exercicios,
+      configuracoes: DEEP_LINK_PATHS.configuracoes,
+      preferencias: DEEP_LINK_PATHS.preferencias,
     },
   },
 };

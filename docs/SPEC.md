@@ -1165,7 +1165,9 @@ O treino deve continuar funcionando quando a conexão cair.
    de exercícios.
 3. **Começar treino:** sessão ativa, registro de séries e descanso.
 4. **Evolução:** gráficos, volume, recordes e histórico.
-5. **Perfil:** preferências, restrições, privacidade e configurações.
+5. **Perfil:** preferências de treino, restrições e limitações; tema,
+   privacidade, notificações e conta ficam em **Configurações** (tela
+   dedicada, fora das abas, acessada por atalho no Perfil).
 
 > O chat de IA continua acessível a partir de **Evolução**, para receber
 > contexto relevante sem sobrecarregar a navegação principal. A aba Treinos não
@@ -1173,8 +1175,9 @@ O treino deve continuar funcionando quando a conexão cair.
 
 ### 15.2 Direção visual
 
-- Dois temas selecionáveis pelo usuário em **Perfil → Aparência**: **Claro** e
-  **Escuro**, além de **Sistema**, que segue a configuração do Android.
+- Temas selecionáveis pelo usuário em **Configurações → Aparência**:
+  **Claro** e **Escuro**, além de **Sistema**, que segue a configuração do
+  Android.
 - Tema **escuro** (padrão): grafite suave — fundo `#1B2026`, superfícies
   `#2A323A`/`#344049` e texto apagado mais claro — com verde-limão como cor de
   destaque.
@@ -1204,9 +1207,14 @@ O treino deve continuar funcionando quando a conexão cair.
 ### 15.3 Telas do MVP
 
 - Boas-vindas: entrada do app para quem não está autenticado; "Continuar"
-  leva ao cadastro e "Entrar" leva ao login.
+  leva à escolha de papel ("Quem é você?") e "Entrar" leva ao login.
+- Escolha de papel ("Quem é você?"): "Sou aluno" segue para o cadastro;
+  "Sou personal trainer" abre o aviso "Em breve" (trilha da fase 2, ainda
+  fora do escopo do MVP).
 - Recuperação de acesso.
-- Configuração inicial de perfil (unidades, objetivo, equipamento).
+- Cadastro em duas etapas: a etapa 1 coleta os dados de acesso; a etapa 2
+  ("Como você treina?") grava unidade, experiência, objetivo e dias por
+  semana, que alimentam as recomendações da IA e podem mudar no Perfil.
 - Dashboard.
 - Catálogo e busca de exercícios.
 - Lista de programas.

@@ -97,6 +97,18 @@ function AppNavigator({ isAuthenticated }: { isAuthenticated: boolean }) {
               title: 'Definir nova senha',
             }}
           />
+          <Stack.Screen
+            name="configuracoes"
+            options={{
+              title: 'Configurações',
+            }}
+          />
+          <Stack.Screen
+            name="preferencias"
+            options={{
+              title: 'Preferências de treino',
+            }}
+          />
         </Stack>
       </BackHandlerProvider>
     </>
