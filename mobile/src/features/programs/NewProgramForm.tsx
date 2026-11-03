@@ -66,14 +66,24 @@ export function NewProgramForm({ onCreated, onCancel }: NewProgramFormProps) {
     () => buildSplitExercises(splitType, dayCount, catalogueContent ?? []),
     [splitType, dayCount, catalogueContent]
   );
-  // The custom split starts from the full body blueprint and becomes whatever
-  // the user selected for each day.
+  // The custom split has no blueprint: the user selects the exercises of each
+  // day in the picker below.
   const dayExercises =
     splitType === 'CUSTOM' ? (customExercises ?? exercises.days) : exercises.days;
   const totalExercises = dayExercises.reduce(
     (total, day) => total + day.length,
     0
   );
+  const exerciseSummary =
+    splitType === 'CUSTOM'
+      ? totalExercises === 0
+        ? 'Nenhum exercício adicionado ainda. Abra um dia e adicione os exercícios que quiser.'
+        : `${totalExercises} ${
+            totalExercises === 1 ? 'exercício escolhido' : 'exercícios escolhidos'
+          } para os seus dias. Você pode ajustar depois.`
+      : `${totalExercises} ${
+          totalExercises === 1 ? 'exercício' : 'exercícios'
+        } já distribuídos pelos dias. Você pode trocar, remover ou adicionar depois.`;
   const hasCatalogue = Boolean(catalogue.data);
 
   const selectSplit = (value: SplitType) => {
@@ -300,9 +310,7 @@ export function NewProgramForm({ onCreated, onCancel }: NewProgramFormProps) {
 
       {hasCatalogue ? (
         <Text style={styles.preview} testID="new-program-exercise-count">
-          {totalExercises}{' '}
-          {totalExercises === 1 ? 'exercício' : 'exercícios'} já distribuídos
-          pelos dias. Você pode trocar, remover ou adicionar exercícios depois.
+          {exerciseSummary}
         </Text>
       ) : null}
 

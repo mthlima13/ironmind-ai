@@ -10,7 +10,7 @@ const ALL_SPLITS = Object.values(SPLIT_TYPES) as SplitType[];
 const CATALOGUE_IDS = new Set(MOCK_EXERCISES.map((exercise) => exercise.id));
 
 describe('split exercise blueprints', () => {
-  it('fills every day of every accepted split and day count', () => {
+  it('fills every day of every accepted split except the custom one', () => {
     ALL_SPLITS.forEach((split) => {
       dayCountOptions(split).forEach((dayCount) => {
         const { days, missing } = buildSplitExercises(
@@ -21,6 +21,12 @@ describe('split exercise blueprints', () => {
 
         expect(days).toHaveLength(dayCount);
         expect(missing).toEqual([]);
+
+        if (split === 'CUSTOM') {
+          // The custom split belongs to the user: nothing is pre-selected.
+          days.forEach((day) => expect(day).toEqual([]));
+          return;
+        }
 
         days.forEach((day) => {
           // A day with no exercise would recreate the empty program bug.

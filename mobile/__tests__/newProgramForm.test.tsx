@@ -1,7 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
 import { NewProgramForm } from '../src/features/programs/NewProgramForm';
-import { buildSplitExercises } from '../src/features/programs/splitBlueprints';
 import { MOCK_EXERCISES } from '../src/mocks/exercises';
 
 const mockMutateAsync = jest.fn();
@@ -145,11 +144,12 @@ describe('NewProgramForm', () => {
     expect(input.days[0]!.exercises).toHaveLength(8);
   });
 
-  it('lets the user choose the exercises of each custom day', async () => {
-    const customDays = buildSplitExercises('CUSTOM', 2, MOCK_EXERCISES).days;
-    const removedId = customDays[1]![0]!.exerciseId;
+  it('starts the custom split empty and lets the user pick exercises per day', async () => {
     const peckDeck = MOCK_EXERCISES.find(
       (exercise) => exercise.name === 'Peck deck'
+    )!;
+    const supino = MOCK_EXERCISES.find(
+      (exercise) => exercise.name === 'Supino reto com barra'
     )!;
 
     await render(<NewProgramForm onCreated={jest.fn()} onCancel={jest.fn()} />);
@@ -164,11 +164,18 @@ describe('NewProgramForm', () => {
     await fireEvent.press(screen.getByTestId('program-split-CUSTOM'));
 
     expect(screen.getByTestId('custom-day-exercises')).toBeTruthy();
-    expect(screen.getByText('Dia 1')).toBeTruthy();
-    expect(screen.getByText('Dia 2')).toBeTruthy();
+    // No exercise is pre-filled: both days start empty.
+    expect(
+      screen.getAllByText('Nenhum exercício selecionado para este dia.')
+    ).toHaveLength(2);
 
-    // Adds an exercise that is not part of the default full body session.
+    // The picker lists the whole catalogue and filters by name.
     await fireEvent.press(screen.getByTestId('toggle-custom-day-0'));
+    expect(screen.getByText('Todos os exercícios')).toBeTruthy();
+    expect(screen.getAllByTestId(/^custom-exercise-option-/)).toHaveLength(
+      MOCK_EXERCISES.length
+    );
+
     await fireEvent.changeText(
       screen.getByTestId('custom-exercise-search'),
       'Peck deck'
@@ -176,10 +183,25 @@ describe('NewProgramForm', () => {
     await fireEvent.press(
       screen.getByTestId(`custom-exercise-option-${peckDeck.id}`)
     );
+    expect(
+      screen.getByTestId(`custom-day-0-exercise-${peckDeck.id}`)
+    ).toBeTruthy();
 
-    // Removes the first exercise of the second day.
+    // An exercise can be removed again.
     await fireEvent.press(
-      screen.getByTestId(`remove-custom-exercise-1-${removedId}`)
+      screen.getByTestId(`custom-exercise-option-${supino.id}`)
+    );
+    await fireEvent.press(
+      screen.getByTestId(`remove-custom-exercise-0-${supino.id}`)
+    );
+    expect(
+      screen.queryByTestId(`custom-day-0-exercise-${supino.id}`)
+    ).toBeNull();
+
+    // The second day gets its own selection.
+    await fireEvent.press(screen.getByTestId('toggle-custom-day-1'));
+    await fireEvent.press(
+      screen.getByTestId(`custom-exercise-option-${supino.id}`)
     );
 
     await fireEvent.press(screen.getByTestId('create-program-submit'));
@@ -194,18 +216,34 @@ describe('NewProgramForm', () => {
     ];
 
     expect(input.days.map((day) => day.name)).toEqual(['Dia 1', 'Dia 2']);
-    expect(
-      input.days[0]!.exercises.some(
-        (exercise) => exercise.exerciseId === peckDeck.id
-      )
-    ).toBe(true);
-    expect(
-      input.days[1]!.exercises.some(
-        (exercise) => exercise.exerciseId === removedId
-      )
-    ).toBe(false);
+    expect(input.days[0]!.exercises.map((exercise) => exercise.exerciseId)).toEqual(
+      [peckDeck.id]
+    );
+    expect(input.days[1]!.exercises.map((exercise) => exercise.exerciseId)).toEqual(
+      [supino.id]
+    );
   });
 
+  it('creates the custom program empty when nothing is selected', async () => {
+    await render(<NewProgramForm onCreated={jest.fn()} onCancel={jest.fn()} />);
+
+    await fireEvent.changeText(
+      screen.getByTestId('new-program-name'),
+      'Personalizado vazio'
+    );
+    await fireEvent.press(screen.getByTestId('program-split-CUSTOM'));
+    await fireEvent.press(screen.getByTestId('create-program-submit'));
+
+    await waitFor(() => expect(mockMutateAsync).toHaveBeenCalledTimes(1));
+
+    const [{ input }] = mockMutateAsync.mock.calls[0] as [
+      { input: { days: { name: string; exercises: unknown[] }[] } },
+    ];
+    expect(input.days).toEqual([
+      { name: 'Dia 1', exercises: [] },
+      { name: 'Dia 2', exercises: [] },
+    ]);
+  });
   it('does not create a program before the catalogue loads', async () => {
     mockCatalogueData = undefined;
 

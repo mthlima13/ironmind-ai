@@ -138,7 +138,7 @@ A suíte cobre, entre outras coisas:
 | `__tests__/offlineSync.test.ts` | reenvio da fila offline: ordem, parada em falha de rede/servidor, rejeição definitiva para `ERROR`, sessão expirada e proteção contra envio duplicado |
 | `__tests__/workoutProposal.test.ts` | revisão da proposta de IA: conversão para o payload do programa, limites, faixa de repetições, detecção de edição e fluxo completo contra o mock (gerar, salvar, decidir) |
 | `__tests__/programSplits.test.ts` | catálogo de divisões do formulário: espelho dos dias aceitos pelo backend (SPEC 7.3), nomes padrão dos dias de AB/ABC/ABCD/ABCDE/full body/upper-lower, sufixo dos dias repetidos e fallback `Dia N` do personalizado |
-| `__tests__/splitBlueprints.test.ts` | exercícios preenchidos por divisão: todas as combinações aceitas geram dias não vazios só com ids do catálogo, ciclo do corpo inteiro e omissão (sem invenção de id) quando o catálogo está vazio |
+| `__tests__/splitBlueprints.test.ts` | exercícios preenchidos por divisão: as combinações aceitas geram dias não vazios só com ids do catálogo (o personalizado começa vazio), ciclo do corpo inteiro e omissão (sem invenção de id) quando o catálogo está vazio |
 
 ---
 
@@ -384,11 +384,12 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
   exercícios do catálogo que a tela de modelos copia. Os dias de corpo inteiro
   ciclam as sessões A/B/C quando há mais dias. Todo `exerciseId` vem do catálogo
   carregado — exercícios ausentes são omitidos com aviso, nunca inventados.
-- **Split personalizado:** cada dia tem sua própria seleção de exercícios. O
-  formulário mostra os dias com os exercícios já escolhidos, permite buscar no
-  catálogo para adicionar e remover por dia, começando pelo modelo de corpo
-  inteiro como sugestão. As séries, repetições e o descanso entram com o padrão
-  e podem ser ajustados no editor do dia.
+- **Split personalizado:** os dias começam **vazios** — nenhum exercício é
+  cadastrado automaticamente. Cada dia tem sua própria seleção, adicionada por
+  uma busca que lista **todos** os exercícios do catálogo (filtrando pelo nome e
+  escondendo os já escolhidos). Dá para adicionar e remover por dia; as séries,
+  repetições e o descanso entram com o padrão e podem ser ajustados no editor do
+  dia.
 - Enquanto o catálogo carrega (ou se ele falha), o formulário não cria o
   programa: mostra o estado correspondente e um botão para tentar de novo.
 - O formulário só oferece as quantidades de dias que o backend aceita para cada

@@ -24,9 +24,6 @@ const DEFAULT_TARGET = {
   restSeconds: 90,
 };
 
-/** The picker shows the first matches; typing narrows the catalogue. */
-const MAX_RESULTS = 12;
-
 export type CustomDayExercisesProps = {
   dayNames: string[];
   /** One entry per day, aligned with `dayNames`. */
@@ -75,8 +72,7 @@ export function CustomDayExercises({
         (exercise) =>
           term.length === 0 ||
           normalizeExerciseName(exercise.name).includes(term)
-      )
-      .slice(0, MAX_RESULTS);
+      );
   }, [catalogue, exercises, openDayIndex, search]);
 
   const togglePicker = (dayIndex: number) => {
@@ -193,6 +189,14 @@ export function CustomDayExercises({
                   autoCapitalize="none"
                 />
 
+                <View style={styles.pickerHeader}>
+                  <Text style={styles.pickerLabel}>Todos os exercícios</Text>
+                  <Text style={styles.dayCount}>
+                    {results.length}{' '}
+                    {results.length === 1 ? 'disponível' : 'disponíveis'}
+                  </Text>
+                </View>
+
                 {results.length === 0 ? (
                   <Text style={styles.emptyDay} testID="custom-exercise-no-results">
                     Nenhum exercício encontrado fora dos já selecionados.
@@ -297,6 +301,15 @@ const createStyles = (colors: ThemeColors) =>
       borderTopWidth: 1,
       gap: spacing.sm,
       paddingTop: spacing.sm,
+    },
+    pickerHeader: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+    },
+    pickerLabel: {
+      ...typography.label,
+      color: colors.textSecondary,
     },
     option: {
       alignItems: 'center',

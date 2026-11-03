@@ -142,9 +142,10 @@ export function splitBlueprintDays(
     return extra;
   }
 
-  // Full body accepts one to six days and CUSTOM has no focus of its own:
-  // cycling the three full body sessions keeps every day filled.
-  if (splitType === 'FULL_BODY' || splitType === 'CUSTOM') {
+  // Full body accepts one to six days: cycling the three sessions keeps every
+  // day filled. CUSTOM has no focus of its own and starts empty, so the user
+  // chooses every exercise.
+  if (splitType === 'FULL_BODY') {
     return FULL_BODY_DAYS;
   }
 
