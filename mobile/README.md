@@ -138,6 +138,7 @@ A suíte cobre, entre outras coisas:
 | `__tests__/offlineSync.test.ts` | reenvio da fila offline: ordem, parada em falha de rede/servidor, rejeição definitiva para `ERROR`, sessão expirada e proteção contra envio duplicado |
 | `__tests__/workoutProposal.test.ts` | revisão da proposta de IA: conversão para o payload do programa, limites, faixa de repetições, detecção de edição e fluxo completo contra o mock (gerar, salvar, decidir) |
 | `__tests__/programSplits.test.ts` | catálogo de divisões do formulário: espelho dos dias aceitos pelo backend (SPEC 7.3), nomes padrão dos dias de AB/ABC/ABCD/ABCDE/full body/upper-lower, sufixo dos dias repetidos e fallback `Dia N` do personalizado |
+| `__tests__/splitBlueprints.test.ts` | exercícios preenchidos por divisão: todas as combinações aceitas geram dias não vazios só com ids do catálogo, ciclo do corpo inteiro e omissão (sem invenção de id) quando o catálogo está vazio |
 
 ---
 
@@ -377,6 +378,16 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
   full body, upper/lower, PPL, Arnold Split, PHUL, híbrido PPL + upper/lower e
   personalizado; ao escolher a divisão, os dias já são criados com os nomes
   padrão (AB → "Superior" e "Inferior", ABCD → quatro dias, etc.).
+- **Exercícios preenchidos por modalidade:** os dias nascem com os exercícios
+  do foco de cada divisão (peito/tríceps, costas/bíceps, pernas, ombros/braços,
+  push/pull/legs, corpo inteiro, upper/lower), usando os mesmos modelos e
+  exercícios do catálogo que a tela de modelos copia. Os dias de corpo inteiro e
+  do split personalizado ciclam as sessões A/B/C quando há mais dias. Todo
+  `exerciseId` vem do catálogo carregado — exercícios ausentes são omitidos com
+  aviso, nunca inventados. O usuário pode trocar, remover ou adicionar
+  exercícios no editor de dia.
+- Enquanto o catálogo carrega (ou se ele falha), o formulário não cria o
+  programa: mostra o estado correspondente e um botão para tentar de novo.
 - O formulário só oferece as quantidades de dias que o backend aceita para cada
   divisão (SPEC 7.3), então ele não consegue montar um programa que a API
   recusaria com `422`; quando a divisão repete os dias, o nome ganha sufixo

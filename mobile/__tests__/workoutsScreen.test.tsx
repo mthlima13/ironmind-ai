@@ -37,6 +37,22 @@ jest.mock('../src/features/exercises/useExercises', () => ({
     error: null,
     refetch: jest.fn(),
   }),
+  useExerciseCatalogue: () => ({
+    data: {
+      content: [
+        {
+          id: 'ex-supino',
+          name: 'Supino reto com barra',
+          primaryMuscleGroup: 'CHEST',
+          equipment: 'Barra',
+        },
+      ],
+    },
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: jest.fn(),
+  }),
   useCreateExercise: () => ({
     mutateAsync: jest.fn(),
     isPending: false,

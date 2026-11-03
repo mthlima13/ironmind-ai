@@ -1,8 +1,10 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
 import { NewProgramForm } from '../src/features/programs/NewProgramForm';
+import { MOCK_EXERCISES } from '../src/mocks/exercises';
 
 const mockMutateAsync = jest.fn();
+let mockCatalogueData: { content: typeof MOCK_EXERCISES } | undefined;
 
 jest.mock('../src/features/programs/usePrograms', () => ({
   useCreateProgram: () => ({
@@ -11,10 +13,21 @@ jest.mock('../src/features/programs/usePrograms', () => ({
   }),
 }));
 
+jest.mock('../src/features/exercises/useExercises', () => ({
+  useExerciseCatalogue: () => ({
+    data: mockCatalogueData,
+    isLoading: false,
+    isError: false,
+    error: null,
+    refetch: jest.fn(),
+  }),
+}));
+
 describe('NewProgramForm', () => {
   beforeEach(() => {
     mockMutateAsync.mockReset();
     mockMutateAsync.mockResolvedValue({});
+    mockCatalogueData = { content: MOCK_EXERCISES };
   });
 
   it('offers every split and names the days of the chosen one', async () => {
@@ -63,7 +76,7 @@ describe('NewProgramForm', () => {
     expect(screen.getByText(/2 dias: Superior/)).toBeTruthy();
   });
 
-  it('creates the program with the days of the split and no exercises', async () => {
+  it('creates the program with the exercises of the chosen split', async () => {
     const onCreated = jest.fn();
     await render(<NewProgramForm onCreated={onCreated} onCancel={jest.fn()} />);
 
@@ -77,18 +90,73 @@ describe('NewProgramForm', () => {
     await waitFor(() => expect(mockMutateAsync).toHaveBeenCalledTimes(1));
 
     const [{ input }] = mockMutateAsync.mock.calls[0] as [
-      { input: Record<string, unknown> },
+      {
+        input: {
+          name: string;
+          splitType: string;
+          days: {
+            name: string;
+            exercises: { exerciseId: string; targetSets: number }[];
+          }[];
+        };
+      },
     ];
     expect(input.name).toBe('Meu ABCD');
     expect(input.splitType).toBe('ABCD');
-    expect(input.days).toEqual([
-      { name: 'Peito e tríceps', exercises: [] },
-      { name: 'Costas e bíceps', exercises: [] },
-      { name: 'Pernas e glúteos', exercises: [] },
-      { name: 'Ombros e braços', exercises: [] },
+    expect(input.days.map((day) => day.name)).toEqual([
+      'Peito e tríceps',
+      'Costas e bíceps',
+      'Pernas e glúteos',
+      'Ombros e braços',
     ]);
 
+    // Every day comes with exercises, and every id belongs to the catalogue.
+    const catalogueIds = new Set(MOCK_EXERCISES.map((exercise) => exercise.id));
+    input.days.forEach((day) => {
+      expect(day.exercises.length).toBeGreaterThanOrEqual(6);
+      day.exercises.forEach((exercise) => {
+        expect(catalogueIds.has(exercise.exerciseId)).toBe(true);
+        expect(exercise.targetSets).toBeGreaterThan(0);
+      });
+    });
+
     await waitFor(() => expect(onCreated).toHaveBeenCalledTimes(1));
+  });
+
+  it('fills a full body program with one session of the whole body', async () => {
+    await render(<NewProgramForm onCreated={jest.fn()} onCancel={jest.fn()} />);
+
+    await fireEvent.changeText(
+      screen.getByTestId('new-program-name'),
+      'Full Body'
+    );
+    await fireEvent.press(screen.getByTestId('program-split-FULL_BODY'));
+    await fireEvent.press(screen.getByTestId('program-days-1'));
+    await fireEvent.press(screen.getByTestId('create-program-submit'));
+
+    await waitFor(() => expect(mockMutateAsync).toHaveBeenCalledTimes(1));
+
+    const [{ input }] = mockMutateAsync.mock.calls[0] as [
+      { input: { days: { name: string; exercises: unknown[] }[] } },
+    ];
+    expect(input.days).toHaveLength(1);
+    expect(input.days[0]!.name).toBe('Corpo inteiro');
+    expect(input.days[0]!.exercises).toHaveLength(8);
+  });
+
+  it('does not create a program before the catalogue loads', async () => {
+    mockCatalogueData = undefined;
+
+    await render(<NewProgramForm onCreated={jest.fn()} onCancel={jest.fn()} />);
+
+    await fireEvent.changeText(
+      screen.getByTestId('new-program-name'),
+      'Sem catálogo'
+    );
+    await fireEvent.press(screen.getByTestId('create-program-submit'));
+
+    expect(screen.getByTestId('new-program-error')).toBeTruthy();
+    expect(mockMutateAsync).not.toHaveBeenCalled();
   });
 
   it('refuses to create a program without a name', async () => {

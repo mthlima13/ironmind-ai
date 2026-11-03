@@ -12,7 +12,9 @@ import {
   type SplitType,
 } from '../../types/program';
 import { TRAINING_GOAL_LABELS, TRAINING_GOALS, type TrainingGoal } from '../../types/user';
+import { useExerciseCatalogue } from '../exercises/useExercises';
 import { useCreateProgram } from './usePrograms';
+import { buildSplitExercises } from './splitBlueprints';
 import {
   buildProgramDayNames,
   dayCountOptions,
@@ -30,14 +32,17 @@ export type NewProgramFormProps = {
  * Manual creation of a program (SPEC RF-005).
  *
  * The split is the structure of the program, so choosing it already creates
- * the days with their default names: AB comes with "Superior" and "Inferior",
- * ABCD with four days, and so on. The days start empty, and the exercises are
- * added afterwards in the day editor. The number of days is limited to what the
+ * the days with their default names and the exercises that match the focus of
+ * each day: AB comes with "Superior" and "Inferior", ABCD with four days, and
+ * so on. The blueprint is resolved against the catalogue, so a day only gets
+ * exercises whose ids exist (SPEC RF-003); the user can adjust everything
+ * afterwards in the day editor. The number of days is limited to what the
  * backend accepts for the split, so a valid form never ends in a `422`.
  */
 export function NewProgramForm({ onCreated, onCancel }: NewProgramFormProps) {
   const styles = useThemedStyles(createStyles);
   const createProgram = useCreateProgram();
+  const catalogue = useExerciseCatalogue();
   const [name, setName] = useState('');
   const [goal, setGoal] = useState<TrainingGoal>(TRAINING_GOALS.HYPERTROPHY);
   const [splitType, setSplitType] = useState<SplitType>('AB');
@@ -50,6 +55,17 @@ export function NewProgramForm({ onCreated, onCancel }: NewProgramFormProps) {
     () => buildProgramDayNames(splitType, dayCount),
     [splitType, dayCount]
   );
+
+  const catalogueContent = catalogue.data?.content;
+  const exercises = useMemo(
+    () => buildSplitExercises(splitType, dayCount, catalogueContent ?? []),
+    [splitType, dayCount, catalogueContent]
+  );
+  const totalExercises = exercises.days.reduce(
+    (total, day) => total + day.length,
+    0
+  );
+  const hasCatalogue = Boolean(catalogue.data);
 
   const selectSplit = (value: SplitType) => {
     setSplitType(value);
@@ -69,12 +85,24 @@ export function NewProgramForm({ onCreated, onCancel }: NewProgramFormProps) {
     setNameError(null);
     setFormError(null);
 
+    if (!hasCatalogue) {
+      setFormError(
+        catalogue.isError
+          ? 'Não foi possível carregar o catálogo de exercícios. Tente novamente.'
+          : 'Aguarde o catálogo de exercícios carregar.'
+      );
+      return;
+    }
+
     const input: CreateProgramInput = {
       name: trimmed,
       description: `${SPLIT_TYPE_LABELS[splitType]} com ${dayCount} ${dayCount === 1 ? 'dia' : 'dias'}.`,
       goal,
       splitType,
-      days: dayNames.map((dayName) => ({ name: dayName, exercises: [] })),
+      days: dayNames.map((dayName, index) => ({
+        name: dayName,
+        exercises: exercises.days[index] ?? [],
+      })),
     };
 
     try {
@@ -88,7 +116,7 @@ export function NewProgramForm({ onCreated, onCancel }: NewProgramFormProps) {
   return (
     <Card
       title="Novo programa"
-      subtitle="Escolha a divisão e o número de dias. Os exercícios entram depois, em cada dia."
+      subtitle="Escolha a divisão e o número de dias. Os exercícios de cada dia são preenchidos automaticamente e pode ajustá-los depois."
       testID="new-program-form"
     >
       <TextField
@@ -194,6 +222,44 @@ export function NewProgramForm({ onCreated, onCancel }: NewProgramFormProps) {
         {dayNames.length} {dayNames.length === 1 ? 'dia' : 'dias'}: {dayNames.join(' • ')}
       </Text>
 
+      {catalogue.isLoading ? (
+        <Text style={styles.preview} testID="new-program-catalogue-loading">
+          Carregando exercícios…
+        </Text>
+      ) : null}
+
+      {catalogue.isError ? (
+        <>
+          <Text style={styles.error} testID="new-program-catalogue-error">
+            Não foi possível carregar o catálogo:{' '}
+            {mapApiError(catalogue.error).message}
+          </Text>
+          <Button
+            label="Tentar novamente"
+            variant="ghost"
+            onPress={() => {
+              void catalogue.refetch();
+            }}
+            testID="new-program-catalogue-retry"
+          />
+        </>
+      ) : null}
+
+      {hasCatalogue ? (
+        <Text style={styles.preview} testID="new-program-exercise-count">
+          {totalExercises}{' '}
+          {totalExercises === 1 ? 'exercício' : 'exercícios'} já distribuídos
+          pelos dias. Você pode trocar, remover ou adicionar exercícios depois.
+        </Text>
+      ) : null}
+
+      {exercises.missing.length > 0 ? (
+        <Text style={styles.warning} testID="new-program-missing-exercises">
+          Fora do catálogo (não serão incluídos):{' '}
+          {exercises.missing.join(', ')}.
+        </Text>
+      ) : null}
+
       {formError ? (
         <Text style={styles.error} testID="new-program-error">
           {formError}
@@ -264,5 +330,9 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   error: {
     ...typography.caption,
     color: colors.danger,
+  },
+  warning: {
+    ...typography.caption,
+    color: colors.warning,
   },
 });
