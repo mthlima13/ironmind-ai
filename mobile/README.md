@@ -381,11 +381,14 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
 - **Exercícios preenchidos por modalidade:** os dias nascem com os exercícios
   do foco de cada divisão (peito/tríceps, costas/bíceps, pernas, ombros/braços,
   push/pull/legs, corpo inteiro, upper/lower), usando os mesmos modelos e
-  exercícios do catálogo que a tela de modelos copia. Os dias de corpo inteiro e
-  do split personalizado ciclam as sessões A/B/C quando há mais dias. Todo
-  `exerciseId` vem do catálogo carregado — exercícios ausentes são omitidos com
-  aviso, nunca inventados. O usuário pode trocar, remover ou adicionar
-  exercícios no editor de dia.
+  exercícios do catálogo que a tela de modelos copia. Os dias de corpo inteiro
+  ciclam as sessões A/B/C quando há mais dias. Todo `exerciseId` vem do catálogo
+  carregado — exercícios ausentes são omitidos com aviso, nunca inventados.
+- **Split personalizado:** cada dia tem sua própria seleção de exercícios. O
+  formulário mostra os dias com os exercícios já escolhidos, permite buscar no
+  catálogo para adicionar e remover por dia, começando pelo modelo de corpo
+  inteiro como sugestão. As séries, repetições e o descanso entram com o padrão
+  e podem ser ajustados no editor do dia.
 - Enquanto o catálogo carrega (ou se ele falha), o formulário não cria o
   programa: mostra o estado correspondente e um botão para tentar de novo.
 - O formulário só oferece as quantidades de dias que o backend aceita para cada

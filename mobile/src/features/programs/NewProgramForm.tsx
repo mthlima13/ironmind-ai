@@ -9,10 +9,12 @@ import { useThemedStyles, radii, spacing, typography, type ThemeColors } from '.
 import {
   SPLIT_TYPE_LABELS,
   type CreateProgramInput,
+  type ProgramExerciseDraft,
   type SplitType,
 } from '../../types/program';
 import { TRAINING_GOAL_LABELS, TRAINING_GOALS, type TrainingGoal } from '../../types/user';
 import { useExerciseCatalogue } from '../exercises/useExercises';
+import { CustomDayExercises } from './CustomDayExercises';
 import { useCreateProgram } from './usePrograms';
 import { buildSplitExercises } from './splitBlueprints';
 import {
@@ -47,6 +49,9 @@ export function NewProgramForm({ onCreated, onCancel }: NewProgramFormProps) {
   const [goal, setGoal] = useState<TrainingGoal>(TRAINING_GOALS.HYPERTROPHY);
   const [splitType, setSplitType] = useState<SplitType>('AB');
   const [dayCount, setDayCount] = useState(defaultDayCount('AB'));
+  const [customExercises, setCustomExercises] = useState<
+    ProgramExerciseDraft[][] | null
+  >(null);
   const [nameError, setNameError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -61,7 +66,11 @@ export function NewProgramForm({ onCreated, onCancel }: NewProgramFormProps) {
     () => buildSplitExercises(splitType, dayCount, catalogueContent ?? []),
     [splitType, dayCount, catalogueContent]
   );
-  const totalExercises = exercises.days.reduce(
+  // The custom split starts from the full body blueprint and becomes whatever
+  // the user selected for each day.
+  const dayExercises =
+    splitType === 'CUSTOM' ? (customExercises ?? exercises.days) : exercises.days;
+  const totalExercises = dayExercises.reduce(
     (total, day) => total + day.length,
     0
   );
@@ -69,10 +78,45 @@ export function NewProgramForm({ onCreated, onCancel }: NewProgramFormProps) {
 
   const selectSplit = (value: SplitType) => {
     setSplitType(value);
+    // The choices of a custom program do not apply to a fixed split.
+    if (value !== 'CUSTOM') {
+      setCustomExercises(null);
+    }
     // The selected count may not fit the new split, e.g. 6 days of PPL.
     setDayCount((current) =>
       dayCountOptions(value).includes(current) ? current : defaultDayCount(value)
     );
+  };
+
+  const selectDayCount = (value: number) => {
+    if (splitType === 'CUSTOM') {
+      setCustomExercises((current) => {
+        const base = current ?? exercises.days;
+        // Growing keeps the days already edited and fills the new ones with
+        // the blueprint of the target count; shrinking drops the removed days.
+        const blueprint = buildSplitExercises(
+          splitType,
+          value,
+          catalogueContent ?? []
+        ).days;
+        return Array.from(
+          { length: value },
+          (_, index) => base[index] ?? blueprint[index] ?? []
+        );
+      });
+    }
+    setDayCount(value);
+  };
+
+  const changeCustomDay = (
+    dayIndex: number,
+    next: ProgramExerciseDraft[]
+  ) => {
+    setCustomExercises((current) => {
+      const base = (current ?? exercises.days).map((day) => [...day]);
+      base[dayIndex] = next;
+      return base;
+    });
   };
 
   const submit = async () => {
@@ -101,7 +145,7 @@ export function NewProgramForm({ onCreated, onCancel }: NewProgramFormProps) {
       splitType,
       days: dayNames.map((dayName, index) => ({
         name: dayName,
-        exercises: exercises.days[index] ?? [],
+        exercises: dayExercises[index] ?? [],
       })),
     };
 
@@ -200,7 +244,7 @@ export function NewProgramForm({ onCreated, onCancel }: NewProgramFormProps) {
                   key={value}
                   accessibilityRole="button"
                   accessibilityState={{ selected: isActive }}
-                  onPress={() => setDayCount(value)}
+                  onPress={() => selectDayCount(value)}
                   style={({ pressed }) => [
                     styles.chip,
                     isActive ? styles.chipActive : null,
@@ -221,6 +265,15 @@ export function NewProgramForm({ onCreated, onCancel }: NewProgramFormProps) {
       <Text style={styles.preview} testID="new-program-days">
         {dayNames.length} {dayNames.length === 1 ? 'dia' : 'dias'}: {dayNames.join(' • ')}
       </Text>
+
+      {splitType === 'CUSTOM' ? (
+        <CustomDayExercises
+          dayNames={dayNames}
+          exercises={dayExercises}
+          catalogue={catalogueContent ?? []}
+          onChangeDay={changeCustomDay}
+        />
+      ) : null}
 
       {catalogue.isLoading ? (
         <Text style={styles.preview} testID="new-program-catalogue-loading">
