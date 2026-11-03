@@ -366,6 +366,10 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
 **Catálogo de exercícios (RF-003)**
 - Busca por nome/equipamento e filtro por grupo muscular, com estados de
   carregamento, erro com retry e vazio.
+- Na aba **Catálogo** de Treinos o catálogo fica recolhido: a tela mostra apenas
+  o botão **Criar treino** e os modelos de programas. A busca, os filtros e a
+  lista de exercícios aparecem quando o usuário toca em **Criar treino**, e
+  somem ao fechar.
 
 **Programas (RF-005)**
 - **Novo programa:** a aba Treinos abre um formulário com nome, objetivo,

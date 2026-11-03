@@ -42,10 +42,11 @@ function weekDaysLabel(count: number): string {
  * Treinos listing (SPEC sections 3 and 4).
  *
  * "Meus programas" lists the programs owned by the user and keeps the manual
- * creation form; "Catálogo" brings the exercise catalogue inline (search,
- * muscle group chips and the creation of a personal exercise, treinos.html)
- * followed by the read-only programme templates with level filters. The long
- * day and exercise lists live on the program details route.
+ * creation form; "Catálogo" shows a single "Criar treino" action that expands
+ * the exercise catalogue (search, muscle group chips and the creation of a
+ * personal exercise) on demand, followed by the read-only programme templates
+ * with level filters. The long day and exercise lists live on the program
+ * details route.
  */
 export default function WorkoutsScreen() {
   const router = useRouter();
@@ -60,6 +61,7 @@ export default function WorkoutsScreen() {
     muscleGroup: 'ALL',
   });
   const [isCreateExerciseOpen, setIsCreateExerciseOpen] = useState(false);
+  const [isExercisePickerOpen, setIsExercisePickerOpen] = useState(false);
 
   const { data, isLoading, isError, error, refetch } = usePrograms();
 
@@ -188,40 +190,68 @@ export default function WorkoutsScreen() {
         </View>
       ) : (
         <View style={styles.section}>
-          <ExerciseList
-            filters={exerciseFilters}
-            onChangeFilters={setExerciseFilters}
-          />
-
+          {/*
+            The catalogue stays collapsed until the user starts a workout:
+            "Criar treino" expands the picker with the exercises to select.
+          */}
           <Button
-            label={
-              isCreateExerciseOpen
-                ? 'Fechar formulário'
-                : 'Criar exercício personalizado'
-            }
-            variant="secondary"
+            label={isExercisePickerOpen ? 'Fechar exercícios' : 'Criar treino'}
             icon={
               <Ionicons
-                name={
-                  isCreateExerciseOpen ? 'close' : 'add-circle-outline'
-                }
+                name={isExercisePickerOpen ? 'close' : 'barbell-outline'}
                 size={18}
-                color={colors.accent}
+                color={colors.onAccent}
               />
             }
-            onPress={() => setIsCreateExerciseOpen((current) => !current)}
-            testID="toggle-custom-exercise"
+            onPress={() => {
+              const next = !isExercisePickerOpen;
+              setIsExercisePickerOpen(next);
+              if (!next) {
+                // Collapsing also closes the personal exercise form.
+                setIsCreateExerciseOpen(false);
+              }
+            }}
+            testID="toggle-exercise-picker"
           />
 
-          {isCreateExerciseOpen ? (
-            <Card
-              title="Novo exercício"
-              subtitle="O exercício fica disponível apenas para a sua conta."
-            >
-              <CustomExerciseForm
-                onCreated={() => setIsCreateExerciseOpen(false)}
+          {isExercisePickerOpen ? (
+            <>
+              <ExerciseList
+                filters={exerciseFilters}
+                onChangeFilters={setExerciseFilters}
               />
-            </Card>
+
+              <Button
+                label={
+                  isCreateExerciseOpen
+                    ? 'Fechar formulário'
+                    : 'Criar exercício personalizado'
+                }
+                variant="secondary"
+                icon={
+                  <Ionicons
+                    name={
+                      isCreateExerciseOpen ? 'close' : 'add-circle-outline'
+                    }
+                    size={18}
+                    color={colors.accent}
+                  />
+                }
+                onPress={() => setIsCreateExerciseOpen((current) => !current)}
+                testID="toggle-custom-exercise"
+              />
+
+              {isCreateExerciseOpen ? (
+                <Card
+                  title="Novo exercício"
+                  subtitle="O exercício fica disponível apenas para a sua conta."
+                >
+                  <CustomExerciseForm
+                    onCreated={() => setIsCreateExerciseOpen(false)}
+                  />
+                </Card>
+              ) : null}
+            </>
           ) : null}
 
           <Text style={styles.sectionTitle}>Modelos de programas</Text>

@@ -77,7 +77,7 @@ describe('Treinos listing', () => {
     });
   });
 
-  it('brings the exercise catalogue inline on the "Catálogo" tab', async () => {
+  it('keeps the exercise catalogue collapsed until "Criar treino" is pressed', async () => {
     await render(<WorkoutsScreen />);
 
     // The catalogue is not a header action anymore (treinos.html): the search,
@@ -86,15 +86,26 @@ describe('Treinos listing', () => {
 
     await fireEvent.press(screen.getByTestId('training-tab-explore'));
 
+    // Minimised by default: only the create action shows up.
+    expect(screen.queryByTestId('exercise-search')).toBeNull();
+    expect(screen.queryByTestId('exercise-list')).toBeNull();
+
+    await fireEvent.press(screen.getByTestId('toggle-exercise-picker'));
+
     expect(screen.getByTestId('exercise-search')).toBeTruthy();
     expect(screen.getByTestId('exercise-filter-ALL')).toBeTruthy();
     expect(screen.getByTestId('exercise-item-ex-supino')).toBeTruthy();
+
+    // Pressing again collapses the picker.
+    await fireEvent.press(screen.getByTestId('toggle-exercise-picker'));
+    expect(screen.queryByTestId('exercise-list')).toBeNull();
   });
 
-  it('keeps the custom exercise creation inside the "Catálogo" tab', async () => {
+  it('keeps the custom exercise creation inside the exercise picker', async () => {
     await render(<WorkoutsScreen />);
 
     await fireEvent.press(screen.getByTestId('training-tab-explore'));
+    await fireEvent.press(screen.getByTestId('toggle-exercise-picker'));
 
     await fireEvent.press(screen.getByTestId('toggle-custom-exercise'));
 
