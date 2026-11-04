@@ -1158,7 +1158,16 @@ O treino deve continuar funcionando quando a conexão cair.
 
 ### 15.1 Abas principais
 
-1. **Início:** resumo do dia e acesso rápido ao treino.
+1. **Início:** cabeçalho com a data atual (pt-BR) e saudação personalizada;
+   bloco **"Sua semana"** com os dias da semana em círculos — marca nos dias com
+   sessão concluída no período (dados do dashboard, calculados pelo backend),
+   número no dia em andamento e barra de progresso até a meta semanal (meta =
+   "dias por semana" do perfil; mensagem honesta sobre os treinos restantes);
+   card **"Treino de hoje"** com o dia do programa ativo e botão de continuar
+   quando houver sessão em andamento; atalhos de **acesso rápido**
+   (Exercícios, Meus treinos, Histórico) e card **"Dica do dia"**. O gráfico de
+   volume e o histórico de sessões ficam exclusivamente na aba Evolução — a
+   aba Início não repete métricas nem gráficos.
 2. **Treinos:** programas, dias, divisão atual, criação manual de programa por
    divisão (AB, ABC, ABCD, corpo inteiro, upper/lower, entre outras) e catálogo
    de exercícios.
@@ -1214,7 +1223,10 @@ O treino deve continuar funcionando quando a conexão cair.
 - Cadastro em duas etapas: a etapa 1 coleta os dados de acesso; a etapa 2
   ("Como você treina?") grava unidade, experiência, objetivo e dias por
   semana, que alimentam as recomendações da IA e podem mudar no Perfil.
-- Dashboard.
+- Dashboard: cabeçalho com data e saudação; "Sua semana" (círculos dos dias,
+  barra de progresso e mensagem de meta semanal); "Treino de hoje" (dia do
+  programa ativo com botão de continuar); acesso rápido e "Dica do dia".
+  Sem gráfico: o gráfico de volume é da aba Evolução.
 - Catálogo e busca de exercícios.
 - Lista de programas.
 - Editor de programa (dias → exercícios → séries/reps alvo).
