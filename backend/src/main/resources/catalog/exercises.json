@@ -639,5 +639,119 @@
     "equipment": "Equipamento de cardio",
     "instructions": "Encoste o tronco, segure a alça com as duas mãos, puxe o remo em direção ao abdômen e retorne alongando os braços.",
     "movementType": "CARDIO"
+  },
+  {
+    "name": "Agachamento com salto",
+    "description": "Agachamento com salto vertical, com foco em potência de quadríceps e glúteos, usando apenas o peso corporal.",
+    "primaryMuscleGroup": "Quadríceps",
+    "secondaryMuscleGroups": [
+      "Glúteos",
+      "Panturrilha"
+    ],
+    "equipment": "Corpo do peso",
+    "instructions": "Fique em pé na largura dos ombros, agache flexionando joelhos e quadril, salte o mais alto que conseguir e aterrisse suavemente com os joelhos flexionados.",
+    "movementType": "COMPOUND"
+  },
+  {
+    "name": "Agachamento búlgaro com o corpo do peso",
+    "description": "Agachamento unilateral com o pé de trás apoiado, usando apenas o peso corporal e com foco em quadríceps e glúteos.",
+    "primaryMuscleGroup": "Quadríceps",
+    "secondaryMuscleGroups": [
+      "Glúteos",
+      "Posteriores de coxa"
+    ],
+    "equipment": "Corpo do peso",
+    "instructions": "Apoie o peito do pé de trás em um banco ou degrau, mantenha o pé da frente firme, desça o joelho de trás em direção ao chão e suba empurrando com a perna da frente.",
+    "movementType": "COMPOUND"
+  },
+  {
+    "name": "Elevação pélvica com o corpo do peso",
+    "description": "Extensão de quadril no chão com o próprio peso, com foco em glúteos e posteriores de coxa.",
+    "primaryMuscleGroup": "Glúteos",
+    "secondaryMuscleGroups": [
+      "Posteriores de coxa"
+    ],
+    "equipment": "Corpo do peso",
+    "instructions": "Deite no chão com os joelhos flexionados e os pés apoiados, contraia os glúteos elevando o quadril até alinhar joelhos, quadril e ombros, e desça controlando.",
+    "movementType": "COMPOUND"
+  },
+  {
+    "name": "Bom dia com o corpo do peso",
+    "description": "Dobradiça de quadril com o próprio peso, com foco em posteriores de coxa, glúteos e lombar.",
+    "primaryMuscleGroup": "Posteriores de coxa",
+    "secondaryMuscleGroups": [
+      "Glúteos",
+      "Lombar"
+    ],
+    "equipment": "Corpo do peso",
+    "instructions": "Fique em pé com as mãos atrás da cabeça, joelhos levemente flexionados, leve o quadril para trás mantendo a coluna neutra até sentir o alongamento dos posteriores e volte.",
+    "movementType": "COMPOUND"
+  },
+  {
+    "name": "Panturrilha em pé com o corpo do peso",
+    "description": "Elevação de panturrilha em pé usando apenas o peso corporal.",
+    "primaryMuscleGroup": "Panturrilha",
+    "secondaryMuscleGroups": [],
+    "equipment": "Corpo do peso",
+    "instructions": "Fique em pé com a ponta dos pés apoiada no chão ou em um degrau, eleve os calcanhares o máximo possível e desça devagar até alongar a panturrilha.",
+    "movementType": "ISOLATION"
+  },
+  {
+    "name": "Flexão pike",
+    "description": "Flexão com o quadril elevado, com maior ênfase em ombros e tríceps.",
+    "primaryMuscleGroup": "Ombros",
+    "secondaryMuscleGroups": [
+      "Tríceps",
+      "Peito"
+    ],
+    "equipment": "Corpo do peso",
+    "instructions": "Apoie as mãos e os pés no chão com o quadril elevado em formato de V invertido, flexione os cotovelos levando a cabeça em direção ao chão e empurre de volta.",
+    "movementType": "COMPOUND"
+  },
+  {
+    "name": "Flexão diamante",
+    "description": "Flexão com as mãos próximas formando um diamante, com foco em tríceps e peitoral interno.",
+    "primaryMuscleGroup": "Tríceps",
+    "secondaryMuscleGroups": [
+      "Peito",
+      "Ombros"
+    ],
+    "equipment": "Corpo do peso",
+    "instructions": "Apoie as mãos no chão com os polegares e indicadores próximos, mantenha o corpo em linha reta, flexione os cotovelos junto ao tronco e empurre de volta.",
+    "movementType": "COMPOUND"
+  },
+  {
+    "name": "Super-homem",
+    "description": "Extensão simultânea de braços e pernas no chão, com foco em costas e glúteos.",
+    "primaryMuscleGroup": "Costas",
+    "secondaryMuscleGroups": [
+      "Glúteos",
+      "Lombar"
+    ],
+    "equipment": "Corpo do peso",
+    "instructions": "Deite de bruços com braços e pernas estendidos, eleve braços, peito e pernas ao mesmo tempo contraindo as costas e os glúteos, e desça controlando.",
+    "movementType": "ISOLATION"
+  },
+  {
+    "name": "Prancha lateral",
+    "description": "Isometria lateral para o core, com apoio de um antebraço e foco nos oblíquos.",
+    "primaryMuscleGroup": "Abdômen",
+    "secondaryMuscleGroups": [
+      "Ombros"
+    ],
+    "equipment": "Corpo do peso",
+    "instructions": "Deite de lado com o antebraço apoiado e os pés alinhados, eleve o quadril mantendo o corpo em linha reta e sustente a posição respirando.",
+    "movementType": "ISOMETRIC"
+  },
+  {
+    "name": "Abdominal canivete",
+    "description": "Abdominal completo em que tronco e pernas se aproximam ao mesmo tempo, usando apenas o peso corporal.",
+    "primaryMuscleGroup": "Abdômen",
+    "secondaryMuscleGroups": [
+      "Quadríceps"
+    ],
+    "equipment": "Corpo do peso",
+    "instructions": "Deite de costas com braços e pernas estendidos, eleve simultaneamente o tronco e as pernas levando as mãos em direção aos pés e desça controlando.",
+    "movementType": "COMPOUND"
   }
 ]

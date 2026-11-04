@@ -76,7 +76,7 @@ Catálogo global do sistema e exercícios personalizados.
 | `createdAt` | data | UTC |
 | `updatedAt` | data | UTC |
 
-- O seed de 59 exercícios vem de `catalog/exercises.json` e é idempotente por
+- O seed de 69 exercícios vem de `catalog/exercises.json` e é idempotente por
   nome. O `_id` é determinístico:
   `UUID.nameUUIDFromBytes("ironmind:catalog:" + name)`.
 - `system = true` e `createdByUserId` ausente definem exercício global: legível

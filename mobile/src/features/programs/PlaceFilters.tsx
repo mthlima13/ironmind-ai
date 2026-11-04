@@ -29,9 +29,9 @@ export type PlaceFiltersProps = {
 /**
  * Place filters of the "Explorar" tab.
  *
- * Keeps the gym models apart from the home models, which only use dumbbells
- * and body weight. The selected option carries a check icon besides the accent
- * color, so the state never depends on color alone (SPEC section 11).
+ * Keeps the gym models apart from the home models, which only use body weight.
+ * The selected option carries a check icon besides the accent color, so the
+ * state never depends on color alone (SPEC section 11).
  */
 export function PlaceFilters({ value, onChange }: PlaceFiltersProps) {
   const { colors } = useTheme();

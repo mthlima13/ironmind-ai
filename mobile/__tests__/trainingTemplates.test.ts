@@ -105,15 +105,7 @@ describe('training structure of the models', () => {
     });
   });
 
-  it('keeps the home sessions free of gym-only equipment', () => {
-    const gymEquipment = new Set([
-      'Barra',
-      'Polia',
-      'Máquina',
-      'Equipamento de cardio',
-      'Esteira',
-    ]);
-
+  it('uses only body weight in the home sessions', () => {
     filterProgramTemplates('ALL', 'HOME').forEach((template) => {
       template.days.forEach((day) => {
         day.exercises.forEach((exercise) => {
@@ -122,13 +114,29 @@ describe('training structure of the models', () => {
             MOCK_EXERCISES
           );
 
-          // Every home exercise must resolve in the catalogue and only use
-          // dumbbells or body weight.
+          // Every home exercise must resolve in the catalogue and rely on the
+          // body weight alone: no bar, dumbbell, pulley or machine.
           expect(resolved).not.toBeNull();
-          expect(gymEquipment.has(resolved!.equipment)).toBe(false);
+          expect(resolved!.equipment).toBe('Corpo do peso');
         });
       });
     });
+  });
+
+  it('includes the classic body weight movements in the home models', () => {
+    const homeExercises = new Set(
+      filterProgramTemplates('ALL', 'HOME').flatMap((template) =>
+        template.days.flatMap((day) =>
+          day.exercises.map((exercise) => exercise.name)
+        )
+      )
+    );
+
+    expect(homeExercises.has('Flexão de braço')).toBe(true);
+    expect(homeExercises.has('Agachamento com salto')).toBe(true);
+    expect(homeExercises.has('Afundo com o corpo do peso')).toBe(true);
+    expect(homeExercises.has('Remada baixa no corpo inclinado')).toBe(true);
+    expect(homeExercises.has('Prancha')).toBe(true);
   });
 
   it('does not repeat an exercise inside the same session', () => {

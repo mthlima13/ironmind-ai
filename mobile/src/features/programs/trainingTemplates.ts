@@ -37,8 +37,8 @@ export type ProgramLevelFilter = (typeof PROGRAM_LEVEL_FILTERS)[number];
 /**
  * Place where a program template is meant to be performed.
  *
- * `HOME` models only use dumbbells and body weight, so they stay usable
- * without gym machines, pulleys or a barbell.
+ * `HOME` models only use body weight, so they stay usable without gym machines,
+ * pulleys, a barbell or dumbbells.
  */
 export const PROGRAM_PLACES = ['GYM', 'HOME'] as const;
 
@@ -112,18 +112,20 @@ function exercise(name: string, targetSets: number, targetRepsMin: number, targe
  * `backend/src/main/resources/catalog/exercises.json`.
  *
  * Each session has 5 to 8 exercises. Gym models usually keep 6 to 8; the home
- * models use fewer when the available equipment limits the variety. The beginner
- * models stay with two to three sets of 8-12 repetitions and two sessions a week
- * (ACSM 2026: all major muscles at least twice a week, ~10 hard sets per muscle
- * per week). The intermediate models add volume and a fourth session. The
- * advanced models use heavier strength work, more weekly volume and isolation
- * variety, following the volume landmarks of Renaissance Periodization (~10-20
- * hard sets per muscle per week) and the structure of PHUL and the Arnold split.
+ * models use fewer when the body weight variations limit the variety. The
+ * beginner models stay with two to three sets of 8-12 repetitions and two
+ * sessions a week (ACSM 2026: all major muscles at least twice a week, ~10 hard
+ * sets per muscle per week). The intermediate models add volume and a fourth
+ * session. The advanced models use heavier strength work, more weekly volume
+ * and isolation variety, following the volume landmarks of Renaissance
+ * Periodization (~10-20 hard sets per muscle per week) and the structure of PHUL
+ * and the Arnold split.
  *
- * The home models only use dumbbells and body weight. Full body and upper/lower
- * are both offered because the research compares them as equivalent when the
- * weekly volume is matched (Ramos-Campo et al., JSCR 2024), and home training
- * with dumbbells and body weight is effective for strength and hypertrophy.
+ * The home models only use body weight: no barbell, dumbbell, pulley, machine or
+ * cardio equipment. Full body and upper/lower are both offered because the
+ * research compares them as equivalent when the weekly volume is matched
+ * (Ramos-Campo et al., JSCR 2024), and body weight training at home is effective
+ * for strength and hypertrophy when the sets get close to failure.
  */
 export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
   {
@@ -642,7 +644,7 @@ export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
     id: 'template-home-full-body-iniciante',
     name: 'Full Body em Casa — Iniciante',
     description:
-      'Três treinos de corpo inteiro por semana com halteres e peso corporal. De 2 a 3 séries de 8 a 15 repetições, com todos os grandes grupos pelo menos três vezes por semana e sem equipamento de academia.',
+      'Três treinos de corpo inteiro por semana usando apenas o peso corporal: flexão, agachamento com salto, afundo e remada inclinada. De 2 a 3 séries de 8 a 15 repetições, com todos os grandes grupos pelo menos três vezes por semana e sem nenhum equipamento.',
     level: TRAINING_EXPERIENCE.BEGINNER,
     goal: 'GENERAL',
     splitType: 'FULL_BODY',
@@ -651,34 +653,34 @@ export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
       {
         name: 'Corpo inteiro A',
         exercises: [
-          exercise('Agachamento goblin', 3, 8, 12, 90),
+          exercise('Agachamento com salto', 3, 8, 12, 75),
           exercise('Flexão de braço', 3, 8, 15, 75),
-          exercise('Remada unilateral', 3, 10, 12, 75),
-          exercise('Desenvolvimento com halteres sentado', 2, 10, 12, 60),
-          exercise('Rosca alternada com halteres', 2, 10, 12, 60),
-          exercise('Tríceps testa com haltere', 2, 10, 12, 60),
+          exercise('Remada baixa no corpo inclinado', 3, 10, 12, 75),
+          exercise('Elevação pélvica com o corpo do peso', 2, 12, 15, 60),
+          exercise('Flexão pike', 2, 8, 12, 60),
+          exercise('Prancha', 2, 30, 45, 45),
         ],
       },
       {
         name: 'Corpo inteiro B',
         exercises: [
           exercise('Afundo com o corpo do peso', 3, 10, 12, 75),
-          exercise('Supino com halteres', 3, 8, 12, 75),
+          exercise('Flexão diamante', 3, 8, 12, 60),
           exercise('Flexão invertida', 3, 10, 15, 75),
-          exercise('Elevação lateral com halteres', 2, 12, 15, 45),
-          exercise('Abdominal com haltere', 2, 12, 15, 45),
-          exercise('Prancha', 2, 30, 45, 45),
+          exercise('Panturrilha em pé com o corpo do peso', 2, 15, 20, 45),
+          exercise('Super-homem', 2, 12, 15, 45),
+          exercise('Abdominal canivete', 2, 10, 15, 45),
         ],
       },
       {
         name: 'Corpo inteiro C',
         exercises: [
-          exercise('Avanço com halteres', 3, 10, 12, 75),
-          exercise('Supino inclinado com halteres', 3, 8, 12, 75),
+          exercise('Agachamento búlgaro com o corpo do peso', 3, 8, 12, 75),
+          exercise('Flexão de braço', 3, 10, 15, 75),
           exercise('Remada baixa no corpo inclinado', 3, 10, 15, 75),
-          exercise('Elevação frontal com haltere', 2, 12, 15, 45),
-          exercise('Rosca martelo', 2, 10, 12, 60),
-          exercise('Tríceps testa com haltere', 2, 10, 12, 60),
+          exercise('Flexão pike', 2, 8, 12, 60),
+          exercise('Bom dia com o corpo do peso', 2, 12, 15, 60),
+          exercise('Prancha lateral', 2, 30, 45, 45),
         ],
       },
     ],
@@ -687,7 +689,7 @@ export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
     id: 'template-home-ab-iniciante',
     name: 'AB em Casa — Superior e Inferior',
     description:
-      'Superior e inferior em dois dias, com halteres e peso corporal, para quem tem pouco tempo. De 2 a 3 séries de 8 a 15 repetições e pelo menos um dia de descanso entre as sessões.',
+      'Superior e inferior em dois dias, com peso corporal e pouco tempo por sessão. De 2 a 3 séries de 8 a 15 repetições, com flexão, remada inclinada, agachamento com salto e afundo, e pelo menos um dia de descanso entre as sessões.',
     level: TRAINING_EXPERIENCE.BEGINNER,
     goal: 'HYPERTROPHY',
     splitType: 'AB',
@@ -696,23 +698,24 @@ export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
       {
         name: 'Superior',
         exercises: [
-          exercise('Supino com halteres', 3, 8, 12, 75),
-          exercise('Remada unilateral', 3, 10, 12, 75),
-          exercise('Desenvolvimento com halteres sentado', 3, 10, 12, 60),
-          exercise('Flexão de braço', 2, 10, 15, 60),
-          exercise('Elevação lateral com halteres', 2, 12, 15, 45),
-          exercise('Rosca alternada com halteres', 2, 10, 12, 60),
-          exercise('Tríceps testa com haltere', 2, 10, 12, 60),
+          exercise('Flexão de braço', 3, 8, 15, 75),
+          exercise('Flexão invertida', 3, 10, 12, 75),
+          exercise('Remada baixa no corpo inclinado', 3, 10, 12, 75),
+          exercise('Flexão pike', 3, 8, 12, 60),
+          exercise('Flexão diamante', 2, 8, 12, 60),
+          exercise('Super-homem', 2, 12, 15, 45),
+          exercise('Prancha', 2, 30, 45, 45),
         ],
       },
       {
         name: 'Inferior',
         exercises: [
-          exercise('Agachamento goblin', 3, 10, 12, 90),
+          exercise('Agachamento com salto', 3, 10, 12, 75),
           exercise('Afundo com o corpo do peso', 3, 10, 12, 75),
-          exercise('Avanço com halteres', 2, 10, 12, 75),
-          exercise('Prancha', 2, 30, 45, 45),
-          exercise('Abdominal com haltere', 2, 12, 15, 45),
+          exercise('Elevação pélvica com o corpo do peso', 3, 12, 15, 60),
+          exercise('Agachamento búlgaro com o corpo do peso', 2, 10, 12, 75),
+          exercise('Panturrilha em pé com o corpo do peso', 2, 15, 20, 45),
+          exercise('Abdominal canivete', 2, 12, 15, 45),
         ],
       },
     ],
@@ -721,7 +724,7 @@ export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
     id: 'template-home-upper-lower-intermediario',
     name: 'Upper / Lower em Casa — Intermediário',
     description:
-      'Quatro sessões alternando superior e inferior, com 5 a 7 exercícios por dia e progressão de carga nos halteres. Cada grupo é treinado duas vezes por semana, com volume semanal próximo ao de um full body.',
+      'Quatro sessões alternando superior e inferior, apenas com o peso corporal e 5 a 7 exercícios por dia. Cada grupo é treinado duas vezes por semana, com progressão por repetições, tempo sob tensão e variações mais difíceis.',
     level: TRAINING_EXPERIENCE.INTERMEDIATE,
     goal: 'HYPERTROPHY',
     splitType: 'UPPER_LOWER',
@@ -730,45 +733,47 @@ export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
       {
         name: 'Superior A',
         exercises: [
-          exercise('Supino com halteres', 4, 8, 12, 90),
-          exercise('Remada unilateral', 4, 8, 12, 90),
-          exercise('Desenvolvimento com halteres sentado', 3, 8, 12, 75),
-          exercise('Supino inclinado com halteres', 3, 10, 12, 75),
-          exercise('Elevação lateral com halteres', 3, 12, 15, 45),
-          exercise('Rosca alternada com halteres', 3, 10, 12, 60),
-          exercise('Tríceps testa com haltere', 3, 10, 12, 60),
+          exercise('Flexão de braço', 4, 10, 20, 75),
+          exercise('Flexão invertida', 4, 8, 15, 75),
+          exercise('Flexão pike', 3, 8, 12, 60),
+          exercise('Remada baixa no corpo inclinado', 4, 10, 15, 75),
+          exercise('Flexão diamante', 3, 10, 12, 60),
+          exercise('Super-homem', 3, 12, 15, 45),
+          exercise('Prancha lateral', 3, 30, 45, 45),
         ],
       },
       {
         name: 'Inferior A',
         exercises: [
-          exercise('Agachamento goblin', 4, 8, 12, 90),
-          exercise('Avanço com halteres', 3, 10, 12, 75),
-          exercise('Afundo com o corpo do peso', 3, 10, 12, 75),
-          exercise('Prancha', 3, 45, 60, 60),
-          exercise('Abdominal com haltere', 3, 12, 15, 45),
+          exercise('Agachamento com salto', 4, 10, 15, 75),
+          exercise('Afundo com o corpo do peso', 4, 10, 15, 75),
+          exercise('Elevação pélvica com o corpo do peso', 3, 12, 20, 60),
+          exercise('Agachamento búlgaro com o corpo do peso', 3, 10, 12, 75),
+          exercise('Panturrilha em pé com o corpo do peso', 3, 15, 20, 45),
+          exercise('Abdominal canivete', 3, 12, 15, 45),
         ],
       },
       {
         name: 'Superior B',
         exercises: [
-          exercise('Flexão de braço', 4, 10, 20, 75),
-          exercise('Flexão invertida', 4, 8, 15, 75),
-          exercise('Supino inclinado com halteres', 3, 10, 12, 75),
-          exercise('Remada baixa no corpo inclinado', 3, 10, 15, 75),
-          exercise('Elevação frontal com haltere', 3, 12, 15, 45),
-          exercise('Rosca inclineada com haltere', 3, 10, 12, 60),
-          exercise('Tríceps testa com haltere', 3, 10, 12, 60),
+          exercise('Flexão diamante', 4, 10, 15, 60),
+          exercise('Remada baixa no corpo inclinado', 4, 8, 12, 75),
+          exercise('Flexão pike', 4, 8, 12, 60),
+          exercise('Flexão invertida', 3, 10, 15, 75),
+          exercise('Flexão de braço', 3, 10, 20, 75),
+          exercise('Super-homem', 3, 12, 15, 45),
+          exercise('Prancha', 3, 45, 60, 60),
         ],
       },
       {
         name: 'Inferior B',
         exercises: [
-          exercise('Afundo com o corpo do peso', 4, 10, 15, 75),
-          exercise('Agachamento goblin', 3, 12, 15, 90),
-          exercise('Avanço com halteres', 3, 12, 15, 75),
-          exercise('Prancha', 3, 45, 60, 60),
-          exercise('Abdominal com haltere', 3, 15, 20, 45),
+          exercise('Agachamento búlgaro com o corpo do peso', 4, 8, 12, 75),
+          exercise('Agachamento com salto', 3, 12, 15, 75),
+          exercise('Elevação pélvica com o corpo do peso', 4, 15, 20, 60),
+          exercise('Bom dia com o corpo do peso', 3, 12, 15, 60),
+          exercise('Panturrilha em pé com o corpo do peso', 3, 15, 20, 45),
+          exercise('Abdominal canivete', 3, 15, 20, 45),
         ],
       },
     ],
@@ -777,7 +782,7 @@ export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
     id: 'template-home-full-body-avancado',
     name: 'Full Body em Casa — Avançado',
     description:
-      'Três sessões de corpo inteiro com maior volume, 3 a 4 séries e trabalho próximo da falha usando halteres e peso corporal. Todos os grandes grupos são treinados três vezes por semana.',
+      'Três sessões de corpo inteiro com maior volume, 3 a 4 séries e trabalho próximo da falha usando apenas o peso corporal. Todos os grandes grupos são treinados três vezes por semana, com variações unilaterais e exercícios explosivos.',
     level: TRAINING_EXPERIENCE.ADVANCED,
     goal: 'HYPERTROPHY',
     splitType: 'FULL_BODY',
@@ -786,38 +791,37 @@ export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
       {
         name: 'Corpo inteiro A',
         exercises: [
-          exercise('Agachamento goblin', 4, 8, 12, 90),
-          exercise('Supino com halteres', 4, 8, 12, 90),
-          exercise('Remada unilateral', 4, 8, 12, 90),
-          exercise('Desenvolvimento com halteres sentado', 3, 10, 12, 75),
-          exercise('Elevação lateral com halteres', 3, 12, 15, 45),
-          exercise('Rosca alternada com halteres', 3, 10, 12, 60),
-          exercise('Tríceps testa com haltere', 3, 10, 12, 60),
+          exercise('Agachamento com salto', 4, 12, 15, 75),
+          exercise('Flexão de braço', 4, 12, 20, 75),
+          exercise('Remada baixa no corpo inclinado', 4, 10, 15, 75),
+          exercise('Flexão pike', 3, 10, 15, 60),
+          exercise('Flexão diamante', 3, 10, 15, 60),
+          exercise('Super-homem', 3, 15, 20, 45),
+          exercise('Abdominal canivete', 3, 15, 20, 45),
         ],
       },
       {
         name: 'Corpo inteiro B',
         exercises: [
-          exercise('Afundo com o corpo do peso', 4, 10, 15, 75),
-          exercise('Flexão de braço', 4, 12, 20, 75),
-          exercise('Flexão invertida', 4, 8, 15, 75),
-          exercise('Supino inclinado com halteres', 3, 10, 12, 75),
-          exercise('Remada baixa no corpo inclinado', 4, 10, 15, 75),
-          exercise('Elevação lateral com halteres', 3, 12, 15, 45),
-          exercise('Prancha', 3, 45, 60, 60),
+          exercise('Agachamento búlgaro com o corpo do peso', 4, 10, 15, 75),
+          exercise('Afundo com o corpo do peso', 4, 12, 15, 75),
+          exercise('Elevação pélvica com o corpo do peso', 4, 15, 20, 60),
+          exercise('Flexão invertida', 4, 10, 15, 75),
+          exercise('Flexão diamante', 3, 12, 15, 60),
+          exercise('Bom dia com o corpo do peso', 3, 15, 20, 60),
+          exercise('Prancha lateral', 3, 45, 60, 45),
         ],
       },
       {
         name: 'Corpo inteiro C',
         exercises: [
-          exercise('Avanço com halteres', 4, 10, 12, 75),
-          exercise('Supino com halteres', 3, 10, 12, 90),
-          exercise('Remada unilateral', 4, 10, 12, 90),
-          exercise('Crucifixo inclinado com halteres', 3, 12, 15, 60),
-          exercise('Desenvolvimento com halteres sentado', 3, 10, 12, 75),
-          exercise('Rosca inclineada com haltere', 3, 10, 12, 60),
-          exercise('Tríceps testa com haltere', 3, 10, 12, 60),
-          exercise('Abdominal com haltere', 3, 15, 20, 45),
+          exercise('Agachamento com salto', 4, 12, 20, 75),
+          exercise('Flexão diamante', 4, 10, 15, 60),
+          exercise('Remada baixa no corpo inclinado', 4, 10, 15, 75),
+          exercise('Flexão pike', 3, 10, 15, 60),
+          exercise('Flexão de braço', 3, 15, 20, 75),
+          exercise('Panturrilha em pé com o corpo do peso', 3, 15, 25, 45),
+          exercise('Abdominal canivete', 3, 15, 20, 45),
         ],
       },
     ],

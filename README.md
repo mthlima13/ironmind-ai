@@ -47,7 +47,7 @@ O IronFit AI resolve isso em duas frentes:
 | Identidade delegada: header `X-User-UUID`, autorização por proprietário, `404` para recurso alheio | Implementado |
 | Autenticação local (JWT, senha, refresh, recuperação, `/auth/*`, `/users/me`) | **Removida** do backend |
 | Persistência: MongoDB 7 em replica set de 1 nó, transações nos recordes | Implementado |
-| Catálogo seed de 59 exercícios, idempotente por nome | Implementado |
+| Catálogo seed de 69 exercícios, idempotente por nome | Implementado |
 | Programas de treino (API): criar, listar, substituir, arquivar | Implementado |
 | Sessões (API): iniciar, pausar, retomar, concluir, histórico paginado | Implementado |
 | Séries (API): registrar, corrigir, excluir, com idempotência durável | Implementado |

@@ -373,8 +373,9 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
   somem ao fechar.
 - Os modelos de programas podem ser filtrados por nível e por local
   (**Todos os locais**, **Academia**, **Em casa**). Os modelos **Em casa** usam
-  apenas halteres e peso corporal e cobrem full body e superior/inferior nos
-  três níveis.
+  apenas exercícios com o peso corporal — flexão, agachamento com salto, afundo,
+  remada inclinada, prancha e variações — sem barra, halteres, polia, máquina ou
+  equipamento de cardio, e cobrem full body e superior/inferior nos três níveis.
 
 **Programas (RF-005)**
 - **Novo programa:** a aba Treinos abre um formulário com nome, objetivo,
