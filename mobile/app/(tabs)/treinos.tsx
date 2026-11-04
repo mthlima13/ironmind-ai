@@ -12,12 +12,15 @@ import { Screen } from '../../src/components/Screen';
 import { CustomExerciseForm } from '../../src/features/exercises/CustomExerciseForm';
 import { ExerciseList } from '../../src/features/exercises/ExerciseList';
 import { LevelFilters } from '../../src/features/programs/LevelFilters';
+import { PlaceFilters } from '../../src/features/programs/PlaceFilters';
 import { ProgramCard } from '../../src/features/programs/ProgramCard';
 import { NewProgramForm } from '../../src/features/programs/NewProgramForm';
 import {
   PROGRAM_LEVEL_LABELS,
+  PROGRAM_PLACE_LABELS,
   filterProgramTemplates,
   type ProgramLevelFilter,
+  type ProgramPlaceFilter,
 } from '../../src/features/programs/trainingTemplates';
 import { usePrograms } from '../../src/features/programs/usePrograms';
 import { ROUTES } from '../../src/navigation/linking';
@@ -55,6 +58,7 @@ export default function WorkoutsScreen() {
 
   const [tab, setTab] = useState<TrainingTab>('mine');
   const [level, setLevel] = useState<ProgramLevelFilter>('ALL');
+  const [place, setPlace] = useState<ProgramPlaceFilter>('ALL');
   const [isCreateProgramOpen, setIsCreateProgramOpen] = useState(false);
   const [exerciseFilters, setExerciseFilters] = useState<ExerciseFilters>({
     search: '',
@@ -66,7 +70,11 @@ export default function WorkoutsScreen() {
   const { data, isLoading, isError, error, refetch } = usePrograms();
 
   const programs: WorkoutProgram[] = useMemo(() => data?.content ?? [], [data]);
-  const templates = filterProgramTemplates(level);
+  const templates = filterProgramTemplates(level, place);
+  const activeFilters = [
+    place === 'ALL' ? null : PROGRAM_PLACE_LABELS[place],
+    level === 'ALL' ? null : PROGRAM_LEVEL_LABELS[level],
+  ].filter((label): label is string => label !== null);
 
   const openSavedProgram = (programId: string) => {
     router.push({
@@ -260,20 +268,24 @@ export default function WorkoutsScreen() {
             pode personalizar.
           </Text>
 
+          <PlaceFilters value={place} onChange={setPlace} />
           <LevelFilters value={level} onChange={setLevel} />
 
           <Text style={styles.resultCount} testID="template-count">
             {templates.length}{' '}
             {templates.length === 1 ? 'programa' : 'programas'}
-            {level === 'ALL' ? '' : ` • ${PROGRAM_LEVEL_LABELS[level]}`}
+            {activeFilters.length > 0 ? ` • ${activeFilters.join(' • ')}` : ''}
           </Text>
 
           {templates.length === 0 ? (
             <EmptyState
-              title="Nenhum programa neste nível"
-              description="Ajuste o filtro para ver os modelos dos outros níveis."
+              title="Nenhum programa com estes filtros"
+              description="Ajuste o nível ou o local para ver os modelos dos outros filtros."
               actionLabel="Ver todos"
-              onAction={() => setLevel('ALL')}
+              onAction={() => {
+                setLevel('ALL');
+                setPlace('ALL');
+              }}
               actionTestID="explore-empty-action"
               icon={<Ionicons name="funnel-outline" size={26} color={colors.textMuted} />}
               testID="explore-empty"
@@ -285,7 +297,12 @@ export default function WorkoutsScreen() {
                 name={template.name}
                 description={template.description}
                 meta={`${weekDaysLabel(template.days.length)} • ${TRAINING_GOAL_LABELS[template.goal]}`}
-                badge={PROGRAM_LEVEL_LABELS[template.level]}
+                badges={[
+                  PROGRAM_LEVEL_LABELS[template.level],
+                  ...(template.place === 'HOME'
+                    ? [PROGRAM_PLACE_LABELS.HOME]
+                    : []),
+                ]}
                 icon="library-outline"
                 onPress={() => openTemplate(template.id)}
                 testID={`template-card-${template.id}`}

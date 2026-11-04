@@ -156,6 +156,34 @@ describe('Treinos listing', () => {
     });
   });
 
+  it('filters the templates by training place', async () => {
+    await render(<WorkoutsScreen />);
+
+    await fireEvent.press(screen.getByTestId('training-tab-explore'));
+
+    const home = filterProgramTemplates('ALL', 'HOME');
+    const gym = filterProgramTemplates('ALL', 'GYM');
+
+    await fireEvent.press(screen.getByTestId('place-filter-HOME'));
+
+    expect(screen.getByText(`${home.length} programas • Em casa`)).toBeTruthy();
+    home.forEach((template) => {
+      expect(screen.getByTestId(`template-card-${template.id}`)).toBeTruthy();
+    });
+    gym.forEach((template) => {
+      expect(screen.queryByTestId(`template-card-${template.id}`)).toBeNull();
+    });
+
+    await fireEvent.press(screen.getByTestId('place-filter-GYM'));
+
+    expect(
+      screen.getByText(`${gym.length} programas • Academia`)
+    ).toBeTruthy();
+    home.forEach((template) => {
+      expect(screen.queryByTestId(`template-card-${template.id}`)).toBeNull();
+    });
+  });
+
   it('opens the details of a template as a read-only model', async () => {
     const template = PROGRAM_TEMPLATES[0]!;
     await render(<WorkoutsScreen />);

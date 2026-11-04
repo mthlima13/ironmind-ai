@@ -17,8 +17,8 @@ export type ProgramCardProps = {
   description?: string;
   /** Weekly frequency and goal, e.g. "3 dias/semana • Hipertrofia". */
   meta: string;
-  /** Optional badge, such as the level of a catalogue template. */
-  badge?: string;
+  /** Optional badges, such as the level or the training place of a template. */
+  badges?: string[];
   icon?: keyof typeof Ionicons.glyphMap;
   onPress: () => void;
   testID?: string;
@@ -35,7 +35,7 @@ export function ProgramCard({
   name,
   description,
   meta,
-  badge,
+  badges,
   icon = 'barbell-outline',
   onPress,
   testID,
@@ -71,11 +71,11 @@ export function ProgramCard({
         ) : null}
 
         <View style={styles.metaRow}>
-          {badge ? (
-            <View style={styles.badge}>
+          {badges?.map((badge) => (
+            <View key={badge} style={styles.badge}>
               <Text style={styles.badgeText}>{badge}</Text>
             </View>
-          ) : null}
+          ))}
           <Text style={styles.meta} numberOfLines={1}>
             {meta}
           </Text>

@@ -34,6 +34,26 @@ export const PROGRAM_LEVEL_FILTERS = ['ALL', ...PROGRAM_LEVELS] as const;
 
 export type ProgramLevelFilter = (typeof PROGRAM_LEVEL_FILTERS)[number];
 
+/**
+ * Place where a program template is meant to be performed.
+ *
+ * `HOME` models only use dumbbells and body weight, so they stay usable
+ * without gym machines, pulleys or a barbell.
+ */
+export const PROGRAM_PLACES = ['GYM', 'HOME'] as const;
+
+export type ProgramPlace = (typeof PROGRAM_PLACES)[number];
+
+export const PROGRAM_PLACE_LABELS: Record<ProgramPlace, string> = {
+  GYM: 'Academia',
+  HOME: 'Em casa',
+};
+
+/** Filter of the "Explorar" tab; `ALL` is not a place. */
+export const PROGRAM_PLACE_FILTERS = ['ALL', ...PROGRAM_PLACES] as const;
+
+export type ProgramPlaceFilter = (typeof PROGRAM_PLACE_FILTERS)[number];
+
 export type TemplateExercise = {
   /** Name in the canonical catalogue seeded by the backend. */
   name: string;
@@ -55,6 +75,7 @@ export type ProgramTemplate = {
   level: ProgramLevel;
   goal: TrainingGoal;
   splitType: SplitType;
+  place: ProgramPlace;
   days: TemplateDay[];
 };
 
@@ -90,13 +111,19 @@ function exercise(name: string, targetSets: number, targetRepsMin: number, targe
  * ends in a `422`. The canonical exercise names come from
  * `backend/src/main/resources/catalog/exercises.json`.
  *
- * Each session has 6 to 8 exercises. The beginner models stay with two to
- * three sets of 8-12 repetitions and two sessions a week (ACSM 2026: all major
- * muscles at least twice a week, ~10 hard sets per muscle per week). The
- * intermediate models add volume and a fourth session. The advanced models use
- * heavier strength work, more weekly volume and isolation variety, following
- * the volume landmarks of Renaissance Periodization (~10-20 hard sets per
- * muscle per week) and the structure of PHUL and the Arnold split.
+ * Each session has 5 to 8 exercises. Gym models usually keep 6 to 8; the home
+ * models use fewer when the available equipment limits the variety. The beginner
+ * models stay with two to three sets of 8-12 repetitions and two sessions a week
+ * (ACSM 2026: all major muscles at least twice a week, ~10 hard sets per muscle
+ * per week). The intermediate models add volume and a fourth session. The
+ * advanced models use heavier strength work, more weekly volume and isolation
+ * variety, following the volume landmarks of Renaissance Periodization (~10-20
+ * hard sets per muscle per week) and the structure of PHUL and the Arnold split.
+ *
+ * The home models only use dumbbells and body weight. Full body and upper/lower
+ * are both offered because the research compares them as equivalent when the
+ * weekly volume is matched (Ramos-Campo et al., JSCR 2024), and home training
+ * with dumbbells and body weight is effective for strength and hypertrophy.
  */
 export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
   {
@@ -107,6 +134,7 @@ export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
     level: TRAINING_EXPERIENCE.BEGINNER,
     goal: 'GENERAL',
     splitType: 'FULL_BODY',
+    place: 'GYM',
     days: [
       {
         name: 'Corpo inteiro A',
@@ -157,6 +185,7 @@ export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
     level: TRAINING_EXPERIENCE.BEGINNER,
     goal: 'HYPERTROPHY',
     splitType: 'AB',
+    place: 'GYM',
     days: [
       {
         name: 'Superior',
@@ -194,6 +223,7 @@ export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
     level: TRAINING_EXPERIENCE.INTERMEDIATE,
     goal: 'HYPERTROPHY',
     splitType: 'ABC',
+    place: 'GYM',
     days: [
       {
         name: 'Peito, tríceps e ombros',
@@ -243,6 +273,7 @@ export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
     level: TRAINING_EXPERIENCE.INTERMEDIATE,
     goal: 'STRENGTH',
     splitType: 'UPPER_LOWER',
+    place: 'GYM',
     days: [
       {
         name: 'Superior (força)',
@@ -302,6 +333,7 @@ export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
     level: TRAINING_EXPERIENCE.INTERMEDIATE,
     goal: 'HYPERTROPHY',
     splitType: 'PPL',
+    place: 'GYM',
     days: [
       {
         name: 'Push',
@@ -349,6 +381,7 @@ export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
     level: TRAINING_EXPERIENCE.ADVANCED,
     goal: 'STRENGTH',
     splitType: 'PHUL',
+    place: 'GYM',
     days: [
       {
         name: 'Superior (força)',
@@ -408,6 +441,7 @@ export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
     level: TRAINING_EXPERIENCE.ADVANCED,
     goal: 'HYPERTROPHY',
     splitType: 'ARNOLD_SPLIT',
+    place: 'GYM',
     days: [
       {
         name: 'Peito e costas',
@@ -458,6 +492,7 @@ export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
     level: TRAINING_EXPERIENCE.ADVANCED,
     goal: 'HYPERTROPHY',
     splitType: 'PPL',
+    place: 'GYM',
     days: [
       {
         name: 'Push A',
@@ -539,6 +574,7 @@ export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
     level: TRAINING_EXPERIENCE.ADVANCED,
     goal: 'HYPERTROPHY',
     splitType: 'ABCDE',
+    place: 'GYM',
     days: [
       {
         name: 'Peito',
@@ -602,6 +638,190 @@ export const PROGRAM_TEMPLATES: ProgramTemplate[] = [
       },
     ],
   },
+  {
+    id: 'template-home-full-body-iniciante',
+    name: 'Full Body em Casa — Iniciante',
+    description:
+      'Três treinos de corpo inteiro por semana com halteres e peso corporal. De 2 a 3 séries de 8 a 15 repetições, com todos os grandes grupos pelo menos três vezes por semana e sem equipamento de academia.',
+    level: TRAINING_EXPERIENCE.BEGINNER,
+    goal: 'GENERAL',
+    splitType: 'FULL_BODY',
+    place: 'HOME',
+    days: [
+      {
+        name: 'Corpo inteiro A',
+        exercises: [
+          exercise('Agachamento goblin', 3, 8, 12, 90),
+          exercise('Flexão de braço', 3, 8, 15, 75),
+          exercise('Remada unilateral', 3, 10, 12, 75),
+          exercise('Desenvolvimento com halteres sentado', 2, 10, 12, 60),
+          exercise('Rosca alternada com halteres', 2, 10, 12, 60),
+          exercise('Tríceps testa com haltere', 2, 10, 12, 60),
+        ],
+      },
+      {
+        name: 'Corpo inteiro B',
+        exercises: [
+          exercise('Afundo com o corpo do peso', 3, 10, 12, 75),
+          exercise('Supino com halteres', 3, 8, 12, 75),
+          exercise('Flexão invertida', 3, 10, 15, 75),
+          exercise('Elevação lateral com halteres', 2, 12, 15, 45),
+          exercise('Abdominal com haltere', 2, 12, 15, 45),
+          exercise('Prancha', 2, 30, 45, 45),
+        ],
+      },
+      {
+        name: 'Corpo inteiro C',
+        exercises: [
+          exercise('Avanço com halteres', 3, 10, 12, 75),
+          exercise('Supino inclinado com halteres', 3, 8, 12, 75),
+          exercise('Remada baixa no corpo inclinado', 3, 10, 15, 75),
+          exercise('Elevação frontal com haltere', 2, 12, 15, 45),
+          exercise('Rosca martelo', 2, 10, 12, 60),
+          exercise('Tríceps testa com haltere', 2, 10, 12, 60),
+        ],
+      },
+    ],
+  },
+  {
+    id: 'template-home-ab-iniciante',
+    name: 'AB em Casa — Superior e Inferior',
+    description:
+      'Superior e inferior em dois dias, com halteres e peso corporal, para quem tem pouco tempo. De 2 a 3 séries de 8 a 15 repetições e pelo menos um dia de descanso entre as sessões.',
+    level: TRAINING_EXPERIENCE.BEGINNER,
+    goal: 'HYPERTROPHY',
+    splitType: 'AB',
+    place: 'HOME',
+    days: [
+      {
+        name: 'Superior',
+        exercises: [
+          exercise('Supino com halteres', 3, 8, 12, 75),
+          exercise('Remada unilateral', 3, 10, 12, 75),
+          exercise('Desenvolvimento com halteres sentado', 3, 10, 12, 60),
+          exercise('Flexão de braço', 2, 10, 15, 60),
+          exercise('Elevação lateral com halteres', 2, 12, 15, 45),
+          exercise('Rosca alternada com halteres', 2, 10, 12, 60),
+          exercise('Tríceps testa com haltere', 2, 10, 12, 60),
+        ],
+      },
+      {
+        name: 'Inferior',
+        exercises: [
+          exercise('Agachamento goblin', 3, 10, 12, 90),
+          exercise('Afundo com o corpo do peso', 3, 10, 12, 75),
+          exercise('Avanço com halteres', 2, 10, 12, 75),
+          exercise('Prancha', 2, 30, 45, 45),
+          exercise('Abdominal com haltere', 2, 12, 15, 45),
+        ],
+      },
+    ],
+  },
+  {
+    id: 'template-home-upper-lower-intermediario',
+    name: 'Upper / Lower em Casa — Intermediário',
+    description:
+      'Quatro sessões alternando superior e inferior, com 5 a 7 exercícios por dia e progressão de carga nos halteres. Cada grupo é treinado duas vezes por semana, com volume semanal próximo ao de um full body.',
+    level: TRAINING_EXPERIENCE.INTERMEDIATE,
+    goal: 'HYPERTROPHY',
+    splitType: 'UPPER_LOWER',
+    place: 'HOME',
+    days: [
+      {
+        name: 'Superior A',
+        exercises: [
+          exercise('Supino com halteres', 4, 8, 12, 90),
+          exercise('Remada unilateral', 4, 8, 12, 90),
+          exercise('Desenvolvimento com halteres sentado', 3, 8, 12, 75),
+          exercise('Supino inclinado com halteres', 3, 10, 12, 75),
+          exercise('Elevação lateral com halteres', 3, 12, 15, 45),
+          exercise('Rosca alternada com halteres', 3, 10, 12, 60),
+          exercise('Tríceps testa com haltere', 3, 10, 12, 60),
+        ],
+      },
+      {
+        name: 'Inferior A',
+        exercises: [
+          exercise('Agachamento goblin', 4, 8, 12, 90),
+          exercise('Avanço com halteres', 3, 10, 12, 75),
+          exercise('Afundo com o corpo do peso', 3, 10, 12, 75),
+          exercise('Prancha', 3, 45, 60, 60),
+          exercise('Abdominal com haltere', 3, 12, 15, 45),
+        ],
+      },
+      {
+        name: 'Superior B',
+        exercises: [
+          exercise('Flexão de braço', 4, 10, 20, 75),
+          exercise('Flexão invertida', 4, 8, 15, 75),
+          exercise('Supino inclinado com halteres', 3, 10, 12, 75),
+          exercise('Remada baixa no corpo inclinado', 3, 10, 15, 75),
+          exercise('Elevação frontal com haltere', 3, 12, 15, 45),
+          exercise('Rosca inclineada com haltere', 3, 10, 12, 60),
+          exercise('Tríceps testa com haltere', 3, 10, 12, 60),
+        ],
+      },
+      {
+        name: 'Inferior B',
+        exercises: [
+          exercise('Afundo com o corpo do peso', 4, 10, 15, 75),
+          exercise('Agachamento goblin', 3, 12, 15, 90),
+          exercise('Avanço com halteres', 3, 12, 15, 75),
+          exercise('Prancha', 3, 45, 60, 60),
+          exercise('Abdominal com haltere', 3, 15, 20, 45),
+        ],
+      },
+    ],
+  },
+  {
+    id: 'template-home-full-body-avancado',
+    name: 'Full Body em Casa — Avançado',
+    description:
+      'Três sessões de corpo inteiro com maior volume, 3 a 4 séries e trabalho próximo da falha usando halteres e peso corporal. Todos os grandes grupos são treinados três vezes por semana.',
+    level: TRAINING_EXPERIENCE.ADVANCED,
+    goal: 'HYPERTROPHY',
+    splitType: 'FULL_BODY',
+    place: 'HOME',
+    days: [
+      {
+        name: 'Corpo inteiro A',
+        exercises: [
+          exercise('Agachamento goblin', 4, 8, 12, 90),
+          exercise('Supino com halteres', 4, 8, 12, 90),
+          exercise('Remada unilateral', 4, 8, 12, 90),
+          exercise('Desenvolvimento com halteres sentado', 3, 10, 12, 75),
+          exercise('Elevação lateral com halteres', 3, 12, 15, 45),
+          exercise('Rosca alternada com halteres', 3, 10, 12, 60),
+          exercise('Tríceps testa com haltere', 3, 10, 12, 60),
+        ],
+      },
+      {
+        name: 'Corpo inteiro B',
+        exercises: [
+          exercise('Afundo com o corpo do peso', 4, 10, 15, 75),
+          exercise('Flexão de braço', 4, 12, 20, 75),
+          exercise('Flexão invertida', 4, 8, 15, 75),
+          exercise('Supino inclinado com halteres', 3, 10, 12, 75),
+          exercise('Remada baixa no corpo inclinado', 4, 10, 15, 75),
+          exercise('Elevação lateral com halteres', 3, 12, 15, 45),
+          exercise('Prancha', 3, 45, 60, 60),
+        ],
+      },
+      {
+        name: 'Corpo inteiro C',
+        exercises: [
+          exercise('Avanço com halteres', 4, 10, 12, 75),
+          exercise('Supino com halteres', 3, 10, 12, 90),
+          exercise('Remada unilateral', 4, 10, 12, 90),
+          exercise('Crucifixo inclinado com halteres', 3, 12, 15, 60),
+          exercise('Desenvolvimento com halteres sentado', 3, 10, 12, 75),
+          exercise('Rosca inclineada com haltere', 3, 10, 12, 60),
+          exercise('Tríceps testa com haltere', 3, 10, 12, 60),
+          exercise('Abdominal com haltere', 3, 15, 20, 45),
+        ],
+      },
+    ],
+  },
 ];
 
 /** Normalized form used to compare catalogue names (case and accents). */
@@ -613,13 +833,16 @@ export function normalizeExerciseName(name: string): string {
     .toLowerCase();
 }
 
-/** Templates of a level, or every template when the filter is `ALL`. */
+/** Templates of a level and place, or every template when the filter is `ALL`. */
 export function filterProgramTemplates(
-  level: ProgramLevelFilter
+  level: ProgramLevelFilter,
+  place: ProgramPlaceFilter = 'ALL'
 ): ProgramTemplate[] {
-  return level === 'ALL'
-    ? PROGRAM_TEMPLATES
-    : PROGRAM_TEMPLATES.filter((template) => template.level === level);
+  return PROGRAM_TEMPLATES.filter(
+    (template) =>
+      (level === 'ALL' || template.level === level) &&
+      (place === 'ALL' || template.place === place)
+  );
 }
 
 export function findProgramTemplate(id: string): ProgramTemplate | undefined {

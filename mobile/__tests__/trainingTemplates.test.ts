@@ -3,6 +3,7 @@ import { SPLIT_DAY_COUNTS } from '../src/types/program';
 import { TRAINING_EXPERIENCE } from '../src/types/user';
 import {
   PROGRAM_LEVELS,
+  PROGRAM_PLACES,
   PROGRAM_TEMPLATES,
   buildTemplateProgramInput,
   filterProgramTemplates,
@@ -47,6 +48,45 @@ describe('catalogue templates of the Treinos tab', () => {
     });
   });
 
+  it('filters the models by place without losing any of them', () => {
+    expect(filterProgramTemplates('ALL', 'ALL')).toEqual(PROGRAM_TEMPLATES);
+
+    PROGRAM_PLACES.forEach((place) => {
+      const byPlace = filterProgramTemplates('ALL', place);
+      expect(byPlace.length).toBeGreaterThan(0);
+      byPlace.forEach((template) => {
+        expect(template.place).toBe(place);
+      });
+    });
+
+    const byPlace = PROGRAM_PLACES.flatMap((place) =>
+      filterProgramTemplates('ALL', place)
+    );
+    expect(byPlace.map((template) => template.id).sort()).toEqual(
+      PROGRAM_TEMPLATES.map((template) => template.id).sort()
+    );
+  });
+
+  it('combines the level and place filters', () => {
+    PROGRAM_LEVELS.forEach((level) => {
+      PROGRAM_PLACES.forEach((place) => {
+        filterProgramTemplates(level, place).forEach((template) => {
+          expect(template.level).toBe(level);
+          expect(template.place).toBe(place);
+        });
+      });
+    });
+  });
+
+  it('offers full body and upper/lower varieties for home training', () => {
+    const home = filterProgramTemplates('ALL', 'HOME');
+    const homeSplits = new Set(home.map((template) => template.splitType));
+
+    expect(homeSplits.has('FULL_BODY')).toBe(true);
+    expect(homeSplits.has('UPPER_LOWER') || homeSplits.has('AB')).toBe(true);
+    expect(home.every((template) => template.days.length > 0)).toBe(true);
+  });
+
   it('finds a model by id', () => {
     const [first] = PROGRAM_TEMPLATES;
 
@@ -56,11 +96,37 @@ describe('catalogue templates of the Treinos tab', () => {
 });
 
 describe('training structure of the models', () => {
-  it('offers 6 to 8 exercises in every session', () => {
+  it('offers 5 to 8 exercises in every session', () => {
     PROGRAM_TEMPLATES.forEach((template) => {
       template.days.forEach((day) => {
-        expect(day.exercises.length).toBeGreaterThanOrEqual(6);
+        expect(day.exercises.length).toBeGreaterThanOrEqual(5);
         expect(day.exercises.length).toBeLessThanOrEqual(8);
+      });
+    });
+  });
+
+  it('keeps the home sessions free of gym-only equipment', () => {
+    const gymEquipment = new Set([
+      'Barra',
+      'Polia',
+      'Máquina',
+      'Equipamento de cardio',
+      'Esteira',
+    ]);
+
+    filterProgramTemplates('ALL', 'HOME').forEach((template) => {
+      template.days.forEach((day) => {
+        day.exercises.forEach((exercise) => {
+          const resolved = resolveTemplateExercise(
+            exercise.name,
+            MOCK_EXERCISES
+          );
+
+          // Every home exercise must resolve in the catalogue and only use
+          // dumbbells or body weight.
+          expect(resolved).not.toBeNull();
+          expect(gymEquipment.has(resolved!.equipment)).toBe(false);
+        });
       });
     });
   });

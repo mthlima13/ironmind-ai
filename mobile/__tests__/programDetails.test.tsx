@@ -222,6 +222,34 @@ describe('template details', () => {
     expect(screen.queryByText('Iniciar')).toBeNull();
   });
 
+  it('shows a home template with the home place and copies it', async () => {
+    const home = PROGRAM_TEMPLATES.find((item) => item.place === 'HOME')!;
+    const created = { ...savedProgram, id: 'created-home' };
+    const mutateAsync = jest.fn().mockResolvedValue(created);
+    mockCreateProgram.mockReturnValue(mutationResult(mutateAsync));
+
+    await render(
+      <ProgramDetailsScreen programId={home.id} source="template" />
+    );
+
+    expect(screen.getByText('Em casa')).toBeTruthy();
+
+    await fireEvent.press(screen.getByTestId('add-template-to-programs'));
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
+
+    const [{ input }] = mutateAsync.mock.calls[0] as [
+      { input: { name: string; days: { exercises: { exerciseId: string }[] }[] } },
+    ];
+    expect(input.name).toBe(home.name);
+    input.days.forEach((day) => {
+      day.exercises.forEach((exercise) => {
+        expect(
+          MOCK_EXERCISES.some((item) => item.id === exercise.exerciseId)
+        ).toBe(true);
+      });
+    });
+  });
+
   it('copies the template into the user programs', async () => {
     const created = { ...savedProgram, id: 'created-program' };
     const mutateAsync = jest.fn().mockResolvedValue(created);

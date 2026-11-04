@@ -24,6 +24,7 @@ import { ProgramDayEditor } from './ProgramDayEditor';
 import { buildProgramInput } from './programPayload';
 import {
   PROGRAM_LEVEL_LABELS,
+  PROGRAM_PLACE_LABELS,
   buildTemplateProgramInput,
   findProgramTemplate,
   resolveTemplateDay,
@@ -198,6 +199,10 @@ function TemplateProgramDetails({ template }: { template: ProgramTemplate }) {
       <ProgramMeta
         items={[
           programMeta('speedometer-outline', PROGRAM_LEVEL_LABELS[template.level]),
+          programMeta(
+            template.place === 'HOME' ? 'home-outline' : 'barbell-outline',
+            PROGRAM_PLACE_LABELS[template.place]
+          ),
           programMeta('flag-outline', TRAINING_GOAL_LABELS[template.goal]),
           programMeta('calendar-outline', `${template.days.length} dias/semana`),
           programMeta('git-branch-outline', SPLIT_TYPE_LABELS[template.splitType]),

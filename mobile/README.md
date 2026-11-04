@@ -371,6 +371,10 @@ O AAB gerado fica em `android/app/build/outputs/bundle/release/`.
   o botão **Criar treino** e os modelos de programas. A busca, os filtros e a
   lista de exercícios aparecem quando o usuário toca em **Criar treino**, e
   somem ao fechar.
+- Os modelos de programas podem ser filtrados por nível e por local
+  (**Todos os locais**, **Academia**, **Em casa**). Os modelos **Em casa** usam
+  apenas halteres e peso corporal e cobrem full body e superior/inferior nos
+  três níveis.
 
 **Programas (RF-005)**
 - **Novo programa:** a aba Treinos abre um formulário com nome, objetivo,
