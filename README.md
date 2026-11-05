@@ -14,6 +14,31 @@ assistidas por inteligência artificial.
 
 ---
 
+## Prévia do aplicativo
+
+| Início | Treinos | Sessão em andamento |
+|---|---|---|
+| ![Tela Início: saudação, progresso da semana, treino de hoje, acesso rápido e dica do dia](docs/screenshots/inicio.png) | ![Tela Treinos: aba Catálogo com busca, filtros e modelos de programas](docs/screenshots/treinos.png) | ![Tela Sessão: cronômetro, registro de séries e conclusão do treino](docs/screenshots/comecar.png) |
+
+| Evolução | Perfil | Configurações |
+|---|---|---|
+| ![Tela Evolução: gráfico de volume, recordes e histórico](docs/screenshots/evolucao.png) | ![Tela Perfil: conta, preferências e limitações](docs/screenshots/perfil.png) | ![Tela Configurações: aparência, privacidade, notificações e conta](docs/screenshots/configuracoes.png) |
+
+| Boas-vindas | Quem é você? | Cadastro |
+|---|---|---|
+| ![Tela Boas-vindas do app](docs/screenshots/boasvindas.png) | ![Escolha de papel: aluno ou personal trainer](docs/screenshots/funcao.png) | ![Cadastro em duas etapas](docs/screenshots/cadastro.png) |
+
+| Como você treina? | Login | Modo personal trainer |
+|---|---|---|
+| ![Etapa 2 do cadastro: preferências de treino](docs/screenshots/preferencias.png) | ![Tela de login](docs/screenshots/login.png) | ![Aviso "Em breve" do modo personal trainer](docs/screenshots/embreve.png) |
+
+> As imagens acima são renderizadas a partir do design system do projeto
+> (repositório local `ironmind-design`, tema escuro — padrão do app), que
+> espelha a interface implementada. O dashboard reflete o layout atual do
+> `index.tsx` (Sua semana, Treino de hoje, Acesso rápido e Dica do dia).
+
+---
+
 ## O problema
 
 Registrar um treino exige planilha, app genérico ou anotações soltas — e no
