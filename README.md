@@ -56,6 +56,62 @@ O IronFit AI resolve isso em duas frentes:
 
 ---
 
+## O que o produto entrega hoje
+
+Uma jornada completa, do registro à decisão — tudo descrito abaixo está
+implementado e com regras de negócio no backend:
+
+- **Durante o treino** — sessão guiada por dia do programa, cronômetro em
+  andamento, registro de série em poucos toques (carga, repetições e RPE
+  opcional), correção de registro já gravado, marcação de exercício concluído e
+  resumo ao terminar. O registro sobrevive sem internet: entra numa fila de
+  sincronização pendente e sobe quando a conexão volta.
+- **Planejamento** — programas criados à mão por divisão (AB, ABC, ABCD,
+  upper/lower, corpo inteiro, PPL, PHUL e outras), com dias renomeáveis,
+  séries/reps alvo e descanso por exercício; modelos prontos por nível
+  (iniciante a avançado); catálogo com 69 exercícios de seed e criação de
+  exercício personalizado.
+- **Análise** — dashboard com progresso semanal em direção à meta ("dias por
+  semana" do perfil), evolução com volume por dia, recordes pessoais e
+  histórico de sessões paginado.
+- **IA revisável** — proposta de treino gerada por objetivo e dias disponíveis e
+  sugestão de carga: saída estruturada, validação no backend e decisão final do
+  usuário (concordar ou rejeitar). O provedor padrão é `mock` — responde sem
+  rede e sem credenciais — e a troca para um LLM real é configuração, não código.
+- **Você no controle** — preferências de treino (unidade, objetivo, dias por
+  semana), restrições de lesão visíveis apenas para o dono, temas
+  claro/escuro/sistema, privacidade granular no perfil e exclusão definitiva de
+  conta, como o Google Play exige.
+
+---
+
+## Diferenciais de engenharia
+
+- **Confiabilidade por contrato** — toda escrita que cria registro aceita
+  `Idempotency-Key` durável: retry do cliente em rede instável nunca duplica
+  série, programa ou sessão.
+- **Verdade calculada no servidor** — volume, 1RM (Brzycki) e recordes são
+  transacionais no backend; o cliente nunca reinterpreta os dados, só exibe.
+- **Isolamento por construção** — o dono de cada recurso vem do header
+  `X-User-UUID` injetado pelo gateway; recurso de outro usuário responde `404`,
+  não `403`, para não confirmar existência.
+- **Qualidade verificada em três frentes** — 116 testes unitários no backend
+  (JUnit), suíte de contrato externa em Python falando apenas com a API pública
+  (isolamento entre usuários, paginação, idempotência, recordes, analytics) e
+  typecheck + testes unitários no app mobile.
+- **Dev sem infraestrutura** — o app roda com um adaptador de mock embutido que
+  cumpre os mesmos contratos da API (paginação, formato de erro, idempotência) e
+  a IA sobe com um provedor simulado: dá para navegar pelo produto sem subir
+  banco nem chamar LLM.
+- **Contrato explícito** — API documentada em OpenAPI 3 (Swagger UI incluído) e
+  convenções de erro padronizadas, que a suíte de contrato verifica de verdade.
+
+> O que **não** está implementado está separado no roadmap (social, wearables,
+> iOS, publicação na Play Store pendente de conta/keystore). Veja
+> [`docs/SPEC.md`](docs/SPEC.md) para a visão completa e honesta.
+
+---
+
 ## Status do projeto
 
 > **Estágio atual: backend com identidade delegada e MongoDB; app Android na
