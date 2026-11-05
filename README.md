@@ -2,6 +2,8 @@
 
 > **Treine com inteligência. Evolua com dados.**
 
+![IronFit — boas-vindas, Início nos temas escuro e claro e sessão em andamento](docs/screenshots/hero.png)
+
 Aplicativo mobile **Android** de treinamento físico que combina registro rápido
 de séries, planejamento de programas, análise de desempenho e recomendações
 assistidas por inteligência artificial.
