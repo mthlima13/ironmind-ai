@@ -1,211 +1,158 @@
+/**
+ * Local onboarding state (SPEC 6.4 and 15.3).
+ *
+ * There is no server session: the identity of the installation is the UUID
+ * sent on the identity header, and the profile lives on the device. The
+ * "session" of the old auth flow collapsed to a single question: did the
+ * user already finish the first-run onboarding?
+ */
 import { create } from 'zustand';
 
-import { api, mapApiError } from '../../services/api';
-import { ENDPOINTS, IDEMPOTENCY_HEADER } from '../../services/endpoints';
-import { onSessionExpired } from '../../services/sessionEvents';
 import { clearOfflineQueue } from '../../storage/offlineQueue';
+import { clearIdentity, loadOrCreateIdentity } from '../../storage/identity';
 import {
-  clearTokens,
-  getAccessToken,
-  getRefreshToken,
-  saveAccessToken,
-  saveRefreshToken,
-} from '../../storage/secureToken';
-import { createIdempotencyKey } from '../../utils/id';
-import type { ApiError, AuthResponse } from '../../types/api';
-import type { AuthUser } from '../../types/user';
+  clearLocalProfile,
+  loadLocalProfile,
+  saveLocalProfile,
+} from '../../storage/profile';
+import type { ApiError } from '../../types/api';
+import type {
+  UpdateProfileInput,
+  UserProfile,
+  UserPreferences,
+  UserIdentity,
+} from '../../types/user';
 
 export type AuthStatus = 'booting' | 'authenticated' | 'unauthenticated';
 
-export type RegisterInput = {
+export type CompleteOnboardingInput = {
   name: string;
-  email: string;
-  password: string;
+  preferences: UserPreferences;
 };
 
 type AuthState = {
   status: AuthStatus;
-  user: AuthUser | null;
+  /** Identity of the installation; `null` only before the boot finishes. */
+  user: UserIdentity | null;
+  /** Local training preferences; `null` before the onboarding. */
+  preferences: UserPreferences | null;
   error: ApiError | null;
   isSubmitting: boolean;
-  /** Restores the session saved in the secure store. */
+  /** Restores the identity, the profile and the finished-onboarding flag. */
   hydrate: () => Promise<void>;
-  login: (email: string, password: string) => Promise<boolean>;
-  register: (input: RegisterInput) => Promise<boolean>;
-  logout: () => Promise<void>;
+  /** Persists the first-run profile and enters the app. */
+  completeOnboarding: (input: CompleteOnboardingInput) => Promise<void>;
+  /** Applies a partial patch to the local profile (name or preferences). */
+  updateProfile: (input: UpdateProfileInput) => Promise<void>;
   /**
-   * Erases the account after confirming the password (SPEC 14.3, Google Play).
-   * On success the local session is ended; on failure the session is kept.
+   * Erases every local trace: identity, profile, offline queue and session
+   * draft. The user goes back to the welcome screen with a fresh identity,
+   * like a brand new installation.
    */
-  deleteAccount: (password: string) => Promise<boolean>;
-  /** Ends the session when the API refuses the stored credentials. */
-  expireSession: () => void;
+  resetLocalData: () => Promise<void>;
   clearError: () => void;
 };
 
-async function persistSession(response: AuthResponse): Promise<void> {
-  await saveAccessToken(response.accessToken);
-  await saveRefreshToken(response.refreshToken);
-}
-
-/**
- * Idempotency key of the registration in progress (SPEC A.3).
- *
- * The key is kept when the request fails for a reason that leaves the
- * outcome unknown (network failure or server error), so the retry sends the
- * same key and the backend never creates two accounts.
- */
-type PendingRegistration = {
-  key: string;
-  email: string;
-};
-
-let pendingRegistration: PendingRegistration | null = null;
-
-function shouldReuseIdempotencyKey(error: ApiError): boolean {
-  if (error.isNetworkError) {
-    return true;
+/** Time zone of the device is presentational (the backend never asks it). */
+function deviceTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
   }
-  return error.status !== undefined && error.status >= 500;
 }
 
 export const useAuthStore = create<AuthState>()((set, get) => ({
   status: 'booting',
   user: null,
+  preferences: null,
   error: null,
   isSubmitting: false,
 
   hydrate: async () => {
-    const token = await getAccessToken();
-    if (!token) {
-      set({ status: 'unauthenticated', user: null });
+    const id = await loadOrCreateIdentity();
+    const profile = await loadLocalProfile();
+
+    if (!id) {
+      // Without a stored identity no private call is possible; the screens
+      // degrade to the unauthenticated flow that asks for nothing.
+      set({ status: 'unauthenticated', user: null, preferences: null });
       return;
     }
 
-    try {
-      const response = await api.get<{ user: AuthUser }>(ENDPOINTS.users.me);
-      set({ status: 'authenticated', user: response.data.user, error: null });
-    } catch (error) {
-      await clearTokens();
-      set({ status: 'unauthenticated', user: null, error: mapApiError(error) });
-    }
+    const identity: UserIdentity = {
+      id,
+      name: profile?.identity.name ?? '',
+    };
+    set({
+      status: profile ? 'authenticated' : 'unauthenticated',
+      user: identity,
+      preferences: profile?.preferences ?? null,
+      error: null,
+    });
   },
 
-  login: async (email, password) => {
-    set({ isSubmitting: true, error: null });
-    try {
-      const response = await api.post<AuthResponse>(ENDPOINTS.auth.login, {
-        email: email.trim(),
-        password,
-      });
-      await persistSession(response.data);
-      set({
-        status: 'authenticated',
-        user: response.data.user,
-        error: null,
-        isSubmitting: false,
-      });
-      return true;
-    } catch (error) {
-      set({ error: mapApiError(error), isSubmitting: false });
-      return false;
-    }
-  },
-
-  register: async ({ name, email, password }) => {
-    set({ isSubmitting: true, error: null });
-
-    const normalizedEmail = email.trim().toLowerCase();
-    const idempotencyKey =
-      pendingRegistration && pendingRegistration.email === normalizedEmail
-        ? pendingRegistration.key
-        : createIdempotencyKey();
-    pendingRegistration = { key: idempotencyKey, email: normalizedEmail };
-
-    try {
-      const response = await api.post<AuthResponse>(
-        ENDPOINTS.auth.register,
-        {
-          name: name.trim(),
-          email: normalizedEmail,
-          password,
-        },
-        { headers: { [IDEMPOTENCY_HEADER]: idempotencyKey } }
-      );
-      pendingRegistration = null;
-      await persistSession(response.data);
-      set({
-        status: 'authenticated',
-        user: response.data.user,
-        error: null,
-        isSubmitting: false,
-      });
-      return true;
-    } catch (error) {
-      const apiError = mapApiError(error);
-      if (!shouldReuseIdempotencyKey(apiError)) {
-        pendingRegistration = null;
-      }
-      set({ error: apiError, isSubmitting: false });
-      return false;
-    }
-  },
-
-  logout: async () => {
+  completeOnboarding: async ({ name, preferences }) => {
     set({ isSubmitting: true });
-    try {
-      const refreshToken = await getRefreshToken();
-      if (refreshToken) {
-        // Revokes the token family on the server (SPEC 7.7 - logout).
-        await api.post(
-          ENDPOINTS.auth.logout,
-          { refreshToken },
-          { skipAuthRefresh: true }
-        );
-      }
-    } catch {
-      // Ending the session on the device never depends on the network.
-    } finally {
-      await clearTokens();
-      await clearOfflineQueue();
-      pendingRegistration = null;
-      set({
-        status: 'unauthenticated',
-        user: null,
-        error: null,
-        isSubmitting: false,
-      });
+    const id = await loadOrCreateIdentity();
+    if (!id) {
+      set({ isSubmitting: false, error: null, status: 'unauthenticated' });
+      return;
     }
+    const profile: UserProfile = {
+      identity: { id, name: name.trim() },
+      preferences,
+      timezone: deviceTimezone(),
+    };
+    await saveLocalProfile(profile);
+    set({
+      status: 'authenticated',
+      user: profile.identity,
+      preferences,
+      isSubmitting: false,
+      error: null,
+    });
   },
 
-  deleteAccount: async (password) => {
-    set({ isSubmitting: true, error: null });
-    try {
-      await api.delete(ENDPOINTS.users.deleteMe, {
-        data: { password },
-      });
-      await clearTokens();
-      await clearOfflineQueue();
-      pendingRegistration = null;
-      set({
-        status: 'unauthenticated',
-        user: null,
-        error: null,
-        isSubmitting: false,
-      });
-      return true;
-    } catch (error) {
-      // A wrong password or a network failure keeps the session and the data.
-      set({ error: mapApiError(error), isSubmitting: false });
-      return false;
+  updateProfile: async (input) => {
+    const current = get();
+    if (current.status !== 'authenticated' || !current.user) {
+      return;
     }
+    const name = input.name?.trim() ?? current.user.name;
+    const preferences: UserPreferences = {
+      ...DEFAULT_PREFERENCES,
+      ...(current.preferences ?? {}),
+      ...(input.preferences ?? {}),
+    } as UserPreferences;
+
+    if (current.preferences) {
+      preferences.privacySettings = {
+        ...current.preferences.privacySettings,
+        ...(input.preferences?.privacySettings ?? {}),
+      };
+    }
+
+    await saveLocalProfile({
+      identity: { id: current.user.id, name },
+      preferences,
+      timezone: deviceTimezone(),
+    });
+    set({
+      user: { id: current.user.id, name },
+      preferences,
+    });
   },
 
-  expireSession: () => {
-    pendingRegistration = null;
+  resetLocalData: async () => {
+    set({ status: 'booting', isSubmitting: true });
+    await clearOfflineQueue();
+    await clearLocalProfile();
+    await clearIdentity();
     set({
       status: 'unauthenticated',
       user: null,
+      preferences: null,
       error: null,
       isSubmitting: false,
     });
@@ -219,13 +166,21 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
 }));
 
 /**
- * The HTTP client renews the session by itself and, when the refresh token
- * is refused, tells the app that the session is over. The store then returns
- * to the login screen without blocking the screen.
+ * Product defaults of a brand new profile (SPEC 10.2). The onboarding form
+ * always shows them when no local preference exists yet.
  */
-onSessionExpired(() => {
-  useAuthStore.getState().expireSession();
-});
+export const DEFAULT_PREFERENCES: UserPreferences = {
+  preferredUnits: 'KG',
+  trainingExperience: 'BEGINNER',
+  goal: 'HYPERTROPHY',
+  availableEquipment: [],
+  trainingDays: 4,
+  privacySettings: {
+    publicProfile: false,
+    showRecords: true,
+    allowSharing: false,
+  },
+};
 
 export function selectIsAuthenticated(state: AuthState): boolean {
   return state.status === 'authenticated';

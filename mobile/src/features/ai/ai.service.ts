@@ -6,7 +6,7 @@ import type {
   WorkoutProposal,
   WorkoutProposalInput,
 } from '../../types/ai';
-import { createIdempotencyKey } from '../../utils/id';
+import { createUuidV4 } from '../../utils/id';
 
 /**
  * AI calls of the workout proposal (SPEC 11.6 and 12.2).
@@ -18,7 +18,7 @@ import { createIdempotencyKey } from '../../utils/id';
 /** Asks the backend for a workout proposal. */
 export async function proposeWorkout(
   input: WorkoutProposalInput,
-  idempotencyKey: string = createIdempotencyKey()
+  idempotencyKey: string = createUuidV4()
 ): Promise<WorkoutProposal> {
   const response = await api.post<WorkoutProposal>(
     ENDPOINTS.ai.workoutProposals,

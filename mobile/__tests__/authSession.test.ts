@@ -1,357 +1,180 @@
-import {
-  AxiosError,
-  AxiosHeaders,
-  type AxiosAdapter,
-  type AxiosRequestConfig,
-  type AxiosResponse,
-  type InternalAxiosRequestConfig,
-} from 'axios';
+import { AxiosHeaders, type InternalAxiosRequestConfig } from 'axios';
 
 import { useAuthStore } from '../src/features/auth/auth.store';
-import { api, createApiClient } from '../src/services/api';
-import {
-  getAccessToken,
-  getRefreshToken,
-  saveAccessToken,
-  saveRefreshToken,
-} from '../src/storage/secureToken';
-import { API_ERROR_CODES, type ApiErrorCode } from '../src/types/api';
+import { createApiClient } from '../src/services/api';
+import { loadOrCreateIdentity } from '../src/storage/identity';
+import { API_ERROR_CODES } from '../src/types/api';
+import type { AxiosAdapter } from 'axios';
 
-const AUTH_USER = {
-  id: 'usr-0001',
-  name: 'Alex Morgan',
-  email: 'alex@ironmind.ai',
-  role: 'USER' as const,
+/**
+ * The local "session" of the app (SPEC 6.4 and 15.3).
+ *
+ * There is no server credential anymore: the identity of the installation is
+ * a UUID generated once, sent on every call, and the onboarding flag lives
+ * with the local profile. These tests pin the state machine of the store and
+ * the identity header attached by the HTTP client.
+ */
+
+const DEFAULT_PREFERENCES = {
+  preferredUnits: 'KG' as const,
+  trainingExperience: 'BEGINNER' as const,
+  goal: 'HYPERTROPHY' as const,
+  availableEquipment: ['Barra'],
+  trainingDays: 4,
+  privacySettings: {
+    publicProfile: false,
+    showRecords: true,
+    allowSharing: false,
+  },
 };
 
-type Call = {
-  url: string;
-  method: string;
-  authorization: string | undefined;
-  data: unknown;
-};
-
-function buildResponse<T>(
-  config: InternalAxiosRequestConfig,
-  data: T,
-  status = 200
-): AxiosResponse<T> {
-  return {
-    data,
-    status,
-    statusText: 'OK',
-    headers: new AxiosHeaders(),
-    config,
-    request: {},
-  };
+function headerOf(config: InternalAxiosRequestConfig): string {
+  return String(config.headers.get('X-User-UUID') ?? '');
 }
 
-function buildUnauthorized(
-  config: InternalAxiosRequestConfig,
-  code: ApiErrorCode
-): AxiosError {
-  const response = {
-    data: { code, message: 'Token expirado.' },
-    status: 401,
-    statusText: 'Unauthorized',
-    headers: new AxiosHeaders(),
-    config,
-  } as AxiosResponse;
-
-  return new AxiosError(
-    'Request failed with status code 401',
-    'ERR_BAD_RESPONSE',
-    config,
-    undefined,
-    response
-  );
-}
-
-function readIdempotencyKey(
-  config: AxiosRequestConfig | undefined
-): string | undefined {
-  const headers = config?.headers as unknown as
-    | Record<string, unknown>
-    | undefined;
-  const value = headers?.['Idempotency-Key'];
-  return typeof value === 'string' ? value : undefined;
-}
-
-/** Reads the body of a request, which axios serializes before the adapter. */
-function parseBody(data: unknown): unknown {
-  return typeof data === 'string' ? JSON.parse(data) : data;
-}
-
-describe('automatic token renewal', () => {
-  it('renews the session and replays the original request', async () => {
-    const calls: Call[] = [];
-    let privateAttempts = 0;
-
-    const adapter: AxiosAdapter = async (config) => {
-      const url = config.url ?? '';
-      const authorization = AxiosHeaders.from(config.headers).get('Authorization');
-      calls.push({
-        url,
-        method: (config.method ?? 'get').toUpperCase(),
-        authorization:
-          typeof authorization === 'string' ? authorization : undefined,
-        data: config.data,
-      });
-
-      if (url.endsWith('/auth/refresh')) {
-        return buildResponse(config, {
-          accessToken: 'access-2',
-          refreshToken: 'refresh-2',
-          tokenType: 'Bearer',
-          expiresIn: 900,
-          user: AUTH_USER,
-        });
-      }
-
-      privateAttempts += 1;
-      if (privateAttempts === 1) {
-        throw buildUnauthorized(config, API_ERROR_CODES.UNAUTHENTICATED);
-      }
-
-      return buildResponse(config, { ok: true });
-    };
-
-    const instance = createApiClient({ useMock: false });
-    instance.defaults.adapter = adapter;
-
-    await saveAccessToken('access-1');
-    await saveRefreshToken('refresh-1');
-
-    const response = await instance.get('/users/me');
-
-    expect(response.data).toEqual({ ok: true });
-    expect(calls.map((call) => call.url)).toEqual([
-      '/users/me',
-      '/auth/refresh',
-      '/users/me',
-    ]);
-    expect(parseBody(calls[1].data)).toEqual({ refreshToken: 'refresh-1' });
-    expect(calls[1].authorization).toBeUndefined();
-    expect(calls[2].authorization).toBe('Bearer access-2');
-    expect(await getAccessToken()).toBe('access-2');
-    expect(await getRefreshToken()).toBe('refresh-2');
-  });
-
-  it('replays the original body of the request', async () => {
-    const bodies: unknown[] = [];
-    let privateAttempts = 0;
-
-    const adapter: AxiosAdapter = async (config) => {
-      const url = config.url ?? '';
-      if (url.endsWith('/auth/refresh')) {
-        return buildResponse(config, {
-          accessToken: 'access-2',
-          refreshToken: 'refresh-2',
-          tokenType: 'Bearer',
-          expiresIn: 900,
-          user: AUTH_USER,
-        });
-      }
-
-      privateAttempts += 1;
-      bodies.push(config.data);
-      if (privateAttempts === 1) {
-        throw buildUnauthorized(config, API_ERROR_CODES.UNAUTHENTICATED);
-      }
-
-      return buildResponse(config, { ok: true });
-    };
-
-    const instance = createApiClient({ useMock: false });
-    instance.defaults.adapter = adapter;
-
-    await saveAccessToken('access-1');
-    await saveRefreshToken('refresh-1');
-
-    await instance.post('/workout-sessions', { programId: 'prg-1' });
-
-    expect(bodies.map((body) => parseBody(body))).toEqual([
-      { programId: 'prg-1' },
-      { programId: 'prg-1' },
-    ]);
-  });
-
-  it('clears the tokens and ends the session when the renewal is refused', async () => {
-    const adapter: AxiosAdapter = async (config) => {
-      if ((config.url ?? '').endsWith('/auth/refresh')) {
-        throw buildUnauthorized(config, API_ERROR_CODES.INVALID_REFRESH_TOKEN);
-      }
-      throw buildUnauthorized(config, API_ERROR_CODES.UNAUTHENTICATED);
-    };
-
-    const instance = createApiClient({ useMock: false });
-    instance.defaults.adapter = adapter;
-
-    await saveAccessToken('access-1');
-    await saveRefreshToken('refresh-1');
-
-    await expect(instance.get('/users/me')).rejects.toMatchObject({
-      code: API_ERROR_CODES.UNAUTHENTICATED,
+describe('auth store (local onboarding)', () => {
+  beforeEach(() => {
+    useAuthStore.setState({
+      status: 'booting',
+      user: null,
+      preferences: null,
+      error: null,
+      isSubmitting: false,
     });
+  });
 
-    expect(await getAccessToken()).toBeNull();
-    expect(await getRefreshToken()).toBeNull();
+  it('starts without a profile and reaches authenticated state after the onboarding', async () => {
+    const state = useAuthStore.getState();
+    await state.hydrate();
+
+    // The test database stores no profile, so the boot answers the same as a
+    // brand new installation.
     expect(useAuthStore.getState().status).toBe('unauthenticated');
-    expect(useAuthStore.getState().user).toBeNull();
+
+    await useAuthStore
+      .getState()
+      .completeOnboarding({ name: 'Alex Morgan', preferences: DEFAULT_PREFERENCES });
+
+    const after = useAuthStore.getState();
+    expect(after.status).toBe('authenticated');
+    expect(after.user?.name).toBe('Alex Morgan');
+    expect(after.preferences?.goal).toBe('HYPERTROPHY');
   });
 
-  it('does not renew the session twice for the same request', async () => {    let refreshCalls = 0;
+  it('applies a partial patch to the local profile', async () => {
+    await useAuthStore
+      .getState()
+      .completeOnboarding({ name: 'Alex Morgan', preferences: DEFAULT_PREFERENCES });
 
-    const adapter: AxiosAdapter = async (config) => {
-      if ((config.url ?? '').endsWith('/auth/refresh')) {
-        refreshCalls += 1;
-        return buildResponse(config, {
-          accessToken: 'access-2',
-          refreshToken: 'refresh-2',
-          tokenType: 'Bearer',
-          expiresIn: 900,
-          user: AUTH_USER,
-        });
-      }
-      throw buildUnauthorized(config, API_ERROR_CODES.UNAUTHENTICATED);
-    };
+    await useAuthStore
+      .getState()
+      .updateProfile({ name: '  Novo Nome  ', preferences: { goal: 'STRENGTH' } });
 
-    const instance = createApiClient({ useMock: false });
-    instance.defaults.adapter = adapter;
-
-    await saveAccessToken('access-1');
-    await saveRefreshToken('refresh-1');
-
-    await expect(instance.get('/users/me')).rejects.toMatchObject({
-      code: API_ERROR_CODES.UNAUTHENTICATED,
-    });
-
-    expect(refreshCalls).toBe(1);
+    const state = useAuthStore.getState();
+    expect(state.user?.name).toBe('Novo Nome');
+    expect(state.preferences?.goal).toBe('STRENGTH');
+    // Fields not sent keep their value.
+    expect(state.preferences?.preferredUnits).toBe('KG');
+    expect(state.preferences?.trainingDays).toBe(4);
   });
 
-  it('does not renew the session for the public authentication endpoints', async () => {
-    let refreshCalls = 0;
+  it('wipes the local data and mints a fresh identity afterwards', async () => {
+    await useAuthStore
+      .getState()
+      .completeOnboarding({ name: 'Alex Morgan', preferences: DEFAULT_PREFERENCES });
 
-    const adapter: AxiosAdapter = async (config) => {
-      if ((config.url ?? '').endsWith('/auth/refresh')) {
-        refreshCalls += 1;
-        return buildResponse(config, {
-          accessToken: 'access-2',
-          refreshToken: 'refresh-2',
-          tokenType: 'Bearer',
-          expiresIn: 900,
-          user: AUTH_USER,
-        });
-      }
-      throw buildUnauthorized(config, API_ERROR_CODES.INVALID_CREDENTIALS);
-    };
+    const before = useAuthStore.getState().user?.id;
+    expect(before).toBeTruthy();
 
-    const instance = createApiClient({ useMock: false });
-    instance.defaults.adapter = adapter;
+    await useAuthStore.getState().resetLocalData();
 
-    await saveAccessToken('access-1');
-    await saveRefreshToken('refresh-1');
+    const after = useAuthStore.getState();
+    expect(after.status).toBe('unauthenticated');
+    expect(after.user).toBeNull();
+    expect(after.preferences).toBeNull();
 
-    await expect(
-      instance.post('/auth/login', {
-        email: 'alex@ironmind.ai',
-        password: 'senha-errada1',
-      })
-    ).rejects.toMatchObject({
-      code: API_ERROR_CODES.INVALID_CREDENTIALS,
-    });
-
-    expect(refreshCalls).toBe(0);
+    // The identity module lost its cache: the next load is a new UUID, so the
+    // private data of the previous scope is out of reach.
+    const reloaded = await loadOrCreateIdentity();
+    expect(reloaded).toBeTruthy();
+    expect(reloaded).not.toBe(before);
   });
 });
 
-describe('registration idempotency', () => {
-  afterEach(() => {
-    jest.restoreAllMocks();
-  });
+describe('identity header of the HTTP client', () => {
+  it('attaches a canonical UUID to every private request', async () => {
+    let seen = '';
+    const adapter: AxiosAdapter = async (config) => {
+      seen = headerOf(config);
+      return {
+        data: { ok: true },
+        status: 200,
+        statusText: 'OK',
+        headers: new AxiosHeaders(),
+        config,
+        request: {},
+      };
+    };
 
-  it('sends the Idempotency-Key header', async () => {
-    const post = jest.spyOn(api, 'post');
+    const instance = createApiClient({ useMock: false });
+    instance.defaults.adapter = adapter;
 
-    const created = await useAuthStore.getState().register({
-      name: 'Teste',
-      email: 'novo.conta@exemplo.com',
-      password: 'abc12345',
-    });
+    await instance.get('/programs');
 
-    expect(created).toBe(true);
-    expect(post).toHaveBeenCalledWith(
-      '/auth/register',
-      expect.objectContaining({ email: 'novo.conta@exemplo.com' }),
-      expect.objectContaining({ headers: expect.any(Object) })
-    );
-    expect(readIdempotencyKey(post.mock.calls[0][2])).toEqual(
-      expect.any(String)
-    );
-  });
-
-  it('reuses the same key when the registration is retried', async () => {
-    const post = jest.spyOn(api, 'post');
-    post.mockRejectedValueOnce({
-      code: API_ERROR_CODES.NETWORK_ERROR,
-      message: 'Sem conexão com o servidor.',
-      fieldErrors: [],
-      isNetworkError: true,
-    });
-
-    const first = await useAuthStore.getState().register({
-      name: 'Teste',
-      email: 'retry.conta@exemplo.com',
-      password: 'abc12345',
-    });
-    const second = await useAuthStore.getState().register({
-      name: 'Teste',
-      email: 'retry.conta@exemplo.com',
-      password: 'abc12345',
-    });
-
-    expect(first).toBe(false);
-    expect(second).toBe(true);
-    expect(readIdempotencyKey(post.mock.calls[0][2])).toBe(
-      readIdempotencyKey(post.mock.calls[1][2])
+    expect(seen).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
     );
   });
-});
 
-describe('logout', () => {
-  afterEach(() => {
-    jest.restoreAllMocks();
+  it('does not override an identity set by the caller', async () => {
+    let seen = '';
+    const adapter: AxiosAdapter = async (config) => {
+      seen = headerOf(config);
+      return {
+        data: { ok: true },
+        status: 200,
+        statusText: 'OK',
+        headers: new AxiosHeaders(),
+        config,
+        request: {},
+      };
+    };
+
+    const instance = createApiClient({ useMock: false });
+    instance.defaults.adapter = adapter;
+
+    await instance.get('/programs', {
+      headers: { 'X-User-UUID': '00000000-0000-4000-8000-000000000000' },
+    });
+
+    expect(seen).toBe('00000000-0000-4000-8000-000000000000');
   });
 
-  it('revokes the refresh token on the server', async () => {
-    const post = jest.spyOn(api, 'post');
+  it('normalizes a 401 failure without touching any credential', async () => {
+    const adapter: AxiosAdapter = async (config) => {
+      throw {
+        isAxiosError: true,
+        config,
+        response: {
+          data: {
+            code: API_ERROR_CODES.UNAUTHENTICATED,
+            message: 'Identidade ausente.',
+            status: 401,
+          },
+          status: 401,
+          statusText: 'Unauthorized',
+          headers: {},
+          config,
+        },
+      };
+    };
 
-    await saveAccessToken('access-1');
-    await saveRefreshToken('refresh-1');
+    const instance = createApiClient({ useMock: false });
+    instance.defaults.adapter = adapter;
 
-    await useAuthStore.getState().logout();
-
-    expect(post).toHaveBeenCalledWith(
-      '/auth/logout',
-      { refreshToken: 'refresh-1' },
-      expect.any(Object)
-    );
-    expect(await getAccessToken()).toBeNull();
-    expect(await getRefreshToken()).toBeNull();
-    expect(useAuthStore.getState().status).toBe('unauthenticated');
-  });
-
-  it('ends the local session even when the server call fails', async () => {
-    const post = jest.spyOn(api, 'post');
-    post.mockRejectedValueOnce(new Error('network down'));
-
-    await saveAccessToken('access-1');
-    await saveRefreshToken('refresh-1');
-
-    await useAuthStore.getState().logout();
-
-    expect(await getAccessToken()).toBeNull();
-    expect(await getRefreshToken()).toBeNull();
-    expect(useAuthStore.getState().status).toBe('unauthenticated');
+    await expect(instance.get('/workout-sessions')).rejects.toMatchObject({
+      code: API_ERROR_CODES.UNAUTHENTICATED,
+      status: 401,
+    });
   });
 });

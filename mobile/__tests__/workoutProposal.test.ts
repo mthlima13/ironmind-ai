@@ -8,13 +8,8 @@ import {
 import { decideRecommendation, proposeWorkout } from '../src/features/ai/ai.service';
 import { createProgram } from '../src/features/programs/program.service';
 import { api, mapApiError } from '../src/services/api';
-import {
-  MOCK_DEMO_EMAIL,
-  MOCK_DEMO_PASSWORD,
-} from '../src/services/mockAdapter';
-import { saveAccessToken } from '../src/storage/secureToken';
 import type { WorkoutProposal } from '../src/types/ai';
-import type { AuthResponse, Page } from '../src/types/api';
+import type { Page } from '../src/types/api';
 import type { WorkoutProgram } from '../src/types/program';
 
 const PROPOSAL: WorkoutProposal = {
@@ -142,14 +137,6 @@ describe('workout proposal review helpers', () => {
 });
 
 describe('mock AI proposal flow', () => {
-  beforeAll(async () => {
-    const login = await api.post<AuthResponse>('/auth/login', {
-      email: MOCK_DEMO_EMAIL,
-      password: MOCK_DEMO_PASSWORD,
-    });
-    await saveAccessToken(login.data.accessToken);
-  });
-
   it('generates a proposal, saves it as a program and records the review', async () => {
     const proposal = await proposeWorkout({
       prompt: 'Treino de hipertrofia para 4 dias',

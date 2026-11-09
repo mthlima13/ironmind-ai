@@ -6,12 +6,13 @@ import { PreferencesScreen } from '../src/features/auth/PreferencesScreen';
 import { RoleScreen } from '../src/features/auth/RoleScreen';
 import { ROUTES } from '../src/navigation/linking';
 
-const mockMutate = jest.fn();
+const mockCompleteOnboarding = jest.fn(async () => undefined);
 
-jest.mock('../src/features/auth/useProfile', () => ({
-  profileQueryKeys: { me: ['users', 'me'] },
-  useProfile: () => ({ data: undefined, isLoading: false, isError: false, error: null, refetch: jest.fn() }),
-  useUpdateProfile: () => ({ mutate: mockMutate }),
+jest.mock('../src/features/auth/useAuth', () => ({
+  useCompleteOnboarding: () => ({
+    completeOnboarding: mockCompleteOnboarding,
+    isSubmitting: false,
+  }),
 }));
 
 beforeEach(() => {
@@ -101,12 +102,21 @@ describe('PreferencesScreen (step 2 of the sign-up)', () => {
 
     await fireEvent.press(screen.getByTestId('preferences-submit'));
 
-    expect(mockMutate).toHaveBeenCalledWith({
+    // The preferences are patched over the product defaults (SPEC 10.2);
+    // the name comes from the previous step (empty here, without params).
+    expect(mockCompleteOnboarding).toHaveBeenCalledWith({
+      name: '',
       preferences: {
         preferredUnits: 'LB',
         trainingExperience: 'INTERMEDIATE',
         goal: 'STRENGTH',
         trainingDays: 7,
+        availableEquipment: [],
+        privacySettings: {
+          publicProfile: false,
+          showRecords: true,
+          allowSharing: false,
+        },
       },
     });
     expect(router.replace).toHaveBeenCalledWith(ROUTES.inicio);

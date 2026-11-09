@@ -10,7 +10,6 @@ import { PendingSyncBanner } from '../../src/components/PendingSyncBanner';
 import { Screen } from '../../src/components/Screen';
 import { useDashboardOverview } from '../../src/features/analytics/useDashboard';
 import { useAuthState } from '../../src/features/auth/useAuth';
-import { useProfile } from '../../src/features/auth/useProfile';
 import { useSessionStore } from '../../src/features/workouts/session.store';
 import { useOfflineSync } from '../../src/features/workouts/useOfflineSync';
 import { usePrograms } from '../../src/features/programs/usePrograms';
@@ -52,8 +51,7 @@ export default function DashboardScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
-  const { user } = useAuthState();
-  const { data: profile } = useProfile();
+  const { user, preferences } = useAuthState();
   const { data, isLoading, isError, error, refetch } = useDashboardOverview();
 
   const { pendingCount, failedCount, syncNow } = useOfflineSync();
@@ -109,8 +107,8 @@ export default function DashboardScreen() {
       .map((point) => weekSlot(new Date(`${point.date}T12:00:00`)))
   );
 
-  // Weekly goal comes from the profile preference ("dias por semana").
-  const goal = profile?.preferences.trainingDays ?? null;
+  // Weekly goal comes from the local preference ("dias por semana").
+  const goal = preferences?.trainingDays ?? null;
   const completed = data.summary.completedSessions;
   const remaining = goal !== null ? Math.max(goal - completed, 0) : null;
   const progress = goal !== null ? Math.min(completed / goal, 1) : 0;

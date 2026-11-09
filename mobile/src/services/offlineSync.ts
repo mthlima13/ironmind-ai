@@ -92,8 +92,7 @@ async function runFlush(
       }
 
       if (
-        apiError.code === API_ERROR_CODES.UNAUTHENTICATED ||
-        apiError.code === API_ERROR_CODES.INVALID_REFRESH_TOKEN
+        apiError.code === API_ERROR_CODES.UNAUTHENTICATED
       ) {
         return result(sent, rejected, operations.length, 'session');
       }

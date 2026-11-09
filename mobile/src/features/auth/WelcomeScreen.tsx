@@ -1,6 +1,5 @@
 import {
   Linking,
-  Pressable,
   StyleSheet,
   Text,
   View,
@@ -48,11 +47,13 @@ const FEATURES = [
 ];
 
 /**
- * Welcome screen (SPEC 15.3): the landing for unauthenticated users.
+ * Welcome screen (SPEC 15.3): the landing for first-run users.
  *
- * "Continuar" goes to the role selection screen ("Quem é você?"); "Entrar"
- * jumps straight to login. The language pill is decorative on purpose - the
- * app is pt-BR only, so it is rendered as a badge, not as a control.
+ * "Continuar" goes to the role selection screen ("Quem é você?"). There is no
+ * login: the identity of the installation already exists and the onboarding
+ * name/preferences live only in this app. The language pill is decorative on
+ * purpose - the app is pt-BR only, so it is rendered as a badge, not as a
+ * control.
  */
 export function WelcomeScreen() {
   const router = useRouter();
@@ -92,16 +93,6 @@ export function WelcomeScreen() {
             <Ionicons name="globe-outline" size={15} color="#FFFFFF" />
             <Text style={styles.langText}>PT</Text>
           </View>
-
-          <Pressable
-            accessibilityRole="link"
-            onPress={() => router.push(ROUTES.login)}
-            style={styles.topLogin}
-            testID="welcome-go-login"
-            hitSlop={12}
-          >
-            <Text style={styles.topLoginText}>Entrar</Text>
-          </Pressable>
         </View>
 
         <View style={styles.hero}>
@@ -134,18 +125,6 @@ export function WelcomeScreen() {
             style={styles.cta}
             testID="welcome-cta"
           />
-
-          <View style={styles.signinRow}>
-            <Text style={styles.signinHint}>Já tem uma conta?</Text>
-            <Pressable
-              accessibilityRole="link"
-              onPress={() => router.push(ROUTES.login)}
-              testID="welcome-go-login-bottom"
-              hitSlop={12}
-            >
-              <Text style={styles.signinLink}>Entrar</Text>
-            </Pressable>
-          </View>
 
           <Text style={styles.legal}>
             Ao continuar, você concorda com nossos{' '}
@@ -206,15 +185,6 @@ const createStyles = (_colors: ThemeColors) => StyleSheet.create({
   langText: {
     color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '600',
-  },
-  topLogin: {
-    minHeight: 36,
-    justifyContent: 'center',
-  },
-  topLoginText: {
-    color: '#FFFFFF',
-    fontSize: 15,
     fontWeight: '600',
   },
   hero: {
@@ -291,21 +261,6 @@ const createStyles = (_colors: ThemeColors) => StyleSheet.create({
     shadowOffset: { height: 10, width: 0 },
     shadowOpacity: 0.28,
     shadowRadius: 26,
-  },
-  signinRow: {
-    alignSelf: 'center',
-    flexDirection: 'row',
-    gap: 6,
-    marginTop: 12,
-  },
-  signinHint: {
-    color: 'rgba(255, 255, 255, 0.66)',
-    fontSize: 14,
-  },
-  signinLink: {
-    color: '#C8F751',
-    fontSize: 14,
-    fontWeight: '600',
   },
   legal: {
     color: 'rgba(255, 255, 255, 0.55)',

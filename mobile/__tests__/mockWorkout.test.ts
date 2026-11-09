@@ -1,7 +1,5 @@
 import { api } from '../src/services/api';
-import { MOCK_DEMO_EMAIL, MOCK_DEMO_PASSWORD } from '../src/services/mockAdapter';
-import { saveAccessToken } from '../src/storage/secureToken';
-import { API_ERROR_CODES, type AuthResponse } from '../src/types/api';
+import { API_ERROR_CODES } from '../src/types/api';
 import type { SessionExercise, WorkoutSession } from '../src/types/workout';
 
 /**
@@ -10,14 +8,6 @@ import type { SessionExercise, WorkoutSession } from '../src/types/workout';
  * while there is no server.
  */
 describe('mock session exercise endpoint', () => {
-  beforeAll(async () => {
-    const login = await api.post<AuthResponse>('/auth/login', {
-      email: MOCK_DEMO_EMAIL,
-      password: MOCK_DEMO_PASSWORD,
-    });
-    await saveAccessToken(login.data.accessToken);
-  });
-
   it('starts a free session without exercises', async () => {
     const session = await api.post<WorkoutSession>('/workout-sessions', {
       programId: null,

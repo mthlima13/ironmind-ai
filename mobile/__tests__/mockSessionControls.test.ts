@@ -1,7 +1,5 @@
 import { api } from '../src/services/api';
-import { MOCK_DEMO_EMAIL, MOCK_DEMO_PASSWORD } from '../src/services/mockAdapter';
-import { saveAccessToken } from '../src/storage/secureToken';
-import { API_ERROR_CODES, type AuthResponse, type Page } from '../src/types/api';
+import { API_ERROR_CODES, type Page } from '../src/types/api';
 import { MUSCLE_GROUPS, type Exercise } from '../src/types/exercise';
 import type { WorkoutProgram } from '../src/types/program';
 import type {
@@ -16,14 +14,6 @@ import type {
  * replacement (SPEC 7.8, RF-003 and RF-005).
  */
 describe('mock session controls', () => {
-  beforeAll(async () => {
-    const login = await api.post<AuthResponse>('/auth/login', {
-      email: MOCK_DEMO_EMAIL,
-      password: MOCK_DEMO_PASSWORD,
-    });
-    await saveAccessToken(login.data.accessToken);
-  });
-
   const startFreeSession = async () =>
     (await api.post<WorkoutSession>('/workout-sessions', {
       programId: null,

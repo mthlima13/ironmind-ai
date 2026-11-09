@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { CreateExerciseInput, ExerciseFilters } from '../../types/exercise';
-import { createIdempotencyKey } from '../../utils/id';
+import { createUuidV4 } from '../../utils/id';
 import { createExercise, fetchExercises } from './exercise.service';
 
 export const exerciseQueryKeys = {
@@ -37,7 +37,7 @@ export function useCreateExercise() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ input, idempotencyKey }: { input: CreateExerciseInput; idempotencyKey?: string }) =>
-      createExercise(input, idempotencyKey ?? createIdempotencyKey()),
+      createExercise(input, idempotencyKey ?? createUuidV4()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: exerciseQueryKeys.all });
     },

@@ -11,7 +11,7 @@ import { LoadingState } from '../../src/components/LoadingState';
 import { PendingSyncBanner } from '../../src/components/PendingSyncBanner';
 import { Screen } from '../../src/components/Screen';
 import { TextField } from '../../src/components/TextField';
-import { useProfile } from '../../src/features/auth/useProfile';
+import { useAuthState } from '../../src/features/auth/useAuth';
 import { ExerciseList } from '../../src/features/exercises/ExerciseList';
 import { usePrograms } from '../../src/features/programs/usePrograms';
 import {
@@ -42,7 +42,7 @@ import { clearSessionDraft } from '../../src/storage/offlineQueue';
 import { useTheme, useThemedStyles, radii, spacing, typography, type ThemeColors } from '../../src/theme';
 import type { Exercise, ExerciseFilters } from '../../src/types/exercise';
 import { SESSION_STATUSES, type ExerciseSet } from '../../src/types/workout';
-import { createIdempotencyKey } from '../../src/utils/id';
+import { createUuidV4 } from '../../src/utils/id';
 
 /** mm:ss (or h:mm:ss past an hour) of seconds elapsed since the start. */
 function formatElapsed(totalSeconds: number | null): string {
@@ -83,7 +83,7 @@ export default function StartWorkoutScreen() {
   const failedCount = useSessionStore((state) => state.failedCount);
   const isOffline = useSessionStore((state) => state.isOffline);
 
-  const { data: profile } = useProfile();
+  const { preferences } = useAuthState();
   const { data: programsData, isLoading: isLoadingPrograms } = usePrograms();
   const { enqueue, syncNow } = useOfflineSync();
 
@@ -116,7 +116,7 @@ export default function StartWorkoutScreen() {
   const autoStartedRef = useRef(false);
   const isFinishingRef = useRef(false);
 
-  const unit = profile?.preferences.preferredUnits ?? 'KG';
+  const unit = preferences?.preferredUnits ?? 'KG';
   const programs = useMemo(() => programsData?.content ?? [], [programsData]);
 
   const sessionProgress = useMemo(
@@ -205,7 +205,7 @@ export default function StartWorkoutScreen() {
       // Generated before the first attempt: if the request fails and goes to
       // the queue, the replay reuses the same key and cannot duplicate the set
       // (SPEC A.3).
-      idempotencyKey: createIdempotencyKey(),
+      idempotencyKey: createUuidV4(),
     }));
 
     try {

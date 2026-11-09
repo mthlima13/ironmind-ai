@@ -18,49 +18,34 @@ jest.mock('../src/services/permissions', () => ({
     mockRequestNotifications(...(args as [])),
 }));
 
-const mockLogout = jest.fn(async () => undefined);
-const mockDeleteAccount = jest.fn(async () => undefined);
-const mockMutate = jest.fn();
+const mockUpdateProfile = jest.fn(async () => undefined);
+const mockResetLocalData = jest.fn(async () => undefined);
 const mockRequestNotifications = jest.fn(async () => 'granted');
 
 jest.mock('../src/features/auth/useAuth', () => ({
-  useLogout: () => ({ logout: mockLogout, isSubmitting: false }),
-  useDeleteAccount: () => ({
-    deleteAccount: mockDeleteAccount,
+  useAuthState: () => ({
+    status: 'authenticated',
+    user: { id: '11111111-2222-4333-8444-555555555555', name: 'Thiago' },
+    preferences: mockPreferences,
+  }),
+  useUpdateProfile: () => ({ updateProfile: mockUpdateProfile }),
+  useResetLocalData: () => ({
+    resetLocalData: mockResetLocalData,
     isSubmitting: false,
-    error: null,
-    clearError: jest.fn(),
   }),
 }));
 
-jest.mock('../src/features/auth/useProfile', () => ({
-  profileQueryKeys: { me: ['users', 'me'] },
-  useProfile: () => ({
-    data: mockProfile,
-    isLoading: false,
-    isError: false,
-    error: null,
-    refetch: jest.fn(),
-  }),
-  useUpdateProfile: () => ({ mutate: mockMutate }),
-}));
-
-
-/** Same shape the API returns (src/types/user.ts UserProfile). */
-const mockProfile = {
-  user: { id: 'u1', name: 'Thiago', email: 'thiago@email.com', role: 'USER' },
-  timezone: 'America/Sao_Paulo',
-  preferences: {
-    preferredUnits: 'KG',
-    trainingExperience: 'INTERMEDIATE',
-    goal: 'HYPERTROPHY',
-    availableEquipment: [],
-    trainingDays: 4,
-    privacySettings: {
-      publicProfile: false,
-      showRecords: true,
-      allowSharing: false,
-    },
+/** Same shape the local profile has (src/types/user.ts UserPreferences). */
+const mockPreferences = {
+  preferredUnits: 'KG',
+  trainingExperience: 'INTERMEDIATE',
+  goal: 'HYPERTROPHY',
+  availableEquipment: [],
+  trainingDays: 4,
+  privacySettings: {
+    publicProfile: false,
+    showRecords: true,
+    allowSharing: false,
   },
 };
 
@@ -80,7 +65,7 @@ beforeEach(() => {
 });
 
 describe('SettingsScreen', () => {
-  it('renders appearance, privacy, notifications and account sections', async () => {
+  it('renders appearance, privacy, notifications and local data sections', async () => {
     await renderSettings();
 
     expect(screen.getByTestId('settings-screen')).toBeTruthy();
@@ -88,11 +73,10 @@ describe('SettingsScreen', () => {
     expect(screen.getByTestId('settings-theme')).toBeTruthy();
     expect(screen.getByText('Privacidade')).toBeTruthy();
     expect(screen.getByText('Notificações')).toBeTruthy();
-    expect(screen.getByTestId('settings-logout')).toBeTruthy();
-    expect(screen.getByTestId('settings-delete-account')).toBeTruthy();
+    expect(screen.getByTestId('settings-wipe-data')).toBeTruthy();
   });
 
-  it('changes the local theme without any API call', async () => {
+  it('changes the local theme without touching the training profile', async () => {
     await renderSettings();
 
     await fireEvent.press(screen.getByTestId('settings-theme-light'));
@@ -100,7 +84,7 @@ describe('SettingsScreen', () => {
     await waitFor(() => {
       expect(useThemeStore.getState().mode).toBe('light');
     });
-    expect(mockMutate).not.toHaveBeenCalled();
+    expect(mockUpdateProfile).not.toHaveBeenCalled();
   });
 
   it('saves privacy switches as a full privacySettings patch', async () => {
@@ -112,7 +96,7 @@ describe('SettingsScreen', () => {
       true
     );
 
-    expect(mockMutate).toHaveBeenCalledWith({
+    expect(mockUpdateProfile).toHaveBeenCalledWith({
       preferences: {
         privacySettings: {
           publicProfile: true,
@@ -131,27 +115,35 @@ describe('SettingsScreen', () => {
     expect(mockRequestNotifications).toHaveBeenCalled();
   });
 
-  it('logs the user out from the dedicated action', async () => {
+  it('never offers logout or account deletion', async () => {
     await renderSettings();
 
-    await fireEvent.press(screen.getByTestId('settings-logout'));
-
-    expect(mockLogout).toHaveBeenCalled();
+    // The account belongs to the identity provider (SPEC 11.1); the screen
+    // only manages the data of the installation.
+    expect(screen.queryByTestId('settings-logout')).toBeNull();
+    expect(screen.queryByTestId('settings-delete-account')).toBeNull();
   });
 
-  it('deletes the account only after the password confirmation', async () => {
+  it('wipes the local data only after the explicit confirmation', async () => {
     await renderSettings();
 
-    await fireEvent.press(screen.getByTestId('settings-delete-account'));
-    await fireEvent.changeText(
-      screen.getByTestId('settings-delete-password'),
-      'senha-forte-123'
-    );
-    await fireEvent.press(screen.getByTestId('settings-delete-confirm'));
+    await fireEvent.press(screen.getByTestId('settings-wipe-data'));
+    expect(mockResetLocalData).not.toHaveBeenCalled();
+
+    await fireEvent.press(screen.getByTestId('settings-wipe-confirm'));
 
     await waitFor(() => {
-      expect(mockDeleteAccount).toHaveBeenCalledWith('senha-forte-123');
+      expect(mockResetLocalData).toHaveBeenCalled();
     });
+  });
+
+  it('cancels the wipe without erasing anything', async () => {
+    await renderSettings();
+
+    await fireEvent.press(screen.getByTestId('settings-wipe-data'));
+    await fireEvent.press(screen.getByTestId('settings-wipe-cancel'));
+
+    expect(mockResetLocalData).not.toHaveBeenCalled();
   });
 
   it('hides the legal links while the URLs are not configured', async () => {

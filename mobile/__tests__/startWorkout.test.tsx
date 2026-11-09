@@ -23,8 +23,12 @@ import type {
   WorkoutSession,
 } from '../src/types/workout';
 
-jest.mock('../src/features/auth/useProfile', () => ({
-  useProfile: () => ({ data: null }),
+jest.mock('../src/features/auth/useAuth', () => ({
+  useAuthState: () => ({
+    status: 'authenticated',
+    user: null,
+    preferences: { preferredUnits: 'KG' },
+  }),
 }));
 
 jest.mock('../src/features/programs/usePrograms', () => ({

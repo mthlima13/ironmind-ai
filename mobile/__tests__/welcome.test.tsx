@@ -45,16 +45,6 @@ describe('WelcomeScreen', () => {
     expect(router.push).toHaveBeenCalledWith(ROUTES.funcao);
   });
 
-  it('both Entrar actions go to the login screen', async () => {
-    await render(<WelcomeScreen />);
-
-    await fireEvent.press(screen.getByTestId('welcome-go-login'));
-    expect(router.push).toHaveBeenCalledWith(ROUTES.login);
-
-    await fireEvent.press(screen.getByTestId('welcome-go-login-bottom'));
-    expect(router.push).toHaveBeenCalledWith(ROUTES.login);
-  });
-
   it('shows the legal words as plain text while the URLs are not configured', async () => {
     await render(<WelcomeScreen />);
 

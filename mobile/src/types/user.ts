@@ -1,11 +1,3 @@
-export const USER_ROLES = {
-  USER: 'USER',
-  CREATOR: 'CREATOR',
-  ADMIN: 'ADMIN',
-} as const;
-
-export type UserRole = (typeof USER_ROLES)[keyof typeof USER_ROLES];
-
 export const WEIGHT_UNITS = {
   KG: 'KG',
   LB: 'LB',
@@ -46,11 +38,16 @@ export const TRAINING_GOAL_LABELS: Record<TrainingGoal, string> = {
   GENERAL: 'Geral',
 };
 
-export type AuthUser = {
+/**
+ * Local identity of the user (SPEC 7.7).
+ *
+ * The backend has no account: the owner is the UUID sent on the identity
+ * header. The name lives only in this app, as the label used by greetings
+ * and forms; the account itself belongs to the future identity provider.
+ */
+export type UserIdentity = {
   id: string;
   name: string;
-  email: string;
-  role: UserRole;
 };
 
 export type UserPreferences = {
@@ -71,8 +68,14 @@ export type PrivacySettings = {
   allowSharing: boolean;
 };
 
+/**
+ * Device-local profile (SPEC 10.1 and 10.2).
+ *
+ * It is never sent to the API: there is no profile endpoint. The values feed
+ * the app forms and the AI request parameters sent explicitly by the client.
+ */
 export type UserProfile = {
-  user: AuthUser;
+  identity: UserIdentity;
   preferences: UserPreferences;
   timezone: string;
 };

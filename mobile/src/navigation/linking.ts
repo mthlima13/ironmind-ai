@@ -18,27 +18,24 @@ export type TabsParamList = {
   perfil: undefined;
 };
 
-/** Parameters of the authentication group. */
+/** Parameters of the first-run onboarding group. */
 export type AuthParamList = {
   boasvindas: undefined;
   funcao: undefined;
   embreve: undefined;
-  login: undefined;
   register: undefined;
-  forgotPassword: undefined;
 };
 
 /** Parameters of the root navigator. */
 export type RootParamList = {
   '(tabs)': NavigatorScreenParams<TabsParamList> | undefined;
   auth: NavigatorScreenParams<AuthParamList> | undefined;
-  resetPassword: { token?: string } | undefined;
   propostas: undefined;
   'programa/[id]': { id: string; source?: 'saved' | 'template' } | undefined;
   exercicios: undefined;
   configuracoes: undefined;
-  /** Step 2 of the sign-up flow; reached authenticated or not. */
-  preferencias: undefined;
+  /** Step 2 of the onboarding; receives the name from step 1. */
+  preferencias: { name?: string } | undefined;
 };
 
 /** Internal routes, used by every navigation call of the app. */
@@ -53,13 +50,10 @@ export const ROUTES = {
   exercicios: '/exercicios',
   configuracoes: '/configuracoes',
   preferencias: '/preferencias',
-  login: '/auth/login',
   register: '/auth/register',
-  forgotPassword: '/auth/forgot-password',
   boasvindas: '/auth/boasvindas',
   funcao: '/auth/funcao',
   embreve: '/auth/embreve',
-  resetPassword: '/reset-password',
 } as const;
 
 export type AppRoute = keyof typeof ROUTES;
@@ -71,13 +65,10 @@ export const DEEP_LINK_PATHS: Record<AppRoute, string> = {
   comecar: 'comecar',
   evolucao: 'evolucao',
   perfil: 'perfil',
-  login: 'entrar',
   register: 'cadastrar',
-  forgotPassword: 'esqueci-senha',
   boasvindas: 'boas-vindas',
   funcao: 'quem-e-voce',
   embreve: 'em-breve',
-  resetPassword: 'reset-password',
   propostas: 'propostas',
   programa: 'programa/:id',
   exercicios: 'exercicios',
@@ -87,17 +78,6 @@ export const DEEP_LINK_PATHS: Record<AppRoute, string> = {
 
 export function buildDeepLink(route: AppRoute): string {
   return `${APP_SCHEME}://${DEEP_LINK_PATHS[route]}`;
-}
-
-/**
- * Link used by the e-mail of access recovery.
- *
- * The token travels in the query string and is single use (SPEC 7.7).
- */
-export function buildResetPasswordDeepLink(token: string): string {
-  return `${APP_SCHEME}://${DEEP_LINK_PATHS.resetPassword}?token=${encodeURIComponent(
-    token
-  )}`;
 }
 
 /** Configuration used by React Navigation when the app is opened by a link. */
@@ -119,12 +99,9 @@ export const linking: LinkingOptions<RootParamList> = {
           boasvindas: DEEP_LINK_PATHS.boasvindas,
           funcao: DEEP_LINK_PATHS.funcao,
           embreve: DEEP_LINK_PATHS.embreve,
-          login: DEEP_LINK_PATHS.login,
           register: DEEP_LINK_PATHS.register,
-          forgotPassword: DEEP_LINK_PATHS.forgotPassword,
         },
       },
-      resetPassword: DEEP_LINK_PATHS.resetPassword,
       propostas: DEEP_LINK_PATHS.propostas,
       'programa/[id]': DEEP_LINK_PATHS.programa,
       exercicios: DEEP_LINK_PATHS.exercicios,

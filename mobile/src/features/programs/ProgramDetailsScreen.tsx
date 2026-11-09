@@ -18,7 +18,7 @@ import {
   type ProgramExercise,
 } from '../../types/program';
 import { TRAINING_GOAL_LABELS } from '../../types/user';
-import { createIdempotencyKey } from '../../utils/id';
+import { createUuidV4 } from '../../utils/id';
 import { useExerciseCatalogue } from '../exercises/useExercises';
 import { ProgramDayEditor } from './ProgramDayEditor';
 import { buildProgramInput } from './programPayload';
@@ -124,7 +124,7 @@ function TemplateProgramDetails({ template }: { template: ProgramTemplate }) {
   const [expandedDayId, setExpandedDayId] = useState<string | null>(null);
   const [createdProgramId, setCreatedProgramId] = useState<string | null>(null);
   const [copyError, setCopyError] = useState<string | null>(null);
-  const idempotencyKey = useRef(createIdempotencyKey());
+  const idempotencyKey = useRef(createUuidV4());
 
   const resolvedDays = useMemo(
     () =>
@@ -400,7 +400,7 @@ function SavedProgramDetails({ programId }: { programId: string }) {
       await updateProgram.mutateAsync({
         id: program.id,
         input: buildProgramInput(program, draftDay),
-        idempotencyKey: createIdempotencyKey(),
+        idempotencyKey: createUuidV4(),
       });
       setEditingDayId(null);
       setDraftDay(null);

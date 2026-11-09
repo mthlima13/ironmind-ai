@@ -29,37 +29,19 @@ jest.mock('../src/features/analytics/useDashboard', () => ({
 
 jest.mock('../src/features/auth/useAuth', () => ({
   useAuthState: () => ({
-    user: {
-      id: 'u1',
-      name: 'Thiago Silva',
-      email: 'thiago@example.com',
-      role: 'STUDENT',
-    },
-  }),
-}));
-
-jest.mock('../src/features/auth/useProfile', () => ({
-  useProfile: () => ({
-    data: {
-      user: {
-        id: 'u1',
-        name: 'Thiago Silva',
-        email: 'thiago@example.com',
-        role: 'STUDENT',
+    status: 'authenticated',
+    user: { id: 'u1', name: 'Thiago Silva' },
+    preferences: {
+      preferredUnits: 'KG',
+      trainingExperience: 'INTERMEDIATE',
+      goal: 'HYPERTROPHY',
+      availableEquipment: [],
+      trainingDays: 3,
+      privacySettings: {
+        publicProfile: false,
+        showRecords: true,
+        allowSharing: false,
       },
-      preferences: {
-        preferredUnits: 'KG',
-        trainingExperience: 'INTERMEDIATE',
-        goal: 'HYPERTROPHY',
-        availableEquipment: [],
-        trainingDays: 3,
-        privacySettings: {
-          publicProfile: false,
-          showRecords: true,
-          allowSharing: false,
-        },
-      },
-      timezone: 'America/Sao_Paulo',
     },
   }),
 }));

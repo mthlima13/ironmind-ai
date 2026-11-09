@@ -3,15 +3,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 import { Card } from '../../src/components/Card';
-import { ErrorState } from '../../src/components/ErrorState';
-import { LoadingState } from '../../src/components/LoadingState';
 import { OptionRow } from '../../src/components/OptionRow';
 import { Screen } from '../../src/components/Screen';
 import { Stepper } from '../../src/components/Stepper';
-import { useProfile, useUpdateProfile } from '../../src/features/auth/useProfile';
+import { useAuthState, useUpdateProfile } from '../../src/features/auth/useAuth';
 import { useRestrictions } from '../../src/features/profile/useRestrictions';
 import { ROUTES } from '../../src/navigation/linking';
-import { mapApiError } from '../../src/services/api';
 import {
   useTheme,
   useThemedStyles,
@@ -32,24 +29,23 @@ import {
 /**
  * Profile screen (SPEC 15.3): the user identity and training data.
  *
- * Theme, privacy, notifications and the account actions (logout, deletion)
- * live in the dedicated Configurações screen — the split keeps this screen
- * focused on what defines the user and feeds the AI.
+ * The account has no backend copy: the identity is the UUID of the
+ * installation and the preferences live on the device (SPEC 10.1 and 10.2).
+ * Theme, privacy, notifications and the local data actions live in the
+ * dedicated Configurações screen.
  */
 export default function ProfileScreen() {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const router = useRouter();
-  const { data: profile, isLoading, isError, error, refetch } = useProfile();
-  const updateProfile = useUpdateProfile();
+  const { user, preferences } = useAuthState();
+  const { updateProfile } = useUpdateProfile();
   const { data: restrictions } = useRestrictions();
-
-  const preferences = profile?.preferences;
 
   const savePreferences = (
     patch: Partial<NonNullable<typeof preferences>>
   ) => {
-    updateProfile.mutate({ preferences: patch });
+    void updateProfile({ preferences: patch });
   };
 
   return (
@@ -58,22 +54,14 @@ export default function ProfileScreen() {
       subtitle="Seus dados e preferências de treino."
       testID="profile-screen"
     >
-      {isLoading ? <LoadingState label="Carregando perfil…" /> : null}
-
-      {isError ? (
-        <ErrorState
-          message={mapApiError(error).message}
-          onRetry={() => {
-            void refetch();
-          }}
-          testID="profile-error"
-        />
-      ) : null}
-
-      {profile ? (
-        <Card title="Conta" subtitle={profile.user.email}>
-          <Text style={styles.accountName}>{profile.user.name}</Text>
-          <Text style={styles.accountMeta}>Fuso horário: {profile.timezone}</Text>
+      {user ? (
+        <Card title="Perfil" subtitle="Salvo neste aparelho">
+          <Text style={styles.accountName}>
+            {user.name.trim().length > 0 ? user.name : 'Seu nome'}
+          </Text>
+          <Text style={styles.accountMeta}>
+            Identidade: {user.id.slice(0, 8)}…
+          </Text>
         </Card>
       ) : null}
 
@@ -164,7 +152,7 @@ export default function ProfileScreen() {
         <View style={styles.settingsInfo}>
           <Text style={styles.settingsTitle}>Configurações</Text>
           <Text style={styles.settingsMeta}>
-            Aparência, privacidade, notificações, excluir e sair da conta
+            Aparência, privacidade, notificações, apagar dados do aparelho
           </Text>
         </View>
         <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />

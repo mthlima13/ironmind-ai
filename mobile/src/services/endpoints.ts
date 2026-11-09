@@ -1,25 +1,16 @@
 /**
  * REST endpoints of the IronFit AI backend (SPEC 11).
  *
- * Every private endpoint expects an `Authorization: Bearer <token>` header
- * (SPEC A.4).
+ * Every private endpoint expects the identity header injected by the gateway
+ * (`X-User-UUID`, SPEC A.4). The backend has no authentication endpoints:
+ * sign-up, login, session, profile and account deletion belong to the
+ * identity provider (SPEC 11.1).
  */
+
 export const API_PREFIX = '/api/v1';
 
 export const ENDPOINTS = {
   health: '/health',
-  auth: {
-    register: '/auth/register',
-    login: '/auth/login',
-    refresh: '/auth/refresh',
-    logout: '/auth/logout',
-    forgotPassword: '/auth/forgot-password',
-    resetPassword: '/auth/reset-password',
-  },
-  users: {
-    me: '/users/me',
-    deleteMe: '/users/me',
-  },
   exercises: {
     list: '/exercises',
     create: '/exercises',
@@ -69,3 +60,6 @@ export const ENDPOINTS = {
 
 /** Header used to keep write operations idempotent (SPEC A.3). */
 export const IDEMPOTENCY_HEADER = 'Idempotency-Key';
+
+/** Header that carries the identity of the request (SPEC A.4). */
+export const USER_IDENTITY_HEADER = 'X-User-UUID';

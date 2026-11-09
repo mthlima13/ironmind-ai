@@ -1,7 +1,7 @@
 import { AxiosError, AxiosHeaders, type AxiosResponse } from 'axios';
 
-import { DEFAULT_MESSAGES, api, mapApiError } from '../src/services/api';
-import { API_ERROR_CODES, type ApiErrorCode } from '../src/types/api';
+import { mapApiError, api } from '../src/services/api';
+import { API_ERROR_CODES } from '../src/types/api';
 
 function buildAxiosError(
   data: unknown,
@@ -111,47 +111,10 @@ describe('mapApiError', () => {
   });
 });
 
-describe('authentication error codes', () => {
-  const cases: [ApiErrorCode, number, string][] = [
-    [
-      API_ERROR_CODES.EMAIL_ALREADY_IN_USE,
-      409,
-      'Este e-mail já está cadastrado.',
-    ],
-    [
-      API_ERROR_CODES.INVALID_CREDENTIALS,
-      401,
-      'E-mail ou senha inválidos.',
-    ],
-    [
-      API_ERROR_CODES.INVALID_REFRESH_TOKEN,
-      401,
-      'Sua sessão expirou. Entre novamente.',
-    ],
-    [
-      API_ERROR_CODES.INVALID_RESET_TOKEN,
-      401,
-      'O link de recuperação expirou. Peça um novo.',
-    ],
-  ];
-
-  it.each(cases)('maps %s and keeps the default message', (code, status, message) => {
-    const result = mapApiError(buildAxiosError({ code }, status));
-
-    expect(result.code).toBe(code);
-    expect(result.status).toBe(status);
-    expect(result.message).toBe(message);
-  });
-
-  it.each(cases)('has a default message for %s', (code, _status, message) => {
-    expect(DEFAULT_MESSAGES[code]).toBe(message);
-  });
-});
-
 describe('api client', () => {
   it('rejects with the normalized error when the backend answers 422', async () => {
     await expect(
-      api.post('/auth/login', { email: 'not-an-email', password: '123' })
+      api.post('/ai/workout-proposals', { prompt: 'x' })
     ).rejects.toMatchObject({
       code: API_ERROR_CODES.VALIDATION_ERROR,
       status: 422,
@@ -159,9 +122,9 @@ describe('api client', () => {
     });
   });
 
-  it('keeps the field errors returned by the backend', async () => {
+  it('keeps the field errors returned by the mock backend', async () => {
     try {
-      await api.post('/auth/login', { email: 'not-an-email', password: '123' });
+      await api.post('/ai/workout-proposals', { prompt: 'x' });
       throw new Error('The request should have been rejected');
     } catch (error) {
       const apiError = mapApiError(error);

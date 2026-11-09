@@ -6,7 +6,7 @@ import type {
   Exercise,
   ExerciseFilters,
 } from '../../types/exercise';
-import { createIdempotencyKey } from '../../utils/id';
+import { createUuidV4 } from '../../utils/id';
 
 /** Searches the exercise catalogue (SPEC RF-003). */
 export async function fetchExercises(
@@ -37,7 +37,7 @@ export async function fetchExercise(id: string): Promise<Exercise> {
 /** Creates a custom exercise (SPEC RF-003 / RF-007). */
 export async function createExercise(
   input: CreateExerciseInput,
-  idempotencyKey: string = createIdempotencyKey()
+  idempotencyKey: string = createUuidV4()
 ): Promise<Exercise> {
   const response = await api.post<Exercise>(ENDPOINTS.exercises.create, input, {
     headers: { [IDEMPOTENCY_HEADER]: idempotencyKey },

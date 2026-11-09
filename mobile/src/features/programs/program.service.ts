@@ -2,7 +2,7 @@ import { api } from '../../services/api';
 import { ENDPOINTS, IDEMPOTENCY_HEADER } from '../../services/endpoints';
 import type { Page } from '../../types/api';
 import type { CreateProgramInput, WorkoutProgram } from '../../types/program';
-import { createIdempotencyKey } from '../../utils/id';
+import { createUuidV4 } from '../../utils/id';
 
 /** Programs owned by the user (SPEC RF-005). */
 export async function fetchPrograms(
@@ -29,7 +29,7 @@ export async function fetchProgram(id: string): Promise<WorkoutProgram> {
  */
 export async function createProgram(
   input: CreateProgramInput,
-  idempotencyKey: string = createIdempotencyKey()
+  idempotencyKey: string = createUuidV4()
 ): Promise<WorkoutProgram> {
   const response = await api.post<WorkoutProgram>(
     ENDPOINTS.programs.create,
@@ -43,7 +43,7 @@ export async function createProgram(
 export async function updateProgram(
   id: string,
   input: CreateProgramInput,
-  idempotencyKey: string = createIdempotencyKey()
+  idempotencyKey: string = createUuidV4()
 ): Promise<WorkoutProgram> {
   const response = await api.put<WorkoutProgram>(
     ENDPOINTS.programs.update(id),

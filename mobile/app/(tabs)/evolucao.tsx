@@ -13,7 +13,7 @@ import { Screen } from '../../src/components/Screen';
 import { StatCard } from '../../src/components/StatCard';
 import { useDashboardOverview } from '../../src/features/analytics/useDashboard';
 import { useRecords } from '../../src/features/analytics/useRecords';
-import { useProfile } from '../../src/features/auth/useProfile';
+import { useAuthState } from '../../src/features/auth/useAuth';
 import { useSessionHistory } from '../../src/features/workouts/useWorkoutSession';
 import { ROUTES } from '../../src/navigation/linking';
 import { mapApiError } from '../../src/services/api';
@@ -27,8 +27,8 @@ export default function EvolutionScreen() {
   const styles = useThemedStyles(createStyles);
   const [page, setPage] = useState(0);
 
-  const { data: profile } = useProfile();
-  const unit = profile?.preferences.preferredUnits ?? 'KG';
+  const { preferences } = useAuthState();
+  const unit = preferences?.preferredUnits ?? 'KG';
 
   const overview = useDashboardOverview();
   const records = useRecords();

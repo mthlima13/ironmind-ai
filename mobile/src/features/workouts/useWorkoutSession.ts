@@ -9,7 +9,7 @@ import type {
   StartSessionInput,
   UpdateSetInput,
 } from '../../types/workout';
-import { createIdempotencyKey } from '../../utils/id';
+import { createUuidV4 } from '../../utils/id';
 import { deleteSet, updateSet } from '../sets/set.service';
 import {
   addSessionExercise,
@@ -104,7 +104,7 @@ export function useRegisterSet(sessionId: string | null) {
           await registerSet(
             sessionId,
             input,
-            input.idempotencyKey ?? createIdempotencyKey()
+            input.idempotencyKey ?? createUuidV4()
           )
         );
       }

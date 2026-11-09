@@ -11,7 +11,6 @@ import { useConnectionSync } from '../src/hooks/useConnectionSync';
 import { useOfflineSyncGate } from '../src/hooks/useOfflineSyncGate';
 import { useSessionPersistence } from '../src/hooks/useSessionPersistence';
 import { BackHandlerProvider } from '../src/navigation/BackHandlerProvider';
-import { useDeepLinks } from '../src/navigation/useDeepLinks';
 import {
   ThemeProvider,
   useTheme,
@@ -85,12 +84,6 @@ function AppNavigator({ isAuthenticated }: { isAuthenticated: boolean }) {
             }}
           />
           <Stack.Screen
-            name="reset-password"
-            options={{
-              title: 'Definir nova senha',
-            }}
-          />
-          <Stack.Screen
             name="configuracoes"
             options={{
               title: 'Configurações',
@@ -126,7 +119,6 @@ export default function RootLayout() {
   }, [hydrateTheme]);
 
   useConnectionSync();
-  useDeepLinks();
 
   const isAuthenticated = status === 'authenticated';
   useSessionPersistence(isAuthenticated);

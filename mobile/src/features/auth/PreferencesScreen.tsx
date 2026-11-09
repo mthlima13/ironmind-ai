@@ -1,6 +1,6 @@
 import { useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StyleSheet, Text } from 'react-native';
-import { useRouter } from 'expo-router';
 
 import { Button } from '../../components/Button';
 import { Card } from '../../components/Card';
@@ -9,14 +9,13 @@ import { Screen } from '../../components/Screen';
 import { Stepper } from '../../components/Stepper';
 import { ROUTES } from '../../navigation/linking';
 import { useThemedStyles, spacing, typography, type ThemeColors } from '../../theme';
-import { useProfile, useUpdateProfile } from './useProfile';
+import { DEFAULT_PREFERENCES } from './auth.store';
+import { useCompleteOnboarding } from './useAuth';
 import { PersonaBanner } from './PersonaBanner';
 import { StepChips } from './StepChips';
 import {
-  TRAINING_EXPERIENCE,
   TRAINING_EXPERIENCE_LABELS,
   TRAINING_GOAL_LABELS,
-  TRAINING_GOALS,
   WEIGHT_UNITS,
   type TrainingExperience,
   type TrainingGoal,
@@ -24,19 +23,19 @@ import {
 } from '../../types/user';
 
 /**
- * Step 2 of the sign-up flow (SPEC 15.3): training preferences of the student.
+ * Step 2 of the first-run flow (SPEC 15.3): "Como você treina?".
  *
- * These values feed the AI recommendations (plan, volume, progression) and
- * can be changed later in the Perfil screen. The card uses the same OptionRow
- * controls as the Perfil screen so both places stay visually identical.
+ * The values are saved on the device (SPEC 10.1 and 10.2) — there is no
+ * profile endpoint — and they feed the AI recommendations afterwards. They
+ * can be changed later in the Perfil screen.
  */
 export function PreferencesScreen() {
   const router = useRouter();
   const styles = useThemedStyles(createStyles);
-  const { data: profile } = useProfile();
-  const updateProfile = useUpdateProfile();
+  // Name received from step 1 ("Quem é você?").
+  const localSearchParams = useLocalSearchParams<{ name?: string }>();
+  const completeOnboarding = useCompleteOnboarding();
 
-  const profilePreferences = profile?.preferences;
   const [unitChoice, setUnitChoice] = useState<WeightUnit | null>(null);
   const [experienceChoice, setExperienceChoice] = useState<TrainingExperience | null>(
     null
@@ -44,26 +43,29 @@ export function PreferencesScreen() {
   const [goalChoice, setGoalChoice] = useState<TrainingGoal | null>(null);
   const [daysChoice, setDaysChoice] = useState<number | null>(null);
 
-  // Defaults follow the profile when it arrives and fall back to the product
-  // defaults of a brand new account (SPEC 6.4: empty account, no fake data).
-  const unit = unitChoice ?? profilePreferences?.preferredUnits ?? WEIGHT_UNITS.KG;
-  const experience =
-    experienceChoice ??
-    profilePreferences?.trainingExperience ??
-    TRAINING_EXPERIENCE.BEGINNER;
-  const goal = goalChoice ?? profilePreferences?.goal ?? TRAINING_GOALS.HYPERTROPHY;
-  const days = daysChoice ?? profilePreferences?.trainingDays ?? 4;
+  // Product defaults of a brand new profile (SPEC 10.2).
+  const unit = unitChoice ?? DEFAULT_PREFERENCES.preferredUnits;
+  const experience = experienceChoice ?? DEFAULT_PREFERENCES.trainingExperience;
+  const goal = goalChoice ?? DEFAULT_PREFERENCES.goal;
+  const days = daysChoice ?? DEFAULT_PREFERENCES.trainingDays;
 
-  const finishOnboarding = () => {
-    updateProfile.mutate({
+  const finishOnboarding = async () => {
+    const name =
+      typeof localSearchParams.name === 'string'
+        ? localSearchParams.name
+        : '';
+    await completeOnboarding.completeOnboarding({
+      name,
       preferences: {
+        ...DEFAULT_PREFERENCES,
         preferredUnits: unit,
         trainingExperience: experience,
         goal,
         trainingDays: days,
       },
     });
-    // The dashboard of a new account shows empty states on purpose.
+    // The dashboard of a new profile shows empty states on purpose, so the
+    // history is replaced instead of stacked (SPEC 15.3).
     router.replace(ROUTES.inicio);
   };
 
@@ -125,7 +127,9 @@ export function PreferencesScreen() {
         label="Concluir e começar a treinar"
         size="lg"
         fullWidth
-        onPress={finishOnboarding}
+        onPress={() => {
+          void finishOnboarding();
+        }}
         testID="preferences-submit"
       />
     </Screen>

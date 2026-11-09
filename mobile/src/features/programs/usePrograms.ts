@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { CreateProgramInput } from '../../types/program';
-import { createIdempotencyKey } from '../../utils/id';
+import { createUuidV4 } from '../../utils/id';
 import {
   createProgram,
   fetchProgram,
@@ -38,7 +38,7 @@ export function useCreateProgram() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ input, idempotencyKey }: { input: CreateProgramInput; idempotencyKey?: string }) =>
-      createProgram(input, idempotencyKey ?? createIdempotencyKey()),
+      createProgram(input, idempotencyKey ?? createUuidV4()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: programQueryKeys.all });
     },
@@ -56,7 +56,7 @@ export function useUpdateProgram() {
       id: string;
       input: CreateProgramInput;
       idempotencyKey?: string;
-    }) => updateProgram(id, input, idempotencyKey ?? createIdempotencyKey()),
+    }) => updateProgram(id, input, idempotencyKey ?? createUuidV4()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: programQueryKeys.all });
     },
