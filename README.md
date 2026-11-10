@@ -24,15 +24,15 @@ assistidas por inteligência artificial.
 
 | Evolução | Perfil | Configurações |
 |---|---|---|
-| ![Tela Evolução: gráfico de volume, recordes e histórico](docs/screenshots/evolucao.png) | ![Tela Perfil: conta, preferências e limitações](docs/screenshots/perfil.png) | ![Tela Configurações: aparência, privacidade, notificações e conta](docs/screenshots/configuracoes.png) |
+| ![Tela Evolução: gráfico de volume, recordes e histórico](docs/screenshots/evolucao.png) | ![Tela Perfil: preferências de treino e limitações](docs/screenshots/perfil.png) | ![Tela Configurações: aparência, privacidade, notificações e dados do aparelho](docs/screenshots/configuracoes.png) |
 
-| Boas-vindas | Quem é você? | Cadastro |
+| Boas-vindas | Escolha de papel | "Quem é você?" |
 |---|---|---|
-| ![Tela Boas-vindas do app](docs/screenshots/boasvindas.png) | ![Escolha de papel: aluno ou personal trainer](docs/screenshots/funcao.png) | ![Cadastro em duas etapas](docs/screenshots/cadastro.png) |
+| ![Tela Boas-vindas do app](docs/screenshots/boasvindas.png) | ![Escolha de papel: aluno ou personal trainer](docs/screenshots/funcao.png) | ![Primeiro uso: só o nome, salvo no aparelho](docs/screenshots/cadastro.png) |
 
-| Como você treina? | Login | Modo personal trainer |
-|---|---|---|
-| ![Etapa 2 do cadastro: preferências de treino](docs/screenshots/preferencias.png) | ![Tela de login](docs/screenshots/login.png) | ![Aviso "Em breve" do modo personal trainer](docs/screenshots/embreve.png) |
+| Como você treina? | Modo personal trainer |
+|---|---|
+| ![Primeiro uso: preferências de treino salvas no aparelho](docs/screenshots/preferencias.png) | ![Aviso "Em breve" do modo personal trainer](docs/screenshots/embreve.png) |
 
 > As imagens acima são renderizadas a partir do design system do projeto
 > (repositório local `ironmind-design`, tema escuro — padrão do app), que
@@ -82,8 +82,10 @@ implementado e com regras de negócio no backend:
   rede e sem credenciais — e a troca para um LLM real é configuração, não código.
 - **Você no controle** — preferências de treino (unidade, objetivo, dias por
   semana), restrições de lesão visíveis apenas para o dono, temas
-  claro/escuro/sistema, privacidade granular no perfil e exclusão definitiva de
-  conta, como o Google Play exige.
+  claro/escuro/sistema, privacidade granular e apagamento de todos os dados do
+  aparelho com uma nova identidade. A identidade da instalação é o UUID que o
+  app envia em `X-User-UUID`; quando o gateway assumir a autenticação, ele
+  passa a sobrescrever esse header.
 
 ---
 
@@ -116,14 +118,14 @@ implementado e com regras de negócio no backend:
 
 ## Status do projeto
 
-> **Estágio atual: backend com identidade delegada e MongoDB; app Android na
-> Sprint 6.** O backend não autentica ninguém: recebe o UUID do usuário no header
-> `X-User-UUID`, injetado pelo gateway, e usa esse UUID como dono de cada
-> recurso. Catálogo, programas, sessões, séries, analytics, recordes, restrições
-> e IA funcionam de ponta a ponta contra a API real. O aplicativo mobile **ainda
-> não foi migrado** para esse contrato: ele continua chamando `/auth/*` e
-> `/users/me`, que não existem mais, e por isso precisa ser ajustado antes de
-> voltar a falar com esta API.
+> **Estágio atual: backend e app no contrato de identidade delegada; Android
+> na Sprint 6.** O backend não autentica ninguém: recebe o UUID do usuário no
+> header `X-User-UUID` — injetado pelo gateway e, no app, originado do próprio
+> aparelho — e usa esse UUID como dono de cada recurso. Catálogo, programas,
+> sessões, séries, analytics, recordes, restrições e IA funcionam de ponta a
+> ponta. O aplicativo mobile fala o mesmo contrato: gera o UUID da instalação
+> em `expo-secure-store`, envia o header em toda requisição e não tem telas de
+> login, recuperação ou perfil remoto.
 
 | Área | Situação |
 |---|---|
@@ -138,7 +140,8 @@ implementado e com regras de negócio no backend:
 | Restrições de lesão e proposta de treino / sugestão de carga / coaching por IA | Implementado no backend — provedor `mock` por padrão |
 | Backend: testes unitários JUnit (116 casos) | Passando |
 | Suíte de contrato da API em Python contra `docker compose` | Passando |
-| App Android: 5 abas, autenticação própria, catálogo, programa, sessão, séries, histórico, perfil e tema | Implementado, **mas ainda no contrato antigo da API** |
+| App mobile: typecheck + testes (Jest, 217 casos) contra o adaptador de mock com o mesmo contrato | Passando |
+| App Android: 5 abas, onboarding local (nome e preferências no aparelho), catálogo, programa, sessão, séries, histórico, perfil e tema | Implementado, no contrato de identidade delegada (`X-User-UUID`) |
 | Recursos sociais e gamificação | Planejado — Fase 3 |
 | Política de privacidade e termos de uso | Rascunho — [`docs/PRIVACY.md`](docs/PRIVACY.md) e [`docs/TERMS.md`](docs/TERMS.md); falta revisão jurídica e publicação em URL pública |
 | Publicação no Google Play (conta, keystore, AAB) | Pendente — checklist em [`docs/PLAY-RELEASE.md`](docs/PLAY-RELEASE.md) |
@@ -273,9 +276,10 @@ EXPO_PUBLIC_API_URL=http://localhost:8080/api/v1
 EXPO_PUBLIC_USE_MOCK_API=false
 ```
 
-> O fluxo de autenticação do app ainda pertence ao contrato antigo
-> (`/auth/*`, `/users/me`). Até a adaptação do mobile, use o modo mock para
-> navegar pelo aplicativo.
+> O app e a API falam o mesmo contrato de identidade: o app gera um UUID por
+> instalação (guardado em `expo-secure-store`) e o envia em `X-User-UUID` em
+> toda requisição. Quando um gateway assumir a autenticação, ele passa a
+> sobrescrever esse header (ver [`docs/SPEC.md`](docs/SPEC.md#64-autenticar-e-acessar-os-dados)).
 
 > No emulador Android o host é `10.0.2.2`; num aparelho físico, use o IP da LAN
 > da máquina (ex.: `http://192.168.1.27:8080/api/v1`) — `localhost` no celular

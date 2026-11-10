@@ -75,11 +75,13 @@ identidade delegada está detalhado em
 
 - Nenhum segredo de servidor no bundle — o app conhece apenas URLs públicas.
 - Nenhuma chamada de IA direta do dispositivo: sempre pelo backend.
-- Dados locais de rascunho no SQLite; limpeza no logout.
+- Dados locais de rascunho no SQLite; limpeza só no apagamento dos dados do
+  aparelho (não existe logout sem provedor de identidade).
 - TLS obrigatório; certificate pinning é decisão de produção ainda pendente.
-- O app **ainda pertence ao contrato antigo** (`/auth/*`, `/users/me`) e precisa
-  ser migrado para a identidade injetada pelo gateway. Enquanto isso, o modo
-  mock é o caminho suportado para navegar pelo aplicativo.
+- O app já fala o contrato de identidade delegada: gera o UUID da instalação
+  (guardado em `secure storage`) e o envia em `X-User-UUID`. Quando o gateway
+  assumir, ele passa a sobrescrever esse header. O modo mock cumpre o mesmo
+  contrato por escopo de identidade.
 
 **Específico de Android (primeiro lançamento):**
 

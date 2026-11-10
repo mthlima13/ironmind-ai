@@ -10,7 +10,7 @@
 | Nome provisório | IronFit AI |
 | Tipo | Aplicativo mobile **Android** (iOS planejado para fase posterior) |
 | Stack | React Native + Expo + TypeScript (mobile) · Java + Spring Boot (backend) · MongoDB (dados) |
-| Status | Backend implementado com identidade delegada e MongoDB. O app Android existe, mas ainda usa o contrato antigo de autenticação e precisa ser migrado. |
+| Status | Backend e app no contrato de identidade delegada (header `X-User-UUID`): o app gera o UUID da instalação e não tem login próprio. Concluído até a Sprint 5; validação de release na Sprint 6. |
 | Documentos anteriores | `docs/archive/ironmind-ai-projeto.md`, `docs/archive/ironmind-ai-especificacao.md` |
 
 > Este documento consolida dois rascunhos anteriores em uma única fonte da
@@ -156,7 +156,8 @@ recursos avançados.
 
 **Objetivo:** entregar um aplicativo de treino funcional e confiável.
 
-- Cadastro, login e recuperação de acesso.
+- Acesso pela identidade delegada (`X-User-UUID`): sem cadastro, login ou
+  recuperação no aplicativo.
 - Perfil, preferências, objetivos e restrições de treino.
 - Catálogo inicial de exercícios com busca e filtros.
 - Exercícios personalizados do usuário.
@@ -242,7 +243,7 @@ aplicado na camada de repositório/serviço, não apenas no controller.
 
 | ID | Requisito | Fase | Prioridade |
 |---|---|---|---|
-| RF-001 | Permitir cadastro, autenticação e recuperação de acesso | 1 | Alta |
+| RF-001 | Identificar o usuário pela identidade delegada (`X-User-UUID`), sem cadastro nem login próprios | 1 | Alta |
 | RF-002 | Permitir editar perfil, preferências, unidades e objetivos de treino | 1 | Alta |
 | RF-003 | Consultar catálogo de exercícios com busca e filtros | 1 | Alta |
 | RF-004 | Criar exercício personalizado do usuário | 1 | Média |
@@ -359,6 +360,12 @@ Exemplo de entrada: "cem quilos por oito".
    pertence a ele. O backend não cria perfil nem guarda nome, e-mail ou senha.
 5. O aplicativo não guarda token de API: a credencial de sessão pertence ao
    fluxo do provedor de identidade.
+
+> **Até a infraestrutura de gateway existir**, o próprio aplicativo gera o UUID
+> no primeiro uso da instalação (guardado em `expo-secure-store`) e o envia em
+> `X-User-UUID` — o app fala o mesmo contrato que o gateway vai decorar. Quando
+> o gateway assumir, ele passa a sobrescrever esse header a cada chamada; a
+> troca fica restrita à camada de identidade do app.
 
 **Recuperação de acesso, troca de senha e encerramento de conta** são
 responsabilidade do provedor de identidade. A API não expõe `/auth/*` nem
@@ -739,6 +746,11 @@ Não há `user_preferences`. O contexto de IA usa os padrões documentados
 (objetivo `GENERAL`, experiência `BEGINNER`, 3 dias, sem filtro de equipamento).
 Unidades e demais preferências são apresentação do cliente ou dado da conta no
 provedor de identidade.
+
+> Até o provedor de identidade existir, as preferências do app ficam salvas
+> apenas no aparelho (SQLite, chave `profile.v1` — ver
+> [seção 6.4](#64-autenticar-e-acessar-os-dados)); o backend continua sem
+> coleção de preferências.
 
 ### 10.3 Coleções
 
@@ -1214,15 +1226,18 @@ O treino deve continuar funcionando quando a conexão cair.
 
 ### 15.3 Telas do MVP
 
-- Boas-vindas: entrada do app para quem não está autenticado; "Continuar"
-  leva à escolha de papel ("Quem é você?") e "Entrar" leva ao login.
-- Escolha de papel ("Quem é você?"): "Sou aluno" segue para o cadastro;
+- Boas-vindas: entrada do app na primeira abertura; "Continuar" leva à escolha
+  de papel. Não existe login nem recuperação de acesso: suas responsabilidades
+  são do provedor de identidade ([6.4](#64-autenticar-e-acessar-os-dados)) e a
+  identidade do app é a da instalação.
+- Escolha de papel ("Quem é você?"): "Sou aluno" segue para o dado de nome;
   "Sou personal trainer" abre o aviso "Em breve" (trilha da fase 2, ainda
   fora do escopo do MVP).
-- Recuperação de acesso.
-- Cadastro em duas etapas: a etapa 1 coleta os dados de acesso; a etapa 2
-  ("Como você treina?") grava unidade, experiência, objetivo e dias por
-  semana, que alimentam as recomendações da IA e podem mudar no Perfil.
+- "Quem é você?" (dados): coleta apenas o nome, salvo neste aparelho — não
+  existe cadastro de conta.
+- "Como você treina?": grava no aparelho a unidade, a experiência, o objetivo
+  e os dias por semana, que alimentam as recomendações da IA e podem mudar no
+  Perfil.
 - Dashboard: cabeçalho com data e saudação; "Sua semana" (círculos dos dias,
   barra de progresso e mensagem de meta semanal); "Treino de hoje" (dia do
   programa ativo com botão de continuar); acesso rápido e "Dica do dia".
@@ -1302,14 +1317,15 @@ idempotência, recordes transacionais, analytics e IA.
 
 - [x] O usuário acessa a API com a identidade injetada pelo gateway.
 - [x] O usuário consulta e filtra o catálogo de exercícios.
-- [ ] O usuário cria um programa com dias e exercícios.
-  - O backend já expõe `POST /programs`; a tela do app ainda edita o dia em
-    memória e não persiste. Falta ligar a interface à API.
+- [x] O usuário cria um programa com dias e exercícios.
+  - O formulário "Novo programa" e o salvamento da proposta de IA falam com
+    `POST /programs`; o fluxo tem contrato coberto pelo mock e, opt-in
+    (`IT_API_URL`), contra a API real.
 - [x] O usuário inicia uma sessão e registra múltiplas séries.
 - [x] O preenchimento rápido sugere os valores da última sessão.
-- [ ] O usuário corrige uma série e o histórico reflete a correção.
-  - O backend já expõe `PATCH /sets/{id}` e `DELETE /sets/{id}`; falta a
-    interface no app.
+- [x] O usuário corrige uma série e o histórico reflete a correção.
+  - A tela de sessão expõe edição e exclusão da série gravada
+    (`PATCH`/`DELETE` em `/sets/{id}`) e o histórico recarrega depois.
 - [x] A sessão finalizada aparece no histórico.
 - [x] Volume, 1RM e recordes são calculados de forma consistente e transacional.
   - `/analytics/*` e `/records` usam as calculadoras, e o recálculo dos recordes
@@ -1342,11 +1358,13 @@ UI com Detox ou Appium é o caminho quando a cobertura de regras de domínio
 estabilizar.
 
 **Execução parcial registrada (API 35):** emulador Android 15 (API 35, x86_64,
-perfil Pixel 6), com o app falando com a API e o banco reais no contrato antigo.
-Verificado: navegação entre as cinco abas e leitura do catálogo. **Pendente:**
-migrar o app para a identidade injetada pelo gateway, aparelho físico de outra
-marca, tela de 5 polegadas, modo multi-janela, TalkBack, escala máxima de fonte
-e o ciclo de vida da sessão com o app em background.
+perfil Pixel 6), com o app falando com a API e o banco reais no contrato
+antigo, quando ele ainda não enviava `X-User-UUID`. Verificado na época:
+navegação entre as cinco abas e leitura do catálogo. O app já migrou para o
+header de identidade; repetir essa validação no contrato atual é passo da
+Sprint 6. **Pendente:** aparelho físico de outra marca, tela de 5 polegadas,
+modo multi-janela, TalkBack, escala máxima de fonte e o ciclo de vida da
+sessão com o app em background.
 
 ### 16.6 Distribuição
 
@@ -1416,12 +1434,15 @@ e o ciclo de vida da sessão com o app em background.
 - [ ] Gerar AAB assinado e publicar no track de teste do Google Play.
 - [ ] Documentar instalação, execução e demonstração.
 
-> **Estado desta rodada:** o backend está completo no novo contrato de
-> identidade (sem autenticação própria) e em MongoDB, coberto por testes
-> unitários JUnit e pela suíte de contrato em Python. O aplicativo ainda usa o
-> contrato antigo (`/auth/*`, `/users/me`): a migração do mobile é o item que
-> bloqueia o uso da API real pelo app. A exclusão de conta é do provedor de
-> identidade, não do backend.
+> **Estado desta rodada:** o backend está completo no contrato de identidade
+> delegada (sem autenticação própria) e em MongoDB, coberto por testes
+> unitários JUnit e pela suíte de contrato em Python. O aplicativo fala o
+> mesmo contrato: gera o UUID da instalação em `expo-secure-store`, envia
+> `X-User-UUID` em toda requisição e não tem mais telas de login, recuperação
+> ou `/users/me`. O adaptador de mock cumpre o contrato completo por escopo de
+> identidade, e há suíte de contrato opt-in contra a API real. A exclusão de
+> conta é do provedor de identidade; o app oferece o apagamento dos dados
+> locais com nova identidade.
 
 > As sprints são uma divisão de trabalho sugerida — **não** são estimativa
 > garantida de prazo.
@@ -1541,11 +1562,15 @@ bloqueantes travam a sprint indicada.
 
 ## 21. Próximos passos
 
-1. Migrar o aplicativo mobile para a identidade injetada pelo gateway: remover
-   as telas e chamadas de `/auth/*` e `/users/me`, e passar a falar com a API
-   real usando o header que a infraestrutura injeta.
-2. Ligar ao backend real as telas que ainda usam o adaptador de mock: dashboard,
-   evolução por exercício, recordes e catálogo pessoal.
+1. ~~Migrar o aplicativo mobile para a identidade injetada pelo gateway~~ —
+   **Concluído:** as telas e chamadas de `/auth/*` e `/users/me` foram
+   removidas; o app gera o UUID da instalação e o envia em `X-User-UUID` em
+   toda chamada, contra o adaptador de mock ou a API real. Quando o gateway
+   assumir, ele passa a sobrescrever o header; a troca fica restrita à camada
+   de identidade ([6.4](#64-autenticar-e-acessar-os-dados)).
+2. Exercitar as telas do app contra o backend real — dashboard, evolução por
+   exercício, recordes e catálogo pessoal rodam com o adaptador de mock por
+   padrão; validar o percurso completo com `IT_API_URL` e na matriz Android.
 3. Resolver a decisão 3 (provedor de LLM e orçamento) e a 8 (escopo da Fase 2).
 4. Integrar a primeira funcionalidade de IA no app, com revisão e decisão do
    usuário.
